@@ -8,9 +8,11 @@ build/
 # TypeScript incremental build cache
 *.tsbuildinfo
 
-# WASM binary — copied from node_modules/ffish-es6 by postinstall script.
-# Not committed to keep repo small; reproducible from npm install.
+# Engine runtime files — copied from node_modules by scripts/copy-wasm.mjs
+# (postinstall). Not committed to keep repo small and avoid duplicating
+# vendored binaries; reproducible from `npm install`.
 public/ffish.wasm
+public/engine/
 
 # Piece SVG masks (CC BY-SA 4.0, Yevrowl, Wikimedia Commons) ARE committed
 # — see public/pieces/NOTICE for attribution.

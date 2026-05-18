@@ -81,8 +81,16 @@ licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 See `public/pieces/NOTICE` for the full attribution and licensing details.
 
 The Makruk variant rules engine is [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish)
-via [`ffish-es6`](https://www.npmjs.com/package/ffish-es6) (GPL-3.0; used
-unmodified as a runtime dependency).
+loaded at runtime via two npm packages, both used unmodified:
+
+- [`ffish-es6`](https://www.npmjs.com/package/ffish-es6) — board state, legal
+  moves, FEN parsing (GPL-3.0).
+- [`fairy-stockfish-nnue.wasm`](https://www.npmjs.com/package/fairy-stockfish-nnue.wasm)
+  — full engine with UCI search and Skill Level (GPL-3.0). Optimized for
+  WASM SIMD.
+
+Both packages are GPL-3.0 dependencies; OpenMakruk does not modify or
+statically link them, so the project itself remains MIT-licensed.
 
 ## License
 

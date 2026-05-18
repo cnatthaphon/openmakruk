@@ -1,10 +1,8 @@
-// Copy Fairy-Stockfish WASM binary from node_modules into public/ so Vite
-// serves it at /ffish.wasm. Runs automatically after `npm install`.
+// Copy WASM/engine runtime files from node_modules into public/ so Vite
+// serves them as static assets. Runs automatically after `npm install`.
 //
-// Why not commit the .wasm: ~920KB binary; reproducible from npm install.
-// Why not let Vite resolve it: ffish-es6 uses Emscripten's fetch loader that
-// expects an absolute URL at runtime; placing the file at site root is the
-// simplest reliable approach.
+// Why not commit these: they're large binaries that come from npm
+// packages; we keep public/ source-clean and treat them as derived assets.
 
 import { copyFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -13,15 +11,27 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
-const src = join(root, 'node_modules', 'ffish-es6', 'ffish.wasm');
-const destDir = join(root, 'public');
-const dest = join(destDir, 'ffish.wasm');
+const copies = [
+  // ffish-es6 rules engine (Fairy-Stockfish board state)
+  ['node_modules/ffish-es6/ffish.wasm', 'public/ffish.wasm'],
 
-if (!existsSync(src)) {
-  console.warn(`[copy-wasm] source not found, skipping: ${src}`);
-  process.exit(0);
+  // fairy-stockfish-nnue.wasm — full engine (UCI, search, NNUE-ready)
+  ['node_modules/fairy-stockfish-nnue.wasm/stockfish.js', 'public/engine/stockfish.js'],
+  ['node_modules/fairy-stockfish-nnue.wasm/stockfish.wasm', 'public/engine/stockfish.wasm'],
+  ['node_modules/fairy-stockfish-nnue.wasm/stockfish.worker.js', 'public/engine/stockfish.worker.js'],
+];
+
+let copied = 0;
+for (const [src, dest] of copies) {
+  const absSrc = join(root, src);
+  const absDest = join(root, dest);
+  if (!existsSync(absSrc)) {
+    console.warn(`[copy-wasm] missing source, skipping: ${src}`);
+    continue;
+  }
+  mkdirSync(dirname(absDest), { recursive: true });
+  copyFileSync(absSrc, absDest);
+  copied++;
 }
 
-mkdirSync(destDir, { recursive: true });
-copyFileSync(src, dest);
-console.log(`[copy-wasm] ${src} → ${dest}`);
+console.log(`[copy-wasm] copied ${copied}/${copies.length} runtime files`);

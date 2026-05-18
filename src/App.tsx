@@ -9,6 +9,12 @@ import {
   type PieceMap,
   type Square,
 } from './lib/makruk';
+import {
+  DIFFICULTY_LABELS,
+  DIFFICULTY_PRESETS,
+  searchBestMove,
+  type Difficulty,
+} from './lib/engine';
 
 type BoardState = {
   pieces: PieceMap;
@@ -60,6 +66,7 @@ export default function App() {
   const [speed, setSpeed] = useState<Speed>('normal');
   const [showArrow, setShowArrow] = useState(true);
   const [thinking, setThinking] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -94,25 +101,62 @@ export default function App() {
     if (computerSide !== 'both' && computerSide !== state.turn) return;
 
     setThinking(true);
-    const apply = () => {
-      const move = pickComputerMove(state.legalMoves);
-      if (!move) {
+    let cancelled = false;
+    const startedAt = Date.now();
+
+    (async () => {
+      try {
+        const preset = DIFFICULTY_PRESETS[difficulty];
+        const { bestMove } = await searchBestMove(state.fen, preset);
+
+        if (cancelled) return;
+        if (!bestMove || bestMove === '(none)' || bestMove === '0000') {
+          setThinking(false);
+          return;
+        }
+        // Validate against current legal moves in case the position drifted.
+        const legalUci = state.legalMoves.find(
+          (m) => m === bestMove || m.startsWith(bestMove),
+        );
+        const move = legalUci ?? bestMove;
+
+        // Honour the "speed" floor so the user can see the move land. The
+        // engine may already have spent more time than the floor — in that
+        // case we apply immediately.
+        const elapsed = Date.now() - startedAt;
+        const floor = SPEED_MS[speed];
+        const wait = Math.max(0, floor - elapsed);
+
+        pendingTimer.current = window.setTimeout(() => {
+          if (cancelled) return;
+          board.push(move);
+          setHistory((h) => [...h, move]);
+          setState(snapshot(board));
+          setSelected(null);
+          setThinking(false);
+        }, wait);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('engine search failed:', err);
+        // Fall back to a legal move so the game doesn't deadlock.
+        const fallback = state.legalMoves[0];
+        if (fallback) {
+          board.push(fallback);
+          setHistory((h) => [...h, fallback]);
+          setState(snapshot(board));
+        }
+        setSelected(null);
         setThinking(false);
-        return;
       }
-      board.push(move);
-      setHistory((h) => [...h, move]);
-      setState(snapshot(board));
-      setSelected(null);
-      setThinking(false);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (pendingTimer.current !== null) {
+        clearTimeout(pendingTimer.current);
+        pendingTimer.current = null;
+      }
     };
-    const delay = SPEED_MS[speed];
-    if (delay === 0) {
-      // setTimeout(0) still defers to next tick — fine, avoids deep recursion
-      pendingTimer.current = window.setTimeout(apply, 0);
-    } else {
-      pendingTimer.current = window.setTimeout(apply, delay);
-    }
 
     return () => {
       if (pendingTimer.current !== null) {
@@ -121,7 +165,7 @@ export default function App() {
       }
       setThinking(false);
     };
-  }, [board, state, mode, speed]);
+  }, [board, state, mode, speed, difficulty]);
 
   const legalDestinations: Square[] = useMemo(() => {
     if (!selected || !state) return [];
@@ -260,7 +304,19 @@ export default function App() {
           </div>
 
           <div className="mode-picker">
-            <span className="label">ความเร็วคอม</span>
+            <span className="label">ระดับคอม</span>
+            <select
+              value={difficulty}
+              onChange={(e) => setDifficulty(e.target.value as Difficulty)}
+            >
+              {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => (
+                <option key={d} value={d}>{DIFFICULTY_LABELS[d]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mode-picker">
+            <span className="label">ความเร็วคอม (ขั้นต่ำ)</span>
             <select
               value={speed}
               onChange={(e) => setSpeed(e.target.value as Speed)}
@@ -310,8 +366,9 @@ export default function App() {
           </div>
 
           <div className="note">
-            <strong>หมายเหตุ v0.0:</strong> คอมเดินแบบ random (placeholder).
-            v0.1 จะใส่ Fairy-Stockfish engine จริงผ่าน Web Worker.
+            <strong>v0.1:</strong> ใช้ Fairy-Stockfish engine จริงแล้ว
+            (classical eval, ยังไม่ได้โหลด Makruk NNUE network).
+            ปรับระดับด้านบนเพื่อให้คอมเล่นง่ายขึ้น/ยากขึ้น.
           </div>
 
           <div className="fen">
@@ -369,9 +426,3 @@ function userSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
   }
 }
 
-// v0.0 placeholder: random legal move.
-// v0.1 will replace with Fairy-Stockfish bestMove via Web Worker.
-function pickComputerMove(legalMoves: string[]): string | null {
-  if (legalMoves.length === 0) return null;
-  return legalMoves[Math.floor(Math.random() * legalMoves.length)];
-}
