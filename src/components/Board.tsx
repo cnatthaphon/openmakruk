@@ -1,148 +1,145 @@
-import type { PieceMap, Square } from '../lib/makruk';
-import { MakrukPiece } from './MakrukPiece';
+import { useEffect, useRef } from 'react';
+import { Chessground } from 'chessground';
+import type { Api } from 'chessground/api';
+import type { Config } from 'chessground/config';
+import type { Key } from 'chessground/types';
+import type { Square } from '../lib/makruk';
 import './Board.css';
 
-const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
-const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
-
 type Props = {
-  pieces: PieceMap;
-  selected: Square | null;
-  legalDestinations: Square[];
+  fen: string;          // current position in Makruk FEN (M/S letters)
+  legalMoves: string[]; // all legal UCI moves from current position
+  flipped: boolean;     // board orientation
+  disabled: boolean;    // engine thinking / game over / not user's turn
+  turn: 'white' | 'black';
+  isCheck: boolean;
   lastMove: { from: Square; to: Square } | null;
-  flipped: boolean;
-  showArrow: boolean;
-  onSquareClick: (square: Square) => void;
+  onMove: (from: Square, to: Square) => void;
 };
 
-/** Map a square like "e4" to (col,row) in the rendered 0-7 grid. */
-function squareToColRow(square: Square, flipped: boolean): { col: number; row: number } {
-  const fileIdx = square.charCodeAt(0) - 97; // 'a'=0
-  const rankNum = parseInt(square[1], 10);    // 1..8
-  if (flipped) {
-    return { col: 7 - fileIdx, row: rankNum - 1 };
+/**
+ * Map Makruk's variant piece letters to standard chess letters so we
+ * can hand the FEN straight to chessground, which only knows the six
+ * canonical chess roles (king/queen/bishop/knight/rook/pawn).
+ *
+ * Makruk → chessground role:
+ *   K (Khun)  → king
+ *   M (Met)   → queen   ← role rename only; movement rules are still Makruk
+ *   S (Khon)  → bishop  ← role rename only; movement rules are still Makruk
+ *   N (Ma)    → knight
+ *   R (Ruea)  → rook
+ *   P (Bia)   → pawn
+ *
+ * Movement legality is still produced by ffish-es6 (Fairy-Stockfish);
+ * chessground only renders. CSS in Board.css repaints the queen and
+ * bishop slots with Makruk artwork so users still see Met and Khon.
+ */
+function toChessgroundFen(makrukFen: string): string {
+  return makrukFen
+    .replace(/M/g, 'Q')
+    .replace(/m/g, 'q')
+    .replace(/S/g, 'B')
+    .replace(/s/g, 'b');
+}
+
+function buildDests(legalMoves: string[]): Map<Key, Key[]> {
+  const dests = new Map<Key, Key[]>();
+  for (const uci of legalMoves) {
+    const from = uci.slice(0, 2) as Key;
+    const to = uci.slice(2, 4) as Key;
+    const list = dests.get(from);
+    if (list) list.push(to);
+    else dests.set(from, [to]);
   }
-  return { col: fileIdx, row: 8 - rankNum };
+  return dests;
 }
 
 export function Board({
-  pieces,
-  selected,
-  legalDestinations,
+  fen,
+  legalMoves,
+  flipped,
+  disabled,
+  turn,
+  isCheck,
   lastMove,
-  flipped,
-  showArrow,
-  onSquareClick,
+  onMove,
 }: Props) {
-  const ranks = flipped ? [...RANKS].reverse() : RANKS;
-  const files = flipped ? [...FILES].reverse() : FILES;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<Api | null>(null);
 
-  return (
-    <div className="board-wrap">
-      <div className="board" role="grid" aria-label="Makruk board">
-        {ranks.map((rank, rankIdx) =>
-          files.map((file, fileIdx) => {
-          const square = `${file}${rank}`;
-          const piece = pieces[square];
-          const isDark = (rankIdx + fileIdx) % 2 === 1;
-          const isSelected = selected === square;
-          const isLegal = legalDestinations.includes(square);
-          const isLastFrom = lastMove?.from === square;
-          const isLastTo = lastMove?.to === square;
+  // Mount chessground once. Subsequent state changes go through api.set()
+  // in the second effect so we never re-create the DOM (chessground
+  // animates between updates, which would break on remount).
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-          const classes = [
-            'square',
-            isDark ? 'dark' : 'light',
-            isSelected && 'selected',
-            isLegal && (piece ? 'legal-capture' : 'legal-move'),
-            (isLastFrom || isLastTo) && 'last-move',
-          ]
-            .filter(Boolean)
-            .join(' ');
+    const config: Config = {
+      fen: toChessgroundFen(fen),
+      orientation: flipped ? 'black' : 'white',
+      turnColor: turn,
+      check: isCheck,
+      coordinates: true,
+      lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
+      movable: {
+        free: false,
+        color: disabled ? undefined : turn,
+        dests: buildDests(legalMoves),
+        showDests: true,
+        events: {
+          after: (orig, dest) => onMove(orig as Square, dest as Square),
+        },
+      },
+      draggable: {
+        enabled: true,
+        showGhost: true,
+      },
+      selectable: {
+        enabled: true,
+      },
+      animation: {
+        enabled: true,
+        duration: 220,
+      },
+      highlight: {
+        lastMove: true,
+        check: true,
+      },
+      premovable: { enabled: false },
+      drawable: { enabled: false },
+    };
 
-          return (
-            <button
-              key={square}
-              className={classes}
-              onClick={() => onSquareClick(square)}
-              aria-label={`${square}${piece ? ' ' + piece : ''}`}
-            >
-              {piece && <MakrukPiece piece={piece} />}
-              {isLegal && !piece && <span className="move-dot" aria-hidden="true" />}
-              {fileIdx === 0 && <span className="coord rank-label">{rank}</span>}
-              {rankIdx === 7 && <span className="coord file-label">{file}</span>}
-            </button>
-          );
-        }),
-      )}
-      </div>
-      {showArrow && lastMove && lastMove.from !== lastMove.to && (
-        <MoveArrow from={lastMove.from} to={lastMove.to} flipped={flipped} />
-      )}
-    </div>
-  );
-}
+    apiRef.current = Chessground(containerRef.current, config);
 
-function MoveArrow({
-  from,
-  to,
-  flipped,
-}: {
-  from: Square;
-  to: Square;
-  flipped: boolean;
-}) {
-  const a = squareToColRow(from, flipped);
-  const b = squareToColRow(to, flipped);
-  // Center of each square in a 0-8 viewBox.
-  const x1 = a.col + 0.5;
-  const y1 = a.row + 0.5;
-  const x2 = b.col + 0.5;
-  const y2 = b.row + 0.5;
+    return () => {
+      apiRef.current?.destroy();
+      apiRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Shorten the line slightly so the arrowhead sits inside the dest square
-  // instead of crashing into the next square's edge.
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy);
-  const trim = 0.32;
-  const ux = dx / len;
-  const uy = dy / len;
-  const sx = x1 + ux * trim;
-  const sy = y1 + uy * trim;
-  const ex = x2 - ux * trim;
-  const ey = y2 - uy * trim;
+  // Sync React state into chessground without remounting.
+  useEffect(() => {
+    apiRef.current?.set({
+      fen: toChessgroundFen(fen),
+      orientation: flipped ? 'black' : 'white',
+      turnColor: turn,
+      check: isCheck,
+      lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : [],
+      movable: {
+        color: disabled ? undefined : turn,
+        dests: buildDests(legalMoves),
+      },
+    });
+  }, [
+    fen,
+    legalMoves,
+    flipped,
+    disabled,
+    turn,
+    isCheck,
+    lastMove?.from,
+    lastMove?.to,
+  ]);
 
-  return (
-    <svg
-      className="move-arrow"
-      viewBox="0 0 8 8"
-      preserveAspectRatio="none"
-      aria-hidden="true"
-    >
-      <defs>
-        <marker
-          id="arrowhead"
-          viewBox="0 0 10 10"
-          refX="6"
-          refY="5"
-          markerWidth="5"
-          markerHeight="5"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 1 L 8 5 L 0 9 Z" fill="var(--arrow-color)" />
-        </marker>
-      </defs>
-      <line
-        x1={sx}
-        y1={sy}
-        x2={ex}
-        y2={ey}
-        stroke="var(--arrow-color)"
-        strokeWidth="0.18"
-        strokeLinecap="round"
-        markerEnd="url(#arrowhead)"
-      />
-    </svg>
-  );
+  return <div ref={containerRef} className="cg-wrap" />;
 }

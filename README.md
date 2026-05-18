@@ -89,8 +89,13 @@ loaded at runtime via two npm packages, both used unmodified:
   — full engine with UCI search and Skill Level (GPL-3.0). Optimized for
   WASM SIMD.
 
-Both packages are GPL-3.0 dependencies; OpenMakruk does not modify or
-statically link them, so the project itself remains MIT-licensed.
+Board UI (drag-drop, animation, square highlighting, premoves) is provided
+by [`chessground`](https://github.com/lichess-org/chessground), Lichess's
+production-grade board library (GPL-3.0). Used unmodified; Makruk piece
+artwork is applied via CSS background-image overrides.
+
+All three packages are GPL-3.0 runtime dependencies; OpenMakruk does not
+modify or statically link them, so the project itself remains MIT-licensed.
 
 ## License
 

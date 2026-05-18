@@ -12,6 +12,7 @@
     "postinstall": "node scripts/copy-wasm.mjs"
   },
   "dependencies": {
+    "chessground": "^9.2.1",
     "fairy-stockfish-nnue.wasm": "^1.1.11",
     "ffish-es6": "^0.7.9",
     "react": "^18.3.1",

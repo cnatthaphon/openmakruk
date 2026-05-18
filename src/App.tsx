@@ -2,11 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from './components/Board';
 import {
-  fenToPieceMap,
   loadFfish,
   parseLegalMoves,
   parseUci,
-  type PieceMap,
   type Square,
 } from './lib/makruk';
 import {
@@ -17,7 +15,6 @@ import {
 } from './lib/engine';
 
 type BoardState = {
-  pieces: PieceMap;
   turn: 'white' | 'black';
   isCheck: boolean;
   isGameOver: boolean;
@@ -60,11 +57,9 @@ export default function App() {
   const [board, setBoard] = useState<FfishBoard | null>(null);
   const [state, setState] = useState<BoardState | null>(null);
   const [history, setHistory] = useState<string[]>([]);
-  const [selected, setSelected] = useState<Square | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [mode, setMode] = useState<Mode>('play-white');
   const [speed, setSpeed] = useState<Speed>('normal');
-  const [showArrow, setShowArrow] = useState(true);
   const [thinking, setThinking] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -132,20 +127,17 @@ export default function App() {
           board.push(move);
           setHistory((h) => [...h, move]);
           setState(snapshot(board));
-          setSelected(null);
           setThinking(false);
         }, wait);
       } catch (err) {
         if (cancelled) return;
         console.error('engine search failed:', err);
-        // Fall back to a legal move so the game doesn't deadlock.
         const fallback = state.legalMoves[0];
         if (fallback) {
           board.push(fallback);
           setHistory((h) => [...h, fallback]);
           setState(snapshot(board));
         }
-        setSelected(null);
         setThinking(false);
       }
     })();
@@ -156,27 +148,15 @@ export default function App() {
         clearTimeout(pendingTimer.current);
         pendingTimer.current = null;
       }
-    };
-
-    return () => {
-      if (pendingTimer.current !== null) {
-        clearTimeout(pendingTimer.current);
-        pendingTimer.current = null;
-      }
       setThinking(false);
     };
   }, [board, state, mode, speed, difficulty]);
 
-  const legalDestinations: Square[] = useMemo(() => {
-    if (!selected || !state) return [];
-    return state.legalMoves
-      .filter((m) => m.startsWith(selected))
-      .map((m) => parseUci(m).to);
-  }, [selected, state]);
-
   const lastMove = useMemo(() => {
     const last = history[history.length - 1];
-    return last ? parseUci(last) : null;
+    if (!last) return null;
+    const { from, to } = parseUci(last);
+    return { from, to };
   }, [history]);
 
   if (loadError) {
@@ -200,41 +180,21 @@ export default function App() {
 
   const userSide = userSideForMode(mode);
 
-  const handleSquareClick = (square: Square) => {
+  // chessground hands us (from, to) after both click-to-move and drag-drop.
+  // We only need to validate against the legal move list and push.
+  const handleMove = (from: Square, to: Square) => {
     if (state.isGameOver) return;
-    if (thinking) return; // disable input while computer is thinking
-    if (userSide !== 'both' && userSide !== state.turn) return; // not user's turn
-
-    const piece = state.pieces[square];
-    const isOwnPiece = piece && pieceMatchesTurn(piece, state.turn);
-
-    if (selected === null) {
-      if (isOwnPiece) setSelected(square);
-      return;
-    }
-
-    if (selected === square) {
-      setSelected(null);
-      return;
-    }
+    if (thinking) return;
+    if (userSide !== 'both' && userSide !== state.turn) return;
 
     const tryMove = state.legalMoves.find(
-      (m) => m.slice(0, 2) === selected && m.slice(2, 4) === square,
+      (m) => m.slice(0, 2) === from && m.slice(2, 4) === to,
     );
+    if (!tryMove) return; // illegal — chessground will snap back
 
-    if (tryMove) {
-      board.push(tryMove);
-      setHistory((h) => [...h, tryMove]);
-      setState(snapshot(board));
-      setSelected(null);
-      return;
-    }
-
-    if (isOwnPiece) {
-      setSelected(square);
-    } else {
-      setSelected(null);
-    }
+    board.push(tryMove);
+    setHistory((h) => [...h, tryMove]);
+    setState(snapshot(board));
   };
 
   const handleUndo = () => {
@@ -243,12 +203,10 @@ export default function App() {
       clearTimeout(pendingTimer.current);
       pendingTimer.current = null;
     }
-    // If playing against computer, undo two plies so it's user's turn again.
     const undoCount = userSide === 'both' || userSide === null ? 1 : Math.min(2, history.length);
     for (let i = 0; i < undoCount; i++) board.pop();
     setHistory((h) => h.slice(0, -undoCount));
     setState(snapshot(board));
-    setSelected(null);
   };
 
   const handleReset = () => {
@@ -259,7 +217,6 @@ export default function App() {
     for (let i = 0; i < history.length; i++) board.pop();
     setHistory([]);
     setState(snapshot(board));
-    setSelected(null);
   };
 
   const handleModeChange = (newMode: Mode) => {
@@ -268,8 +225,6 @@ export default function App() {
       pendingTimer.current = null;
     }
     setMode(newMode);
-    setSelected(null);
-    // Auto-flip board to put user's side at bottom
     if (newMode === 'play-black') setFlipped(true);
     else if (newMode === 'play-white') setFlipped(false);
   };
@@ -282,13 +237,14 @@ export default function App() {
       </header>
       <main>
         <Board
-          pieces={state.pieces}
-          selected={selected}
-          legalDestinations={legalDestinations}
-          lastMove={lastMove}
+          fen={state.fen}
+          legalMoves={state.legalMoves}
           flipped={flipped}
-          showArrow={showArrow}
-          onSquareClick={handleSquareClick}
+          disabled={thinking || state.isGameOver || (userSide !== 'both' && userSide !== state.turn)}
+          turn={state.turn}
+          isCheck={state.isCheck}
+          lastMove={lastMove}
+          onMove={handleMove}
         />
         <aside className="sidebar">
           <div className="mode-picker">
@@ -327,14 +283,6 @@ export default function App() {
             </select>
           </div>
 
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={showArrow}
-              onChange={(e) => setShowArrow(e.target.checked)}
-            />
-            <span>แสดงลูกศรตาเดิน</span>
-          </label>
 
           <div className="status">
             <div>
@@ -390,22 +338,15 @@ export default function App() {
 }
 
 function snapshot(b: FfishBoard): BoardState {
-  const fen = b.fen();
   return {
-    pieces: fenToPieceMap(fen),
     turn: b.turn() ? 'white' : 'black',
     isCheck: b.isCheck(),
     isGameOver: b.isGameOver(),
     result: b.result(),
     legalMoves: parseLegalMoves(b.legalMoves()),
-    fen,
+    fen: b.fen(),
     fullmove: b.fullmoveNumber(),
   };
-}
-
-function pieceMatchesTurn(piece: string, turn: 'white' | 'black'): boolean {
-  const white = piece === piece.toUpperCase();
-  return (white && turn === 'white') || (!white && turn === 'black');
 }
 
 function computerSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
