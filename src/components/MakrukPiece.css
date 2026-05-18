@@ -2,9 +2,10 @@
  *
  * Each piece is a div whose silhouette is provided by a CSS mask-image
  * pointing at an SVG in /public/pieces/. The background-color paints the
- * silhouette; a stacked drop-shadow filter draws a thin outline so a
- * cream piece is still visible on a cream square (and likewise dark on
- * dark) plus a board shadow.
+ * silhouette; a stacked 8-direction drop-shadow filter draws a chunky
+ * outline so the piece stays visible regardless of which colour square
+ * it sits on (the previous 1px outline disappeared against same-tone
+ * squares — the light cream piece blended into the light cream square).
  *
  * Source SVGs: Yevrowl (Wikimedia Commons, CC BY-SA 4.0).
  */
@@ -13,12 +14,25 @@
   width: 88%;
   height: 88%;
   pointer-events: none;
+  background-color: var(--mk-fill);
   -webkit-mask-size: contain;
   -webkit-mask-position: center;
   -webkit-mask-repeat: no-repeat;
   mask-size: contain;
   mask-position: center;
   mask-repeat: no-repeat;
+  /* 8-direction outline (cardinals at 1.5px + diagonals at 1.1px) plus a
+     real drop-shadow underneath for board-shadow depth. */
+  filter:
+    drop-shadow( 1.5px  0     0 var(--mk-outline))
+    drop-shadow(-1.5px  0     0 var(--mk-outline))
+    drop-shadow( 0      1.5px 0 var(--mk-outline))
+    drop-shadow( 0     -1.5px 0 var(--mk-outline))
+    drop-shadow( 1.1px  1.1px 0 var(--mk-outline))
+    drop-shadow(-1.1px  1.1px 0 var(--mk-outline))
+    drop-shadow( 1.1px -1.1px 0 var(--mk-outline))
+    drop-shadow(-1.1px -1.1px 0 var(--mk-outline))
+    drop-shadow(1px 2.5px 2.5px rgba(0, 0, 0, 0.35));
 }
 
 /* Per-piece mask sources. The same "_white" silhouette is used for both
@@ -48,26 +62,16 @@
   mask-image: url('/pieces/Bia_white.svg');
 }
 
-/* Light side: warm boxwood cream + dark rosewood outline + board shadow */
+/* Light side: ivory fill (more distinct from cream squares) + dark outline */
 .mk-piece.mk-white {
-  background-color: #ead9b1;
-  filter:
-    drop-shadow( 1px  0   0 #2a1810)
-    drop-shadow(-1px  0   0 #2a1810)
-    drop-shadow( 0    1px 0 #2a1810)
-    drop-shadow( 0   -1px 0 #2a1810)
-    drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.35));
+  --mk-fill: #faecc1;
+  --mk-outline: #1a0a06;
 }
 
-/* Dark side: rosewood + cream outline (visible on dark squares) + shadow */
+/* Dark side: deep rosewood fill + warm ivory outline */
 .mk-piece.mk-black {
-  background-color: #2a1810;
-  filter:
-    drop-shadow( 1px  0   0 rgba(234, 217, 177, 0.55))
-    drop-shadow(-1px  0   0 rgba(234, 217, 177, 0.55))
-    drop-shadow( 0    1px 0 rgba(234, 217, 177, 0.55))
-    drop-shadow( 0   -1px 0 rgba(234, 217, 177, 0.55))
-    drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.45));
+  --mk-fill: #2a1810;
+  --mk-outline: rgba(250, 236, 193, 0.85);
 }
 
 /* Fallback rendering if the piece character is unknown */
@@ -76,5 +80,5 @@
   line-height: 1;
 }
 
-.mk-fallback.mk-white { color: #ead9b1; }
+.mk-fallback.mk-white { color: #faecc1; }
 .mk-fallback.mk-black { color: #2a1810; }

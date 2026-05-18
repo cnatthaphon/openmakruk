@@ -5,15 +5,16 @@
   --accent: #d4a23c;
   --accent-fg: #1a1816;
 
-  /* Board palette — warm wood tones */
-  --sq-light: #e6d2a8;
-  --sq-dark: #8b6f47;
-  --sq-selected: #f4d785;
+  /* Board palette — warm wood tones. Light is pulled slightly darker /
+     more tan than before so cream pieces don't blend into it. */
+  --sq-light: #d9bf8a;
+  --sq-dark: #74522e;
+  --sq-selected: #f0c862;
   --sq-selected-ring: #d4a23c;
-  --sq-last-move: rgba(212, 162, 60, 0.32);
+  --sq-last-move: rgba(212, 162, 60, 0.34);
   --sq-capture-ring: rgba(180, 50, 50, 0.7);
-  --board-border: #3a322a;
-  --coord-color: #3a322a;
+  --board-border: #2c241c;
+  --coord-color: #2c241c;
 
   font-family: 'Sarabun', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: dark;
