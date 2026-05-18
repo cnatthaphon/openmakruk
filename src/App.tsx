@@ -1,0 +1,332 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { Board as FfishBoard } from 'ffish-es6';
+import { Board } from './components/Board';
+import {
+  fenToPieceMap,
+  loadFfish,
+  parseLegalMoves,
+  parseUci,
+  type PieceMap,
+  type Square,
+} from './lib/makruk';
+
+type BoardState = {
+  pieces: PieceMap;
+  turn: 'white' | 'black';
+  isCheck: boolean;
+  isGameOver: boolean;
+  result: string;
+  legalMoves: string[];
+  fen: string;
+  fullmove: number;
+};
+
+type Mode =
+  | 'play-white' // user plays white, computer plays black (default)
+  | 'play-black' // user plays black, computer plays white
+  | 'self-play' // computer plays both sides (testing/demo)
+  | 'manual'; // user plays both sides (testing/exploration)
+
+const MODE_LABELS: Record<Mode, string> = {
+  'play-white': 'เล่นเป็นขาว (vs คอม)',
+  'play-black': 'เล่นเป็นดำ (vs คอม)',
+  'self-play': 'คอม vs คอม (ทดสอบ)',
+  manual: 'เล่นเองทั้งสองฝั่ง',
+};
+
+const COMPUTER_DELAY_MS = 600;
+
+export default function App() {
+  const [board, setBoard] = useState<FfishBoard | null>(null);
+  const [state, setState] = useState<BoardState | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Square | null>(null);
+  const [flipped, setFlipped] = useState(false);
+  const [mode, setMode] = useState<Mode>('play-white');
+  const [thinking, setThinking] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const pendingTimer = useRef<number | null>(null);
+
+  // Load ffish-es6 once on mount.
+  useEffect(() => {
+    let cancelled = false;
+    loadFfish()
+      .then((ffish) => {
+        if (cancelled) return;
+        const b = new ffish.Board('makruk');
+        setBoard(b);
+        setState(snapshot(b));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to load Fairy-Stockfish WASM:', err);
+        setLoadError(err?.message ?? String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Computer move trigger. Whenever the turn matches a "computer" side
+  // (per current mode), schedule an auto-move after a short delay.
+  useEffect(() => {
+    if (!board || !state) return;
+    if (state.isGameOver) return;
+
+    const computerSide = computerSideForMode(mode);
+    if (computerSide === null) return; // manual: no computer
+    if (computerSide !== 'both' && computerSide !== state.turn) return;
+
+    setThinking(true);
+    pendingTimer.current = window.setTimeout(() => {
+      const move = pickComputerMove(state.legalMoves);
+      if (!move) {
+        setThinking(false);
+        return;
+      }
+      board.push(move);
+      setHistory((h) => [...h, move]);
+      setState(snapshot(board));
+      setSelected(null);
+      setThinking(false);
+    }, COMPUTER_DELAY_MS);
+
+    return () => {
+      if (pendingTimer.current !== null) {
+        clearTimeout(pendingTimer.current);
+        pendingTimer.current = null;
+      }
+      setThinking(false);
+    };
+  }, [board, state, mode]);
+
+  const legalDestinations: Square[] = useMemo(() => {
+    if (!selected || !state) return [];
+    return state.legalMoves
+      .filter((m) => m.startsWith(selected))
+      .map((m) => parseUci(m).to);
+  }, [selected, state]);
+
+  const lastMove = useMemo(() => {
+    const last = history[history.length - 1];
+    return last ? parseUci(last) : null;
+  }, [history]);
+
+  if (loadError) {
+    return (
+      <div className="screen error">
+        <h2>โหลด engine ไม่สำเร็จ</h2>
+        <pre>{loadError}</pre>
+        <p>ลอง refresh หน้านี้ หรือเปิด console ดู error</p>
+      </div>
+    );
+  }
+
+  if (!state || !board) {
+    return (
+      <div className="screen loading">
+        <div className="spinner" aria-hidden="true" />
+        <p>กำลังโหลด Fairy-Stockfish WASM...</p>
+      </div>
+    );
+  }
+
+  const userSide = userSideForMode(mode);
+
+  const handleSquareClick = (square: Square) => {
+    if (state.isGameOver) return;
+    if (thinking) return; // disable input while computer is thinking
+    if (userSide !== 'both' && userSide !== state.turn) return; // not user's turn
+
+    const piece = state.pieces[square];
+    const isOwnPiece = piece && pieceMatchesTurn(piece, state.turn);
+
+    if (selected === null) {
+      if (isOwnPiece) setSelected(square);
+      return;
+    }
+
+    if (selected === square) {
+      setSelected(null);
+      return;
+    }
+
+    const tryMove = state.legalMoves.find(
+      (m) => m.slice(0, 2) === selected && m.slice(2, 4) === square,
+    );
+
+    if (tryMove) {
+      board.push(tryMove);
+      setHistory((h) => [...h, tryMove]);
+      setState(snapshot(board));
+      setSelected(null);
+      return;
+    }
+
+    if (isOwnPiece) {
+      setSelected(square);
+    } else {
+      setSelected(null);
+    }
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    if (pendingTimer.current !== null) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+    // If playing against computer, undo two plies so it's user's turn again.
+    const undoCount = userSide === 'both' || userSide === null ? 1 : Math.min(2, history.length);
+    for (let i = 0; i < undoCount; i++) board.pop();
+    setHistory((h) => h.slice(0, -undoCount));
+    setState(snapshot(board));
+    setSelected(null);
+  };
+
+  const handleReset = () => {
+    if (pendingTimer.current !== null) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+    for (let i = 0; i < history.length; i++) board.pop();
+    setHistory([]);
+    setState(snapshot(board));
+    setSelected(null);
+  };
+
+  const handleModeChange = (newMode: Mode) => {
+    if (pendingTimer.current !== null) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+    setMode(newMode);
+    setSelected(null);
+    // Auto-flip board to put user's side at bottom
+    if (newMode === 'play-black') setFlipped(true);
+    else if (newMode === 'play-white') setFlipped(false);
+  };
+
+  return (
+    <div className="app">
+      <header>
+        <h1>OpenMakruk</h1>
+        <p className="tagline">หมากรุกไทย · v0.0 prototype</p>
+      </header>
+      <main>
+        <Board
+          pieces={state.pieces}
+          selected={selected}
+          legalDestinations={legalDestinations}
+          lastMove={lastMove}
+          flipped={flipped}
+          onSquareClick={handleSquareClick}
+        />
+        <aside className="sidebar">
+          <div className="mode-picker">
+            <span className="label">โหมด</span>
+            <select
+              value={mode}
+              onChange={(e) => handleModeChange(e.target.value as Mode)}
+            >
+              {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
+                <option key={m} value={m}>{MODE_LABELS[m]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="status">
+            <div>
+              <span className="label">ตาเดิน:</span>{' '}
+              <strong>{state.turn === 'white' ? 'ขาว ♔' : 'ดำ ♚'}</strong>
+              {state.isCheck && <span className="check"> · รุก!</span>}
+              {thinking && <span className="thinking"> · คอมคิด...</span>}
+            </div>
+            <div>
+              <span className="label">ตาที่:</span> {state.fullmove}
+            </div>
+            {state.isGameOver && (
+              <div className="gameover">
+                จบเกม · {state.result}
+              </div>
+            )}
+          </div>
+
+          <div className="controls">
+            <button onClick={handleUndo} disabled={history.length === 0 || thinking}>
+              ↶ ย้อน
+            </button>
+            <button onClick={handleReset} disabled={history.length === 0}>
+              ⟳ เริ่มใหม่
+            </button>
+            <button onClick={() => setFlipped((f) => !f)}>
+              ⇅ พลิกกระดาน
+            </button>
+          </div>
+
+          <div className="note">
+            <strong>หมายเหตุ v0.0:</strong> คอมเดินแบบ random (placeholder).
+            v0.1 จะใส่ Fairy-Stockfish engine จริงผ่าน Web Worker.
+          </div>
+
+          <div className="fen">
+            <span className="label">FEN:</span>
+            <code>{state.fen}</code>
+          </div>
+        </aside>
+      </main>
+      <footer>
+        <p>
+          v0.0 · เล่นกับคอม (random) · self-play test ·
+          <a href="https://github.com/cnatthaphon/openmakruk" target="_blank" rel="noopener noreferrer">
+            {' '}GitHub
+          </a>
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+function snapshot(b: FfishBoard): BoardState {
+  const fen = b.fen();
+  return {
+    pieces: fenToPieceMap(fen),
+    turn: b.turn() ? 'white' : 'black',
+    isCheck: b.isCheck(),
+    isGameOver: b.isGameOver(),
+    result: b.result(),
+    legalMoves: parseLegalMoves(b.legalMoves()),
+    fen,
+    fullmove: b.fullmoveNumber(),
+  };
+}
+
+function pieceMatchesTurn(piece: string, turn: 'white' | 'black'): boolean {
+  const white = piece === piece.toUpperCase();
+  return (white && turn === 'white') || (!white && turn === 'black');
+}
+
+function computerSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
+  switch (mode) {
+    case 'play-white': return 'black';
+    case 'play-black': return 'white';
+    case 'self-play':  return 'both';
+    case 'manual':     return null;
+  }
+}
+
+function userSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
+  switch (mode) {
+    case 'play-white': return 'white';
+    case 'play-black': return 'black';
+    case 'self-play':  return null;
+    case 'manual':     return 'both';
+  }
+}
+
+// v0.0 placeholder: random legal move.
+// v0.1 will replace with Fairy-Stockfish bestMove via Web Worker.
+function pickComputerMove(legalMoves: string[]): string | null {
+  if (legalMoves.length === 0) return null;
+  return legalMoves[Math.floor(Math.random() * legalMoves.length)];
+}

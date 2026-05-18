@@ -5,6 +5,13 @@ build/
 .vite/
 .turbo/
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
+# WASM binary — copied from node_modules/ffish-es6 by postinstall script.
+# Not committed to keep repo small; reproducible from npm install.
+public/ffish.wasm
+
 .env
 .env.local
 .env.*.local

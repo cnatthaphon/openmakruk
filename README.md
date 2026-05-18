@@ -62,6 +62,17 @@ All of these only after v0.5 proves core value.
 
 When added: Supabase Auth + Postgres (or Cloudflare Workers + D1). Login via Google OAuth and LINE Login (popular in Thailand).
 
+## Local development
+
+```bash
+npm install --no-bin-links   # --no-bin-links is needed when working from a Windows-mounted drive in WSL
+npm run dev                  # http://localhost:5173
+npm run build                # production bundle in dist/
+npm run typecheck            # tsc --noEmit
+```
+
+A `postinstall` hook copies `ffish.wasm` from `node_modules/ffish-es6` into `public/`. If it goes missing, run `node scripts/copy-wasm.mjs`.
+
 ## License
 
 MIT
