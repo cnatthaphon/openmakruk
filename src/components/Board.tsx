@@ -1,5 +1,5 @@
 import type { PieceMap, Square } from '../lib/makruk';
-import { PIECE_GLYPHS, isWhitePiece } from '../lib/pieces';
+import { MakrukPiece } from './MakrukPiece';
 import './Board.css';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
@@ -54,11 +54,7 @@ export function Board({
               onClick={() => onSquareClick(square)}
               aria-label={`${square}${piece ? ' ' + piece : ''}`}
             >
-              {piece && (
-                <span className={`piece ${isWhitePiece(piece) ? 'white' : 'black'}`}>
-                  {PIECE_GLYPHS[piece] ?? piece}
-                </span>
-              )}
+              {piece && <MakrukPiece piece={piece} />}
               {isLegal && !piece && <span className="move-dot" aria-hidden="true" />}
               {fileIdx === 0 && <span className="coord rank-label">{rank}</span>}
               {rankIdx === 7 && <span className="coord file-label">{file}</span>}

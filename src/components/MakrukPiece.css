@@ -1,0 +1,69 @@
+.mk-piece {
+  width: 78%;
+  height: 78%;
+  pointer-events: none;
+  filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, 0.35));
+  overflow: visible;
+}
+
+/* White piece: cream fill, dark outline. Readable on both light and dark squares. */
+.mk-piece.mk-white {
+  fill: #f4ead2;
+  stroke: #1a1816;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.mk-piece.mk-white .mk-foot {
+  fill: #1a1816;
+  opacity: 0.18;
+  stroke: none;
+}
+
+.mk-piece.mk-white .mk-detail {
+  fill: #5a4530;
+  opacity: 0.55;
+  stroke: none;
+}
+
+.mk-piece.mk-white .mk-eye {
+  fill: #1a1816;
+  stroke: none;
+}
+
+/* Black piece: dark fill, subtle highlight outline. */
+.mk-piece.mk-black {
+  fill: #1a1816;
+  stroke: #4a3f33;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.mk-piece.mk-black .mk-foot {
+  fill: #000;
+  opacity: 0.3;
+  stroke: none;
+}
+
+.mk-piece.mk-black .mk-detail {
+  fill: #4a3f33;
+  stroke: none;
+}
+
+.mk-piece.mk-black .mk-eye {
+  fill: #f4ead2;
+  stroke: none;
+}
+
+.mk-fallback {
+  font-size: clamp(28px, 6.5vmin, 48px);
+  line-height: 1;
+}
+
+.mk-fallback.mk-white {
+  color: #f4ead2;
+}
+
+.mk-fallback.mk-black {
+  color: #1a1816;
+}
