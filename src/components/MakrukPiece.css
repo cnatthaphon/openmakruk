@@ -1,110 +1,80 @@
+/* Makruk piece renderer
+ *
+ * Each piece is a div whose silhouette is provided by a CSS mask-image
+ * pointing at an SVG in /public/pieces/. The background-color paints the
+ * silhouette; a stacked drop-shadow filter draws a thin outline so a
+ * cream piece is still visible on a cream square (and likewise dark on
+ * dark) plus a board shadow.
+ *
+ * Source SVGs: Yevrowl (Wikimedia Commons, CC BY-SA 4.0).
+ */
+
 .mk-piece {
-  width: 92%;
-  height: 92%;
+  width: 88%;
+  height: 88%;
   pointer-events: none;
-  overflow: visible;
-  filter: drop-shadow(1px 2px 1.5px rgba(0, 0, 0, 0.32));
+  -webkit-mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-size: contain;
+  mask-position: center;
+  mask-repeat: no-repeat;
 }
 
-/* ---- White piece: warm boxwood cream with rosewood outline ---- */
+/* Per-piece mask sources. The same "_white" silhouette is used for both
+   sides — the colour comes from background-color, not the SVG. */
+.mk-piece.mk-khun {
+  -webkit-mask-image: url('/pieces/Khun_white.svg');
+  mask-image: url('/pieces/Khun_white.svg');
+}
+.mk-piece.mk-met {
+  -webkit-mask-image: url('/pieces/Met_white.svg');
+  mask-image: url('/pieces/Met_white.svg');
+}
+.mk-piece.mk-khon {
+  -webkit-mask-image: url('/pieces/Khon_white.svg');
+  mask-image: url('/pieces/Khon_white.svg');
+}
+.mk-piece.mk-ma {
+  -webkit-mask-image: url('/pieces/Ma_white.svg');
+  mask-image: url('/pieces/Ma_white.svg');
+}
+.mk-piece.mk-ruea {
+  -webkit-mask-image: url('/pieces/Ruea_white.svg');
+  mask-image: url('/pieces/Ruea_white.svg');
+}
+.mk-piece.mk-bia {
+  -webkit-mask-image: url('/pieces/Bia_white.svg');
+  mask-image: url('/pieces/Bia_white.svg');
+}
+
+/* Light side: warm boxwood cream + dark rosewood outline + board shadow */
 .mk-piece.mk-white {
-  fill: #ead9b1;
-  stroke: #3a2418;
-  stroke-width: 1.8;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  background-color: #ead9b1;
+  filter:
+    drop-shadow( 1px  0   0 #2a1810)
+    drop-shadow(-1px  0   0 #2a1810)
+    drop-shadow( 0    1px 0 #2a1810)
+    drop-shadow( 0   -1px 0 #2a1810)
+    drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.35));
 }
 
-.mk-piece.mk-white .mk-shadow {
-  fill: #000;
-  opacity: 0.22;
-  stroke: none;
-}
-
-.mk-piece.mk-white .mk-foot {
-  fill: #c9b48a;
-  stroke: #3a2418;
-  stroke-width: 1.5;
-}
-
-.mk-piece.mk-white .mk-highlight {
-  fill: none;
-  stroke: #f7eccb;
-  stroke-width: 3.5;
-  stroke-linecap: round;
-  opacity: 0.85;
-}
-
-.mk-piece.mk-white .mk-detail {
-  fill: #3a2418;
-  opacity: 0.45;
-  stroke: none;
-}
-
-.mk-piece.mk-white .mk-detail-stroke {
-  stroke: #3a2418;
-  stroke-width: 1.2;
-  fill: none;
-  opacity: 0.6;
-}
-
-.mk-piece.mk-white .mk-eye {
-  fill: #3a2418;
-  stroke: none;
-}
-
-/* ---- Black piece: warm rosewood with dark outline ---- */
+/* Dark side: rosewood + cream outline (visible on dark squares) + shadow */
 .mk-piece.mk-black {
-  fill: #3a2418;
-  stroke: #14080a;
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+  background-color: #2a1810;
+  filter:
+    drop-shadow( 1px  0   0 rgba(234, 217, 177, 0.55))
+    drop-shadow(-1px  0   0 rgba(234, 217, 177, 0.55))
+    drop-shadow( 0    1px 0 rgba(234, 217, 177, 0.55))
+    drop-shadow( 0   -1px 0 rgba(234, 217, 177, 0.55))
+    drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.45));
 }
 
-.mk-piece.mk-black .mk-shadow {
-  fill: #000;
-  opacity: 0.32;
-  stroke: none;
-}
-
-.mk-piece.mk-black .mk-foot {
-  fill: #28160e;
-  stroke: #14080a;
-  stroke-width: 1.5;
-}
-
-.mk-piece.mk-black .mk-highlight {
-  fill: none;
-  stroke: #6b4a32;
-  stroke-width: 3.5;
-  stroke-linecap: round;
-  opacity: 0.65;
-}
-
-.mk-piece.mk-black .mk-detail {
-  fill: #6b4a32;
-  opacity: 0.55;
-  stroke: none;
-}
-
-.mk-piece.mk-black .mk-detail-stroke {
-  stroke: #6b4a32;
-  stroke-width: 1.2;
-  fill: none;
-  opacity: 0.65;
-}
-
-.mk-piece.mk-black .mk-eye {
-  fill: #ead9b1;
-  stroke: none;
-}
-
-/* ---- Fallback (unknown piece char) ---- */
+/* Fallback rendering if the piece character is unknown */
 .mk-fallback {
   font-size: clamp(28px, 6.5vmin, 48px);
   line-height: 1;
 }
 
 .mk-fallback.mk-white { color: #ead9b1; }
-.mk-fallback.mk-black { color: #3a2418; }
+.mk-fallback.mk-black { color: #2a1810; }

@@ -73,6 +73,20 @@ npm run typecheck            # tsc --noEmit
 
 A `postinstall` hook copies `ffish.wasm` from `node_modules/ffish-es6` into `public/`. If it goes missing, run `node scripts/copy-wasm.mjs`.
 
+## Credits
+
+Makruk piece SVG silhouettes in `public/pieces/` are by **Yevrowl** on
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:Makruk_pieces),
+licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+See `public/pieces/NOTICE` for the full attribution and licensing details.
+
+The Makruk variant rules engine is [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish)
+via [`ffish-es6`](https://www.npmjs.com/package/ffish-es6) (GPL-3.0; used
+unmodified as a runtime dependency).
+
 ## License
+
+The OpenMakruk source code is MIT. Bundled third-party assets keep their
+own licenses (see `public/pieces/NOTICE` and `node_modules/ffish-es6/LICENSE`).
 
 MIT

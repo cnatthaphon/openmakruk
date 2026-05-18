@@ -12,6 +12,9 @@ build/
 # Not committed to keep repo small; reproducible from npm install.
 public/ffish.wasm
 
+# Piece SVG masks (CC BY-SA 4.0, Yevrowl, Wikimedia Commons) ARE committed
+# — see public/pieces/NOTICE for attribution.
+
 .env
 .env.local
 .env.*.local

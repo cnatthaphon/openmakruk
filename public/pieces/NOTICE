@@ -1,0 +1,24 @@
+Makruk piece SVG silhouettes in this directory:
+
+  Khun_white.svg, Khun_black.svg
+  Met_white.svg, Met_black.svg
+  Khon_white.svg, Khon_black.svg
+  Ma_white.svg, Ma_black.svg
+  Ruea_white.svg, Ruea_black.svg
+  Bia_white.svg, Bia_black.svg
+  Biangai_white.svg, Biangai_black.svg
+
+Source:   Wikimedia Commons — Category:Makruk pieces
+          https://commons.wikimedia.org/wiki/Category:Makruk_pieces
+Author:   Yevrowl
+License:  Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+          https://creativecommons.org/licenses/by-sa/4.0/
+
+The OpenMakruk source code is licensed under MIT (see /LICENSE in the repo
+root). These piece SVG assets are NOT covered by MIT; they remain CC BY-SA
+4.0 and must be redistributed under the same license, with credit to the
+original author Yevrowl, and a link to the license.
+
+OpenMakruk uses these silhouettes through CSS `mask-image`, recoloured at
+runtime via `background-color`. The source SVG files themselves are
+unmodified from the Wikimedia originals.
