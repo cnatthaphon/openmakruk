@@ -34,7 +34,21 @@ const MODE_LABELS: Record<Mode, string> = {
   manual: 'เล่นเองทั้งสองฝั่ง',
 };
 
-const COMPUTER_DELAY_MS = 600;
+type Speed = 'slow' | 'normal' | 'fast' | 'instant';
+
+const SPEED_MS: Record<Speed, number> = {
+  slow: 1500,
+  normal: 600,
+  fast: 200,
+  instant: 0,
+};
+
+const SPEED_LABELS: Record<Speed, string> = {
+  slow: 'ช้า (1.5 วิ)',
+  normal: 'ปกติ (0.6 วิ)',
+  fast: 'เร็ว (0.2 วิ)',
+  instant: 'ทันที',
+};
 
 export default function App() {
   const [board, setBoard] = useState<FfishBoard | null>(null);
@@ -43,6 +57,8 @@ export default function App() {
   const [selected, setSelected] = useState<Square | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [mode, setMode] = useState<Mode>('play-white');
+  const [speed, setSpeed] = useState<Speed>('normal');
+  const [showArrow, setShowArrow] = useState(true);
   const [thinking, setThinking] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
@@ -78,7 +94,7 @@ export default function App() {
     if (computerSide !== 'both' && computerSide !== state.turn) return;
 
     setThinking(true);
-    pendingTimer.current = window.setTimeout(() => {
+    const apply = () => {
       const move = pickComputerMove(state.legalMoves);
       if (!move) {
         setThinking(false);
@@ -89,7 +105,14 @@ export default function App() {
       setState(snapshot(board));
       setSelected(null);
       setThinking(false);
-    }, COMPUTER_DELAY_MS);
+    };
+    const delay = SPEED_MS[speed];
+    if (delay === 0) {
+      // setTimeout(0) still defers to next tick — fine, avoids deep recursion
+      pendingTimer.current = window.setTimeout(apply, 0);
+    } else {
+      pendingTimer.current = window.setTimeout(apply, delay);
+    }
 
     return () => {
       if (pendingTimer.current !== null) {
@@ -98,7 +121,7 @@ export default function App() {
       }
       setThinking(false);
     };
-  }, [board, state, mode]);
+  }, [board, state, mode, speed]);
 
   const legalDestinations: Square[] = useMemo(() => {
     if (!selected || !state) return [];
@@ -220,6 +243,7 @@ export default function App() {
           legalDestinations={legalDestinations}
           lastMove={lastMove}
           flipped={flipped}
+          showArrow={showArrow}
           onSquareClick={handleSquareClick}
         />
         <aside className="sidebar">
@@ -234,6 +258,27 @@ export default function App() {
               ))}
             </select>
           </div>
+
+          <div className="mode-picker">
+            <span className="label">ความเร็วคอม</span>
+            <select
+              value={speed}
+              onChange={(e) => setSpeed(e.target.value as Speed)}
+            >
+              {(Object.keys(SPEED_LABELS) as Speed[]).map((s) => (
+                <option key={s} value={s}>{SPEED_LABELS[s]}</option>
+              ))}
+            </select>
+          </div>
+
+          <label className="toggle">
+            <input
+              type="checkbox"
+              checked={showArrow}
+              onChange={(e) => setShowArrow(e.target.checked)}
+            />
+            <span>แสดงลูกศรตาเดิน</span>
+          </label>
 
           <div className="status">
             <div>
