@@ -827,29 +827,52 @@ main {
 }
 
 .mode-picker select {
-  padding: 8px 10px;
-  /* Solid background so the option list (rendered by the OS / browser)
-     stays legible on dark themes — translucent rgba bled into the
-     desktop background on Windows. */
-  background-color: #2a2520;
-  color: #f5ecd6;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  /* Strip native OS rendering completely (Windows in particular kept
+     forcing low-contrast text on dark themes). With appearance:none we
+     own the full visual; a small inline SVG paints the dropdown arrow. */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  padding: 9px 32px 9px 12px;
+  background-color: #2a2520 !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%23f5ecd6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1.5 L6 6.5 L11 1.5'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 8px;
+  color: #f5ecd6 !important;
+  border: 1px solid rgba(245, 236, 214, 0.28);
   border-radius: 6px;
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  /* Override native dark-control rendering on browsers that take the OS
-     theme into account. */
   color-scheme: dark;
+  /* Defend against parent text-shadow/filter bleed */
+  text-shadow: none;
 }
 
 .mode-picker select:hover {
   border-color: var(--accent);
+  background-color: #342c25 !important;
 }
 
+.mode-picker select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The native <option> list inherits SOME styling but not all — force
+   the colour pair so every browser paints opened items legibly. */
 .mode-picker select option {
   background-color: #2a2520;
   color: #f5ecd6;
+  padding: 6px 8px;
+}
+
+.mode-picker select option:checked {
+  background-color: #4a3a28;
+  color: #ffe6b3;
 }
 
 .note {
