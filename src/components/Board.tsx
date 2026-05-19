@@ -14,6 +14,7 @@ type Props = {
   turn: 'white' | 'black';
   isCheck: boolean;
   lastMove: { from: Square; to: Square } | null;
+  hint: { from: Square; to: Square } | null; // engine-suggested move arrow
   onMove: (from: Square, to: Square) => void;
 };
 
@@ -62,6 +63,7 @@ export function Board({
   turn,
   isCheck,
   lastMove,
+  hint,
   onMove,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -153,6 +155,24 @@ export function Board({
     lastMove?.from,
     lastMove?.to,
   ]);
+
+  // Drive engine-suggested hint arrow. setAutoShapes is the "programmatic"
+  // overlay channel; user-drawn shapes (if we enable drawable later) are
+  // kept on a different channel via setShapes.
+  useEffect(() => {
+    if (!apiRef.current) return;
+    if (hint) {
+      apiRef.current.setAutoShapes([
+        {
+          orig: hint.from as Key,
+          dest: hint.to as Key,
+          brush: 'green',
+        },
+      ]);
+    } else {
+      apiRef.current.setAutoShapes([]);
+    }
+  }, [hint?.from, hint?.to]);
 
   return <div ref={containerRef} className="cg-wrap" />;
 }

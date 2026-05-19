@@ -66,6 +66,9 @@ export default function App() {
   const [speed, setSpeed] = useState<Speed>('normal');
   const [thinking, setThinking] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [hint, setHint] = useState<{ from: Square; to: Square } | null>(null);
+  const [hintLoading, setHintLoading] = useState(false);
+  const [hintInfo, setHintInfo] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -167,6 +170,13 @@ export default function App() {
     return { from, to };
   }, [history]);
 
+  // Clear hint whenever the position changes — once a move is played
+  // (by either side), last hint is stale and shouldn't linger.
+  useEffect(() => {
+    setHint(null);
+    setHintInfo(null);
+  }, [state?.fen]);
+
   if (loadError) {
     return (
       <div className="screen error">
@@ -247,6 +257,41 @@ export default function App() {
     setState(snapshot(board));
   };
 
+  const handleHint = async () => {
+    if (!state || hintLoading || thinking || state.isGameOver) return;
+    if (userSide !== 'both' && userSide !== state.turn) return;
+    setHintLoading(true);
+    log('hint.request', { fen: state.fen });
+    try {
+      const result = await searchBestMove(state.fen, { depth: 14 });
+      if (result.bestMove && result.bestMove !== '(none)' && result.bestMove !== '0000') {
+        const { from, to } = parseUci(result.bestMove);
+        setHint({ from: from as Square, to: to as Square });
+        // Build a short info line — eval from side-to-move POV.
+        let info = '';
+        if (typeof result.mateIn === 'number') {
+          info = `รุกจน ${Math.abs(result.mateIn)} ตา`;
+        } else if (typeof result.scoreCp === 'number') {
+          const pawns = (result.scoreCp / 100).toFixed(2);
+          info = `eval ${result.scoreCp > 0 ? '+' : ''}${pawns}`;
+        }
+        if (result.depth) info += `${info ? ' · ' : ''}depth ${result.depth}`;
+        setHintInfo(info || null);
+        log('hint.shown', {
+          move: result.bestMove,
+          scoreCp: result.scoreCp,
+          mateIn: result.mateIn,
+          depth: result.depth,
+        });
+      }
+    } catch (err) {
+      console.error('hint search failed:', err);
+      log('hint.error', { error: String(err) });
+    } finally {
+      setHintLoading(false);
+    }
+  };
+
   const handleModeChange = (newMode: Mode) => {
     if (pendingTimer.current !== null) {
       clearTimeout(pendingTimer.current);
@@ -272,6 +317,7 @@ export default function App() {
           turn={state.turn}
           isCheck={state.isCheck}
           lastMove={lastMove}
+          hint={hint}
           onMove={handleMove}
         />
         <aside className="sidebar">
@@ -357,6 +403,25 @@ export default function App() {
           </div>
 
           <div className="controls">
+            <button
+              className="hint-button"
+              onClick={handleHint}
+              disabled={
+                hintLoading ||
+                thinking ||
+                state.isGameOver ||
+                (userSide !== 'both' && userSide !== state.turn)
+              }
+            >
+              {hintLoading ? (
+                <>
+                  <span className="spinner-sm" aria-hidden="true" />
+                  กำลังคิด...
+                </>
+              ) : (
+                <>💡 ขอ Hint</>
+              )}
+            </button>
             <button onClick={handleUndo} disabled={history.length === 0 || thinking}>
               ↶ ย้อน
             </button>
@@ -367,6 +432,13 @@ export default function App() {
               ⇅ พลิกกระดาน
             </button>
           </div>
+          {hint && hintInfo && (
+            <div className="hint-info">
+              💡 แนะนำ <strong>{hint.from} → {hint.to}</strong>
+              {' · '}
+              <span className="label-aside">{hintInfo}</span>
+            </div>
+          )}
 
           <div className="note">
             <strong>v0.1:</strong> ใช้ Fairy-Stockfish engine จริงแล้ว

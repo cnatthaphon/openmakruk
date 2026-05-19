@@ -125,6 +125,36 @@ main {
   color: var(--accent);
 }
 
+.hint-button {
+  flex: 1 1 100% !important;
+  background: rgba(82, 145, 90, 0.18) !important;
+  border-color: rgba(82, 145, 90, 0.6) !important;
+}
+
+.hint-button:hover:not(:disabled) {
+  background: rgba(82, 145, 90, 0.3) !important;
+  border-color: rgba(120, 200, 130, 0.85) !important;
+}
+
+.hint-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(82, 145, 90, 0.12);
+  border-left: 3px solid rgba(82, 145, 90, 0.75);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--fg);
+  flex-wrap: wrap;
+}
+
+.hint-info strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: rgba(180, 220, 180, 1);
+}
+
 .controls {
   display: flex;
   gap: 8px;
