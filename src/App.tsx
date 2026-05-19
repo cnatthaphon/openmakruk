@@ -284,15 +284,31 @@ export default function App() {
           </div>
 
 
+          <div className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''}`}>
+            {thinking ? (
+              <>
+                <span className="spinner-sm" aria-hidden="true" />
+                <span>คอมกำลังคิด...</span>
+              </>
+            ) : (
+              <>
+                <span className="turn-glyph">
+                  {state.turn === 'white' ? '♔' : '♚'}
+                </span>
+                <span>
+                  {userSide === state.turn || userSide === 'both'
+                    ? 'ตาคุณ'
+                    : `ตาคอม (${state.turn === 'white' ? 'ขาว' : 'ดำ'})`}
+                </span>
+              </>
+            )}
+            {state.isCheck && <span className="check-flag">รุก!</span>}
+          </div>
+
           <div className="status">
             <div>
-              <span className="label">ตาเดิน:</span>{' '}
-              <strong>{state.turn === 'white' ? 'ขาว ♔' : 'ดำ ♚'}</strong>
-              {state.isCheck && <span className="check"> · รุก!</span>}
-              {thinking && <span className="thinking"> · คอมคิด...</span>}
-            </div>
-            <div>
-              <span className="label">ตาที่:</span> {state.fullmove}
+              <span className="label">รอบที่:</span> {state.fullmove}
+              <span className="label-aside"> ({history.length} ตา)</span>
             </div>
             {state.isGameOver && (
               <div className="gameover">

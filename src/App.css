@@ -180,6 +180,62 @@ main {
   font-style: italic;
 }
 
+.turn-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  border: 2px solid transparent;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.turn-badge .turn-glyph {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.turn-badge.turn-white {
+  background: rgba(250, 236, 193, 0.16);
+  border-color: rgba(250, 236, 193, 0.4);
+}
+
+.turn-badge.turn-black {
+  background: rgba(70, 40, 20, 0.55);
+  border-color: rgba(70, 40, 20, 0.85);
+}
+
+.turn-badge.is-thinking {
+  background: rgba(212, 162, 60, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.spinner-sm {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.check-flag {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: #c84a3d;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.label-aside {
+  color: var(--fg-dim);
+  font-size: 12px;
+}
+
 .toggle {
   display: flex;
   align-items: center;
