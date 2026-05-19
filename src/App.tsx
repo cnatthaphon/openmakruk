@@ -632,7 +632,7 @@ export default function App() {
     <div className={`app ${state.isCheck ? 'is-check' : ''}`}>
       <header>
         <h1>OpenMakruk</h1>
-        <p className="tagline">หมากรุกไทย · v0.0 prototype</p>
+        <p className="tagline">หมากรุกไทย · v0.1 · NNUE + Review + Profile</p>
       </header>
       <main>
         <div className="board-container">
@@ -945,7 +945,7 @@ export default function App() {
       </main>
       <footer>
         <p>
-          v0.0 · เล่นกับคอม (random) · self-play test ·
+          v0.1 · Fairy-Stockfish · hint · review · NNUE-ready ·
           <a href="https://github.com/cnatthaphon/openmakruk" target="_blank" rel="noopener noreferrer">
             {' '}GitHub
           </a>
