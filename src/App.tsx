@@ -3,12 +3,23 @@ import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from './components/Board';
 import {
   loadFfish,
+  MAKRUK_START_FEN,
   parseCounting,
   parseLegalMoves,
   parseUci,
   type CountInfo,
   type Square,
 } from './lib/makruk';
+import {
+  analyzeGame,
+  CLASSIFICATION_COLORS,
+  CLASSIFICATION_GLYPHS,
+  CLASSIFICATION_LABELS,
+  formatEval,
+  summarize,
+  type AnnotatedMove,
+  type Classification,
+} from './lib/review';
 import {
   DIFFICULTY_LABELS,
   DIFFICULTY_PRESETS,
@@ -41,14 +52,16 @@ type BoardState = {
 type Mode =
   | 'play-white' // user plays white, computer plays black (default)
   | 'play-black' // user plays black, computer plays white
-  | 'self-play' // computer plays both sides (testing/demo)
-  | 'manual'; // user plays both sides (testing/exploration)
+  | 'learning'   // user plays, but engine auto-suggests the best move every user turn
+  | 'self-play'  // computer plays both sides — autopilot, watch + review
+  | 'manual';    // user plays both sides (testing/exploration)
 
 const MODE_LABELS: Record<Mode, string> = {
   'play-white': 'เล่นเป็นขาว (vs คอม)',
   'play-black': 'เล่นเป็นดำ (vs คอม)',
-  'self-play': 'คอม vs คอม (ทดสอบ)',
-  manual: 'เล่นเองทั้งสองฝั่ง',
+  learning:     '🎓 เรียนรู้ (คอมแนะนำทุกตา)',
+  'self-play':  '🤖 คอม vs คอม (autopilot)',
+  manual:       'เล่นเองทั้งสองฝั่ง',
 };
 
 type Speed = 'slow' | 'normal' | 'fast' | 'instant';
@@ -83,6 +96,15 @@ export default function App() {
   const gameRecordedRef = useRef(false);
   const [nnueState, setNnueState] = useState<'off' | 'loading' | 'on'>('off');
   const [nnueProgress, setNnueProgress] = useState<{ loaded: number; total: number } | null>(null);
+
+  // Move review state
+  const [reviewMoves, setReviewMoves] = useState<AnnotatedMove[]>([]);
+  const [reviewPly, setReviewPly] = useState(0); // 0 = initial position
+  const [reviewActive, setReviewActive] = useState(false);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewProgress, setReviewProgress] = useState<{ current: number; total: number } | null>(
+    null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -346,6 +368,21 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board, state?.fen]);
 
+  // Learning mode = auto-trigger hint on every user turn (no explicit
+  // button press). Only when it's the user's turn AND we haven't shown
+  // a hint already for this position.
+  useEffect(() => {
+    if (mode !== 'learning') return;
+    if (!state || state.isGameOver || thinking || hint || hintLoading) return;
+    if (userSide !== 'both' && userSide !== state.turn) return;
+    // Defer one tick so the move animation lands first.
+    const t = window.setTimeout(() => {
+      handleHint();
+    }, 50);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, state?.fen, state?.isGameOver, thinking, hint, hintLoading]);
+
   const handleHint = async () => {
     if (!state || hintLoading || thinking || state.isGameOver) return;
     if (userSide !== 'both' && userSide !== state.turn) return;
@@ -381,6 +418,65 @@ export default function App() {
     }
   };
 
+  const handleStartReview = async () => {
+    if (reviewLoading || reviewActive) return;
+    if (history.length === 0 || !board) return;
+    setReviewLoading(true);
+    setReviewProgress({ current: 0, total: history.length });
+    log('review.start', { moves: history.length });
+    try {
+      const ffish = await loadFfish();
+      const reviewBoard = new ffish.Board('makruk');
+      try {
+        const annotated = await analyzeGame(reviewBoard, history, (current, total) => {
+          setReviewProgress({ current, total });
+        });
+        setReviewMoves(annotated);
+        setReviewPly(annotated.length);
+        setReviewActive(true);
+        log('review.ready', { moves: annotated.length, summary: summarize(annotated) });
+      } finally {
+        reviewBoard.delete();
+      }
+    } catch (err) {
+      console.error('review failed:', err);
+      log('review.error', { error: String(err) });
+    } finally {
+      setReviewLoading(false);
+      setReviewProgress(null);
+    }
+  };
+
+  const handleExitReview = () => {
+    setReviewActive(false);
+    setReviewMoves([]);
+    setReviewPly(0);
+  };
+
+  // Derived "view" state. When in review mode we override the board
+  // FEN + lastMove with the snapshot at reviewPly; the real game state
+  // is preserved so the user can exit review and keep playing if desired.
+  const viewFen = reviewActive
+    ? reviewPly === 0
+      ? MAKRUK_START_FEN
+      : reviewMoves[reviewPly - 1]?.fenAfter ?? state.fen
+    : state.fen;
+  const viewLastMove = reviewActive
+    ? reviewPly === 0
+      ? null
+      : (() => {
+          const m = reviewMoves[reviewPly - 1];
+          return m ? parseUci(m.uci) : null;
+        })()
+    : lastMove;
+  const viewLegalMoves = reviewActive ? [] : state.legalMoves;
+  const viewDisabled =
+    reviewActive ||
+    thinking ||
+    state.isGameOver ||
+    (userSide !== 'both' && userSide !== state.turn);
+  const reviewCurrent = reviewActive && reviewPly > 0 ? reviewMoves[reviewPly - 1] : null;
+
   const handleModeChange = (newMode: Mode) => {
     if (pendingTimer.current !== null) {
       clearTimeout(pendingTimer.current);
@@ -402,17 +498,17 @@ export default function App() {
       <main>
         <div className="board-container">
           <Board
-            fen={state.fen}
-            legalMoves={state.legalMoves}
+            fen={viewFen}
+            legalMoves={viewLegalMoves}
             flipped={flipped}
-            disabled={thinking || state.isGameOver || (userSide !== 'both' && userSide !== state.turn)}
+            disabled={viewDisabled}
             turn={state.turn}
-            isCheck={state.isCheck}
-            lastMove={lastMove}
-            hint={hint}
+            isCheck={!reviewActive && state.isCheck}
+            lastMove={viewLastMove}
+            hint={reviewActive ? null : hint}
             onMove={handleMove}
           />
-          {state.isGameOver && (
+          {state.isGameOver && !reviewActive && (
             <div className="game-over-overlay" role="dialog" aria-live="polite">
               <div className="game-over-card">
                 <div className="game-over-icon">
@@ -426,14 +522,45 @@ export default function App() {
                     {gameOverSubtitle(state.result, mode, state.counting)}
                   </div>
                 )}
-                <button className="game-over-button" onClick={handleReset}>
-                  ⟳ เริ่มเกมใหม่
-                </button>
+                <div className="game-over-actions">
+                  <button
+                    className="game-over-button game-over-review"
+                    onClick={handleStartReview}
+                    disabled={reviewLoading || history.length === 0}
+                  >
+                    {reviewLoading
+                      ? `🔍 กำลังวิเคราะห์... ${reviewProgress?.current ?? 0}/${reviewProgress?.total ?? 0}`
+                      : '🔍 ดูรีวิวเกม'}
+                  </button>
+                  <button className="game-over-button" onClick={handleReset}>
+                    ⟳ เริ่มเกมใหม่
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
         <aside className="sidebar">
+          {reviewActive && (
+            <ReviewPanel
+              moves={reviewMoves}
+              currentPly={reviewPly}
+              currentMove={reviewCurrent}
+              onPlySelect={setReviewPly}
+              onExit={handleExitReview}
+            />
+          )}
+          {!reviewActive && state.isGameOver && history.length > 0 && (
+            <button
+              className="review-launch-button"
+              onClick={handleStartReview}
+              disabled={reviewLoading}
+            >
+              {reviewLoading
+                ? `🔍 กำลังวิเคราะห์... ${reviewProgress?.current ?? 0}/${reviewProgress?.total ?? 0}`
+                : '🔍 ดูรีวิวเกม'}
+            </button>
+          )}
           <div className="mode-picker">
             <span className="label">โหมด</span>
             <select
@@ -538,41 +665,8 @@ export default function App() {
             </div>
           )}
 
-          <div className="rating-panel">
-            <div className="rating-header">
-              <span className="label">Rating</span>
-              <strong className="rating-value">{stats.rating}</strong>
-              <span className="label-aside">
-                ({stats.totalGames} เกม)
-              </span>
-            </div>
-            <div className="rating-recommend">
-              แนะนำเล่นที่: <strong>{DIFFICULTY_LABELS[suggestedLevel]}</strong>
-            </div>
-            <div className="rating-byLevel">
-              {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => {
-                const r = stats.byLevel[d];
-                const total = r.wins + r.losses + r.draws;
-                return (
-                  <div key={d} className="rating-row">
-                    <span className="rating-row-name">{DIFFICULTY_LABELS[d]}</span>
-                    <span className="rating-row-stats">
-                      {total === 0 ? (
-                        <span className="label-aside">ยังไม่เคยเล่น</span>
-                      ) : (
-                        <>
-                          <span className="win">{r.wins}W</span>{' '}
-                          <span className="loss">{r.losses}L</span>{' '}
-                          <span className="draw">{r.draws}D</span>
-                          <span className="label-aside"> · ~{CPU_RATINGS[d]}</span>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <ProfilePanel stats={stats} suggestedLevel={suggestedLevel} />
+
 
           <div className="status">
             <div>
@@ -672,6 +766,211 @@ function formatResult(result: string, counting: CountInfo): string {
   return result;
 }
 
+function ProfilePanel({
+  stats,
+  suggestedLevel,
+}: {
+  stats: UserStats;
+  suggestedLevel: Difficulty;
+}) {
+  const [showHistory, setShowHistory] = useState(false);
+  const recent = stats.history.slice(0, 10);
+  return (
+    <div className="rating-panel">
+      <div className="rating-header">
+        <span className="label">🏆 Rating</span>
+        <strong className="rating-value">{stats.rating}</strong>
+        <span className="label-aside">({stats.totalGames} เกม)</span>
+      </div>
+      <div className="rating-recommend">
+        แนะนำเล่นที่: <strong>{DIFFICULTY_LABELS[suggestedLevel]}</strong>
+      </div>
+      <div className="rating-byLevel">
+        {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => {
+          const r = stats.byLevel[d];
+          const total = r.wins + r.losses + r.draws;
+          return (
+            <div key={d} className="rating-row">
+              <span className="rating-row-name">{DIFFICULTY_LABELS[d]}</span>
+              <span className="rating-row-stats">
+                {total === 0 ? (
+                  <span className="label-aside">ยังไม่เคยเล่น</span>
+                ) : (
+                  <>
+                    <span className="win">{r.wins}W</span>{' '}
+                    <span className="loss">{r.losses}L</span>{' '}
+                    <span className="draw">{r.draws}D</span>
+                    <span className="label-aside"> · ~{CPU_RATINGS[d]}</span>
+                  </>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      {recent.length > 0 && (
+        <>
+          <button
+            className="history-toggle"
+            onClick={() => setShowHistory((s) => !s)}
+          >
+            {showHistory ? '▾ ซ่อนประวัติเกม' : '▸ ดูประวัติ ' + recent.length + ' เกมล่าสุด'}
+          </button>
+          {showHistory && (
+            <div className="history-list" role="list">
+              {recent.map((g, i) => (
+                <div key={i} className="history-row" role="listitem">
+                  <span className={`h-outcome ${g.outcome}`}>
+                    {g.outcome === 'win' ? 'W' : g.outcome === 'loss' ? 'L' : 'D'}
+                  </span>
+                  <span className="h-opponent">{DIFFICULTY_LABELS[g.opponent]}</span>
+                  <span className="h-date">{formatDateShort(g.date)}</span>
+                  <span className={`h-delta ${g.ratingDelta >= 0 ? 'up' : 'down'}`}>
+                    {g.ratingDelta >= 0 ? '+' : ''}
+                    {g.ratingDelta}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function formatDateShort(timestamp: number): string {
+  const d = new Date(timestamp);
+  const now = new Date();
+  const sameDay =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate();
+  if (sameDay) {
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  }
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function ReviewPanel({
+  moves,
+  currentPly,
+  currentMove,
+  onPlySelect,
+  onExit,
+}: {
+  moves: AnnotatedMove[];
+  currentPly: number;
+  currentMove: AnnotatedMove | null;
+  onPlySelect: (ply: number) => void;
+  onExit: () => void;
+}) {
+  const summary = useMemo(() => summarize(moves), [moves]);
+  const total = moves.length;
+  return (
+    <div className="review-panel">
+      <div className="review-header">
+        <strong>🔍 รีวิวเกม</strong>
+        <button className="review-exit" onClick={onExit} aria-label="ออกจากรีวิว">
+          ✕
+        </button>
+      </div>
+
+      <div className="review-summary">
+        {(Object.keys(CLASSIFICATION_LABELS) as Classification[]).map((c) => (
+          <span
+            key={c}
+            className="review-summary-chip"
+            style={{ borderColor: CLASSIFICATION_COLORS[c] }}
+          >
+            <span style={{ color: CLASSIFICATION_COLORS[c] }}>
+              {CLASSIFICATION_GLYPHS[c]}
+            </span>{' '}
+            {summary[c]}
+          </span>
+        ))}
+      </div>
+
+      <div className="review-nav">
+        <button onClick={() => onPlySelect(0)} disabled={currentPly === 0}>
+          ⏮
+        </button>
+        <button onClick={() => onPlySelect(Math.max(0, currentPly - 1))} disabled={currentPly === 0}>
+          ◀
+        </button>
+        <span className="review-position">
+          {currentPly} / {total}
+        </span>
+        <button
+          onClick={() => onPlySelect(Math.min(total, currentPly + 1))}
+          disabled={currentPly === total}
+        >
+          ▶
+        </button>
+        <button onClick={() => onPlySelect(total)} disabled={currentPly === total}>
+          ⏭
+        </button>
+      </div>
+
+      {currentMove && (
+        <div className="review-current">
+          <div className="review-current-move">
+            <span className="label">{currentMove.ply}.</span>{' '}
+            <strong>{currentMove.uci}</strong>{' '}
+            <span
+              className="review-tag"
+              style={{
+                color: CLASSIFICATION_COLORS[currentMove.classification],
+                borderColor: CLASSIFICATION_COLORS[currentMove.classification],
+              }}
+            >
+              {CLASSIFICATION_GLYPHS[currentMove.classification]}{' '}
+              {CLASSIFICATION_LABELS[currentMove.classification]}
+            </span>
+          </div>
+          <div className="review-current-eval">
+            <span className="label">Eval:</span>{' '}
+            {formatEval(currentMove.evalBefore)} → {formatEval(currentMove.evalAfter)}
+            {currentMove.delta > 50 && (
+              <span className="label-aside"> (เสีย {(currentMove.delta / 100).toFixed(1)})</span>
+            )}
+          </div>
+          {!currentMove.isBest && (
+            <div className="review-current-best">
+              <span className="label">เครื่องแนะนำ:</span>{' '}
+              <strong>{currentMove.bestMove}</strong>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="review-list" role="list">
+        {moves.map((m) => (
+          <button
+            key={m.ply}
+            role="listitem"
+            className={`review-row ${m.ply === currentPly ? 'is-current' : ''}`}
+            onClick={() => onPlySelect(m.ply)}
+            style={{ borderLeftColor: CLASSIFICATION_COLORS[m.classification] }}
+          >
+            <span className="review-row-num">{m.ply}.</span>
+            <span className="review-row-side">{m.side === 'white' ? '♔' : '♚'}</span>
+            <span className="review-row-uci">{m.uci}</span>
+            <span
+              className="review-row-tag"
+              style={{ color: CLASSIFICATION_COLORS[m.classification] }}
+              title={CLASSIFICATION_LABELS[m.classification]}
+            >
+              {CLASSIFICATION_GLYPHS[m.classification]}
+            </span>
+            <span className="review-row-eval">{formatEval(m.evalAfter)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function gameOverIcon(result: string, mode: Mode): string {
   if (result === '1/2-1/2') return '🤝';
   const userWon =
@@ -719,6 +1018,7 @@ function computerSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
   switch (mode) {
     case 'play-white': return 'black';
     case 'play-black': return 'white';
+    case 'learning':   return 'black'; // learning mode: user plays white, engine suggests
     case 'self-play':  return 'both';
     case 'manual':     return null;
   }
@@ -728,6 +1028,7 @@ function userSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
   switch (mode) {
     case 'play-white': return 'white';
     case 'play-black': return 'black';
+    case 'learning':   return 'white'; // user plays white in learning mode
     case 'self-play':  return null;
     case 'manual':     return 'both';
   }
