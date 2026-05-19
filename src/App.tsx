@@ -50,16 +50,14 @@ type BoardState = {
 };
 
 type Mode =
-  | 'play-white' // user plays white, computer plays black (default)
+  | 'play-white' // user plays white, computer plays black
   | 'play-black' // user plays black, computer plays white
-  | 'learning'   // user plays, but engine auto-suggests the best move every user turn
   | 'self-play'  // computer plays both sides — autopilot, watch + review
   | 'manual';    // user plays both sides (testing/exploration)
 
 const MODE_LABELS: Record<Mode, string> = {
   'play-white': 'เล่นเป็นขาว (vs คอม)',
   'play-black': 'เล่นเป็นดำ (vs คอม)',
-  learning:     '🎓 เรียนรู้ (คอมแนะนำทุกตา)',
   'self-play':  '🤖 คอม vs คอม (autopilot)',
   manual:       'เล่นเองทั้งสองฝั่ง',
 };
@@ -122,6 +120,12 @@ export default function App() {
   const [forcedResult, setForcedResult] = useState<string | null>(null);
   const [drawOfferPending, setDrawOfferPending] = useState(false);
   const [drawOfferRefused, setDrawOfferRefused] = useState<string | null>(null);
+
+  // Rated vs Casual: in Rated mode hint/undo are disabled and the
+  // game's outcome is written to the rating ledger. Casual is the
+  // default — practice with assist; nothing affects the rating.
+  // Self-play and manual modes are always Casual regardless of toggle.
+  const [rated, setRated] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -265,6 +269,12 @@ export default function App() {
     if (gameRecordedRef.current) return;
     if (mode !== 'play-white' && mode !== 'play-black') return;
     if (history.length === 0) return; // safeguard against stale gameover on init
+    // Only Rated games hit the rating ledger — Casual practice doesn't.
+    if (!rated) {
+      log('stats.skip', { reason: 'casual', result: forcedResult ?? state.result });
+      gameRecordedRef.current = true;
+      return;
+    }
     const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
     const recordResult = forcedResult ?? state.result;
     setStats((prev) => {
@@ -286,7 +296,7 @@ export default function App() {
       return next;
     });
     gameRecordedRef.current = true;
-  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length]);
+  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length, rated]);
 
   // Auto-enable NNUE on next visit if it was enabled before — the
   // IndexedDB cache makes this near-instant. Effects must live above the
@@ -316,55 +326,10 @@ export default function App() {
     }
   }, [board, state?.fen, nnueState]);
 
-  // Learning mode = auto-trigger hint on every user turn. Effect must
-  // be above early-returns; we re-derive userSide inside via
-  // userSideForMode so we don't depend on the const declared below.
-  const hintRequestSeq = useRef(0);
-  useEffect(() => {
-    if (mode !== 'learning') return;
-    if (!state || state.isGameOver || forcedResult) return;
-    if (thinking || hint || hintLoading) return;
-    if (!board) return;
-    const us = userSideForMode(mode);
-    if (us !== 'both' && us !== state.turn) return;
-    // Defer one tick so the move animation lands first.
-    const mySeq = ++hintRequestSeq.current;
-    const t = window.setTimeout(() => {
-      if (hintRequestSeq.current !== mySeq) return;
-      // We can't reference handleHint from here (it's defined below).
-      // Inline the minimal "run a depth-14 search + set hint state" path.
-      setHintLoading(true);
-      log('hint.request', { fen: state.fen, source: 'learning-auto' });
-      searchBestMove(state.fen, { depth: 14 })
-        .then((result) => {
-          if (hintRequestSeq.current !== mySeq) return;
-          if (!result.bestMove || result.bestMove === '(none)' || result.bestMove === '0000') {
-            setHintLoading(false);
-            return;
-          }
-          const { from, to } = parseUci(result.bestMove);
-          setHint({ from: from as Square, to: to as Square });
-          let info = '';
-          if (typeof result.mateIn === 'number') {
-            info = `รุกจน ${Math.abs(result.mateIn)} ตา`;
-          } else if (typeof result.scoreCp === 'number') {
-            const pawns = (result.scoreCp / 100).toFixed(2);
-            info = `eval ${result.scoreCp > 0 ? '+' : ''}${pawns}`;
-          }
-          if (result.depth) info += `${info ? ' · ' : ''}depth ${result.depth}`;
-          setHintInfo(info || null);
-        })
-        .catch((err) => {
-          console.error('learning auto-hint failed:', err);
-        })
-        .finally(() => {
-          setHintLoading(false);
-        });
-    }, 50);
-    return () => {
-      window.clearTimeout(t);
-    };
-  }, [mode, state?.fen, state?.isGameOver, forcedResult, thinking, hint, hintLoading, board]);
+  // Learning mode (auto-hint every user turn) was removed — the
+  // critique was correct: clicking along an arrow every move is just
+  // autopilot with extra friction, no actual learning happens. The
+  // Mistake Coach toggle (next sprint) replaces it.
 
   if (loadError) {
     return (
@@ -673,6 +638,10 @@ export default function App() {
   };
 
   const suggestedLevel = recommendedLevel(stats.rating);
+  const isVsCpu = mode === 'play-white' || mode === 'play-black';
+  // The "effective" rated flag — self-play and manual are always casual
+  // because there's no sensible Elo update against yourself.
+  const effectivelyRated = isVsCpu && rated;
 
   return (
     <div className={`app ${state.isCheck ? 'is-check' : ''}`}>
@@ -773,6 +742,33 @@ export default function App() {
               ))}
             </select>
           </div>
+
+          {isVsCpu && (
+            <label className={`rated-toggle ${rated ? 'is-rated' : 'is-casual'}`}>
+              <input
+                type="checkbox"
+                checked={rated}
+                onChange={(e) => {
+                  if (history.length > 0) {
+                    if (!confirm('เปลี่ยนโหมด rated/casual จะรีเซ็ตเกมปัจจุบัน. ยืนยัน?')) return;
+                    handleReset();
+                  }
+                  setRated(e.target.checked);
+                }}
+              />
+              <span className="rated-toggle-text">
+                {rated ? (
+                  <>
+                    🏆 <strong>จัดอันดับ</strong> (rated · ไม่มี hint/undo · บันทึก Elo)
+                  </>
+                ) : (
+                  <>
+                    🎮 <strong>ฝึก</strong> (casual · hint/undo เปิด · ไม่บันทึก Elo)
+                  </>
+                )}
+              </span>
+            </label>
+          )}
 
           <div className="nnue-picker">
             {nnueState === 'on' ? (
@@ -911,23 +907,31 @@ export default function App() {
               className="hint-button"
               onClick={handleHint}
               disabled={
+                effectivelyRated ||
                 hintLoading ||
                 thinking ||
                 state.isGameOver ||
                 (userSide !== 'both' && userSide !== state.turn)
               }
+              title={effectivelyRated ? 'Hint ปิดในโหมดจัดอันดับ' : 'ขอเครื่องแนะนำตาเดิน'}
             >
               {hintLoading ? (
                 <>
                   <span className="spinner-sm" aria-hidden="true" />
                   กำลังคิด...
                 </>
+              ) : effectivelyRated ? (
+                <>🔒 Hint (rated)</>
               ) : (
                 <>💡 ขอ Hint</>
               )}
             </button>
-            <button onClick={handleUndo} disabled={history.length === 0 || thinking}>
-              ↶ ย้อน
+            <button
+              onClick={handleUndo}
+              disabled={effectivelyRated || history.length === 0 || thinking}
+              title={effectivelyRated ? 'Undo ปิดในโหมดจัดอันดับ' : 'ย้อนตาเดิน'}
+            >
+              {effectivelyRated ? '🔒 ย้อน' : '↶ ย้อน'}
             </button>
             <button onClick={handleReset} disabled={history.length === 0}>
               ⟳ เริ่มใหม่
@@ -1282,7 +1286,6 @@ function computerSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
   switch (mode) {
     case 'play-white': return 'black';
     case 'play-black': return 'white';
-    case 'learning':   return 'black'; // learning mode: user plays white, engine suggests
     case 'self-play':  return 'both';
     case 'manual':     return null;
   }
@@ -1292,7 +1295,6 @@ function userSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
   switch (mode) {
     case 'play-white': return 'white';
     case 'play-black': return 'black';
-    case 'learning':   return 'white'; // user plays white in learning mode
     case 'self-play':  return null;
     case 'manual':     return 'both';
   }
