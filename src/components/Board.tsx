@@ -67,6 +67,18 @@ export function Board({
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
 
+  // chessground holds the events.after callback we register at mount and
+  // never re-reads it through api.set(). If we passed `onMove` directly,
+  // the captured closure would freeze the initial App state — meaning by
+  // the third user move the legal-move check inside App.handleMove runs
+  // against the FIRST render's legalMoves and rejects valid moves
+  // silently. Route through a ref that we refresh every render so
+  // chessground always invokes the latest handleMove.
+  const onMoveRef = useRef(onMove);
+  useEffect(() => {
+    onMoveRef.current = onMove;
+  });
+
   // Mount chessground once. Subsequent state changes go through api.set()
   // in the second effect so we never re-create the DOM (chessground
   // animates between updates, which would break on remount).
@@ -86,7 +98,8 @@ export function Board({
         dests: buildDests(legalMoves),
         showDests: true,
         events: {
-          after: (orig, dest) => onMove(orig as Square, dest as Square),
+          after: (orig, dest) =>
+            onMoveRef.current(orig as Square, dest as Square),
         },
       },
       draggable: {
