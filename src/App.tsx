@@ -288,6 +288,84 @@ export default function App() {
     gameRecordedRef.current = true;
   }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length]);
 
+  // Auto-enable NNUE on next visit if it was enabled before — the
+  // IndexedDB cache makes this near-instant. Effects must live above the
+  // loading/error early-returns to keep React's hook order stable.
+  useEffect(() => {
+    if (!board || !state) return;
+    if (nnueState !== 'off') return;
+    try {
+      if (localStorage.getItem('openmakruk_nnue') === '1' && !isNNUELoaded()) {
+        setNnueState('loading');
+        setNnueProgress({ loaded: 0, total: 0 });
+        loadNNUE(undefined, (loaded, total) => {
+          setNnueProgress({ loaded, total });
+        })
+          .then(() => {
+            setNnueState('on');
+            setNnueProgress(null);
+          })
+          .catch((err) => {
+            console.error('NNUE auto-load failed:', err);
+            setNnueState('off');
+            setNnueProgress(null);
+          });
+      }
+    } catch {
+      // localStorage disabled — silently skip
+    }
+  }, [board, state?.fen, nnueState]);
+
+  // Learning mode = auto-trigger hint on every user turn. Effect must
+  // be above early-returns; we re-derive userSide inside via
+  // userSideForMode so we don't depend on the const declared below.
+  const hintRequestSeq = useRef(0);
+  useEffect(() => {
+    if (mode !== 'learning') return;
+    if (!state || state.isGameOver || forcedResult) return;
+    if (thinking || hint || hintLoading) return;
+    if (!board) return;
+    const us = userSideForMode(mode);
+    if (us !== 'both' && us !== state.turn) return;
+    // Defer one tick so the move animation lands first.
+    const mySeq = ++hintRequestSeq.current;
+    const t = window.setTimeout(() => {
+      if (hintRequestSeq.current !== mySeq) return;
+      // We can't reference handleHint from here (it's defined below).
+      // Inline the minimal "run a depth-14 search + set hint state" path.
+      setHintLoading(true);
+      log('hint.request', { fen: state.fen, source: 'learning-auto' });
+      searchBestMove(state.fen, { depth: 14 })
+        .then((result) => {
+          if (hintRequestSeq.current !== mySeq) return;
+          if (!result.bestMove || result.bestMove === '(none)' || result.bestMove === '0000') {
+            setHintLoading(false);
+            return;
+          }
+          const { from, to } = parseUci(result.bestMove);
+          setHint({ from: from as Square, to: to as Square });
+          let info = '';
+          if (typeof result.mateIn === 'number') {
+            info = `รุกจน ${Math.abs(result.mateIn)} ตา`;
+          } else if (typeof result.scoreCp === 'number') {
+            const pawns = (result.scoreCp / 100).toFixed(2);
+            info = `eval ${result.scoreCp > 0 ? '+' : ''}${pawns}`;
+          }
+          if (result.depth) info += `${info ? ' · ' : ''}depth ${result.depth}`;
+          setHintInfo(info || null);
+        })
+        .catch((err) => {
+          console.error('learning auto-hint failed:', err);
+        })
+        .finally(() => {
+          setHintLoading(false);
+        });
+    }, 50);
+    return () => {
+      window.clearTimeout(t);
+    };
+  }, [mode, state?.fen, state?.isGameOver, forcedResult, thinking, hint, hintLoading, board]);
+
   if (loadError) {
     return (
       <div className="screen error">
@@ -489,38 +567,6 @@ export default function App() {
       setNnueProgress(null);
     }
   };
-
-  // Auto-enable NNUE on next visit if it was enabled before — the
-  // IndexedDB cache makes this near-instant. We trigger it once the
-  // engine + board are ready so we don't compete with the initial
-  // search-time work.
-  useEffect(() => {
-    if (!board || !state) return;
-    if (nnueState !== 'off') return;
-    try {
-      if (localStorage.getItem('openmakruk_nnue') === '1' && !isNNUELoaded()) {
-        handleEnableNNUE();
-      }
-    } catch {
-      // localStorage disabled — silently skip
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [board, state?.fen]);
-
-  // Learning mode = auto-trigger hint on every user turn (no explicit
-  // button press). Only when it's the user's turn AND we haven't shown
-  // a hint already for this position.
-  useEffect(() => {
-    if (mode !== 'learning') return;
-    if (!state || state.isGameOver || thinking || hint || hintLoading) return;
-    if (userSide !== 'both' && userSide !== state.turn) return;
-    // Defer one tick so the move animation lands first.
-    const t = window.setTimeout(() => {
-      handleHint();
-    }, 50);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, state?.fen, state?.isGameOver, thinking, hint, hintLoading]);
 
   const handleHint = async () => {
     if (!state || hintLoading || thinking || state.isGameOver) return;
