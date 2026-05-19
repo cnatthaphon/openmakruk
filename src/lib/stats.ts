@@ -43,6 +43,8 @@ export type LevelRecord = { wins: number; losses: number; draws: number };
 
 export type UserStats = {
   version: number;
+  displayName: string; // user-chosen handle, default 'ผู้เล่น'
+  createdAt: number;   // ms timestamp of first init
   rating: number;
   totalGames: number;
   byLevel: Record<Difficulty, LevelRecord>;
@@ -53,6 +55,8 @@ const EMPTY_LEVEL: LevelRecord = { wins: 0, losses: 0, draws: 0 };
 
 const INITIAL_STATS: UserStats = {
   version: STATS_VERSION,
+  displayName: 'ผู้เล่น',
+  createdAt: Date.now(),
   rating: 1000,
   totalGames: 0,
   byLevel: {
@@ -75,9 +79,32 @@ export function loadStats(): UserStats {
       ...parsed,
       byLevel: { ...INITIAL_STATS.byLevel, ...(parsed.byLevel ?? {}) },
       history: parsed.history ?? [],
+      displayName: parsed.displayName ?? INITIAL_STATS.displayName,
+      createdAt: parsed.createdAt ?? INITIAL_STATS.createdAt,
     };
   } catch {
     return cloneStats(INITIAL_STATS);
+  }
+}
+
+export function exportStatsJSON(stats: UserStats): string {
+  return JSON.stringify(stats, null, 2);
+}
+
+export function importStatsJSON(json: string): UserStats | null {
+  try {
+    const parsed = JSON.parse(json) as Partial<UserStats>;
+    if (typeof parsed.rating !== 'number') return null;
+    return {
+      ...INITIAL_STATS,
+      ...parsed,
+      byLevel: { ...INITIAL_STATS.byLevel, ...(parsed.byLevel ?? {}) },
+      history: parsed.history ?? [],
+      displayName: parsed.displayName ?? INITIAL_STATS.displayName,
+      createdAt: parsed.createdAt ?? INITIAL_STATS.createdAt,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -145,6 +172,8 @@ export function recordGame(
 
   return {
     version: STATS_VERSION,
+    displayName: stats.displayName,
+    createdAt: stats.createdAt,
     rating: newRating,
     totalGames: stats.totalGames + 1,
     byLevel,

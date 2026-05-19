@@ -31,12 +31,31 @@ import {
 import { log, timeStart, timeEnd } from './lib/log';
 import {
   CPU_RATINGS,
+  clearStats,
   loadStats,
   recommendedLevel,
   recordGame,
   saveStats,
   type UserStats,
 } from './lib/stats';
+import { LearnPage } from './pages/LearnPage';
+import { PuzzlesPage } from './pages/PuzzlesPage';
+import { ProfilePage } from './pages/ProfilePage';
+
+type Tab = 'play' | 'learn' | 'puzzles' | 'profile';
+
+function readTabFromHash(): Tab {
+  if (typeof window === 'undefined') return 'play';
+  const m = window.location.hash.match(/^#\/(play|learn|puzzles|profile)/);
+  return (m?.[1] as Tab | undefined) ?? 'play';
+}
+
+const TAB_LABELS: Record<Tab, string> = {
+  play:    '♔ เล่น',
+  learn:   '🎓 ฝึก',
+  puzzles: '🧩 ปริศนา',
+  profile: '👤 โปรไฟล์',
+};
 
 type BoardState = {
   turn: 'white' | 'black';
@@ -126,10 +145,27 @@ export default function App() {
   // default — practice with assist; nothing affects the rating.
   // Self-play and manual modes are always Casual regardless of toggle.
   const [rated, setRated] = useState(false);
+  // Active tab. Hash-synced so links and refresh land back on the same
+  // page; default to "play" when nothing matches.
+  const [currentTab, setCurrentTab] = useState<Tab>(() => readTabFromHash());
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
   // Load ffish-es6 once on mount.
+  // Keep tab state and url hash in sync (back/forward buttons work).
+  useEffect(() => {
+    const wanted = `#/${currentTab}`;
+    if (window.location.hash !== wanted) {
+      window.history.replaceState(null, '', wanted);
+    }
+  }, [currentTab]);
+
+  useEffect(() => {
+    const onHashChange = () => setCurrentTab(readTabFromHash());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     timeStart('ffish.load');
@@ -643,12 +679,52 @@ export default function App() {
   // because there's no sensible Elo update against yourself.
   const effectivelyRated = isVsCpu && rated;
 
+  const handleResetAll = () => {
+    if (pendingTimer.current !== null) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+    for (let i = 0; i < history.length; i++) board.pop();
+    setHistory([]);
+    setState(snapshot(board));
+    setSelfPlayPaused(false);
+    setSelfPlayStopReason(null);
+    setForcedResult(null);
+    setDrawOfferRefused(null);
+    gameRecordedRef.current = false;
+    clearStats();
+    setStats(loadStats());
+  };
+
   return (
-    <div className={`app ${state.isCheck ? 'is-check' : ''}`}>
+    <div className={`app ${state.isCheck && currentTab === 'play' ? 'is-check' : ''}`}>
       <header>
         <h1>OpenMakruk</h1>
-        <p className="tagline">หมากรุกไทย · v0.1 · NNUE + Review + Profile</p>
+        <p className="tagline">หมากรุกไทย · v0.1 · {stats.displayName}</p>
+        <nav className="tabs" role="tablist">
+          {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={currentTab === t}
+              className={`tab ${currentTab === t ? 'is-active' : ''}`}
+              onClick={() => setCurrentTab(t)}
+            >
+              {TAB_LABELS[t]}
+            </button>
+          ))}
+        </nav>
       </header>
+      {currentTab === 'learn' && <LearnPage />}
+      {currentTab === 'puzzles' && <PuzzlesPage />}
+      {currentTab === 'profile' && (
+        <ProfilePage
+          stats={stats}
+          onStatsChange={setStats}
+          onResetAll={handleResetAll}
+        />
+      )}
+      {currentTab === 'play' && (
       <main>
         <div className="board-container">
           <Board
@@ -993,6 +1069,7 @@ export default function App() {
           </div>
         </aside>
       </main>
+      )}
       <footer>
         <p>
           v0.1 · Fairy-Stockfish · hint · review · NNUE-ready ·

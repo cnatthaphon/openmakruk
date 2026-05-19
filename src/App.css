@@ -882,6 +882,455 @@ main {
   color: var(--accent);
 }
 
+/* ---- Tab navigation ---- */
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  flex: 1 1 auto;
+  min-width: 80px;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--fg-dim);
+  border: none;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+}
+
+.tab.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* ---- Learn page ---- */
+
+.learn-page, .puzzles-page, .profile-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.learn-header, .puzzles-header, .profile-header {
+  margin-bottom: 20px;
+}
+
+.learn-header h2, .puzzles-header h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+.learn-header p, .puzzles-header p {
+  margin: 4px 0;
+  color: var(--fg-dim);
+  font-size: 14px;
+}
+
+.learn-status-note {
+  padding: 8px 12px;
+  background: rgba(212, 162, 60, 0.12);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px !important;
+  margin-top: 8px !important;
+  color: var(--fg) !important;
+}
+
+.learn-group {
+  margin-bottom: 24px;
+}
+
+.learn-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.learn-group-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.learn-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.learn-card {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.learn-card:hover:not(:disabled) {
+  background: rgba(212, 162, 60, 0.12);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.learn-card:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.learn-card-locked {
+  opacity: 0.45;
+}
+
+.learn-card-status {
+  font-size: 20px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.learn-card-completed .learn-card-status {
+  color: #8acf6a;
+}
+
+.learn-card-body {
+  flex: 1;
+}
+
+.learn-card-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.learn-card-desc {
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.learn-card-meta {
+  font-size: 11px;
+}
+
+/* ---- Puzzles page ---- */
+
+.puzzles-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.puzzle-category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+}
+
+.puzzle-category-card:hover:not(:disabled) {
+  background: rgba(212, 162, 60, 0.12);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.puzzle-category-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.puzzle-category-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.puzzle-category-desc {
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.4;
+}
+
+.puzzle-category-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.puzzle-progress {
+  margin-top: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.puzzle-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease-out;
+}
+
+/* ---- Profile page ---- */
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-name {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.profile-name-edit-button {
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.profile-name-edit-button:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.profile-name-edit {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.profile-name-edit input {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 16px;
+}
+
+.profile-name-edit button {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.profile-name-save {
+  background: var(--accent) !important;
+  color: var(--accent-fg) !important;
+  font-weight: 600;
+}
+
+.profile-rating-block {
+  text-align: center;
+}
+
+.profile-rating-value {
+  font-size: 38px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.profile-rating-label {
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.profile-summary-card {
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.profile-summary-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.profile-summary-label {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-top: 2px;
+}
+
+.profile-section {
+  margin-bottom: 22px;
+}
+
+.profile-section h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--fg);
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.profile-bylevel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-bylevel-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.profile-bylevel-stats .win  { color: #8acf6a; margin-right: 6px; }
+.profile-bylevel-stats .loss { color: #e87a5d; margin-right: 6px; }
+.profile-bylevel-stats .draw { color: var(--fg-dim); margin-right: 6px; }
+
+.profile-history {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 4px;
+}
+
+.profile-history-row {
+  display: grid;
+  grid-template-columns: 24px 1fr 40px 60px 50px 60px 60px;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  align-items: baseline;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.history-outcome {
+  font-weight: 700;
+  text-align: center;
+}
+
+.history-outcome.win  { color: #8acf6a; }
+.history-outcome.loss { color: #e87a5d; }
+.history-outcome.draw { color: var(--fg-dim); }
+
+.history-opponent { color: var(--fg); }
+.history-side, .history-plies, .history-date { color: var(--fg-dim); font-size: 11px; }
+
+.history-delta {
+  text-align: right;
+  font-weight: 600;
+}
+
+.history-delta.up   { color: #8acf6a; }
+.history-delta.down { color: #e87a5d; }
+
+.history-rating { color: var(--accent); }
+
+.profile-data-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-data-actions button {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.profile-data-actions button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+}
+
+.profile-reset-button {
+  background: rgba(232, 80, 70, 0.18) !important;
+  border-color: rgba(232, 80, 70, 0.5) !important;
+}
+
+.profile-reset-button:hover {
+  background: rgba(232, 80, 70, 0.3) !important;
+}
+
 .controls {
   display: flex;
   gap: 8px;
