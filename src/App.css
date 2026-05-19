@@ -714,6 +714,83 @@ main {
   font-size: 10px;
 }
 
+/* ---- Self-play controls ---- */
+
+.self-play-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: rgba(212, 162, 60, 0.08);
+  border: 1px solid rgba(212, 162, 60, 0.35);
+  border-radius: 8px;
+}
+
+.self-play-pause {
+  width: 100%;
+  padding: 8px 14px;
+  background: rgba(232, 122, 93, 0.18);
+  color: var(--fg);
+  border: 1px solid rgba(232, 122, 93, 0.55);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.self-play-pause:hover {
+  background: rgba(232, 122, 93, 0.3);
+}
+
+.self-play-pause.is-paused {
+  background: rgba(82, 145, 90, 0.18);
+  border-color: rgba(120, 200, 130, 0.6);
+}
+
+.self-play-pause.is-paused:hover {
+  background: rgba(82, 145, 90, 0.3);
+}
+
+.self-play-takeover {
+  width: 100%;
+  padding: 8px 14px;
+  background: rgba(140, 100, 220, 0.18);
+  color: var(--fg);
+  border: 1px solid rgba(140, 100, 220, 0.5);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.self-play-takeover:hover {
+  background: rgba(140, 100, 220, 0.3);
+}
+
+.self-play-banner {
+  padding: 8px 10px;
+  background: rgba(232, 122, 93, 0.12);
+  border-left: 3px solid rgba(232, 122, 93, 0.7);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--fg);
+}
+
+.resign-button {
+  flex: 1 1 auto;
+  background: rgba(232, 80, 70, 0.18) !important;
+  border-color: rgba(232, 80, 70, 0.55) !important;
+}
+
+.resign-button:hover:not(:disabled) {
+  background: rgba(232, 80, 70, 0.3) !important;
+  border-color: rgba(255, 130, 120, 0.85) !important;
+}
+
 .controls {
   display: flex;
   gap: 8px;
@@ -751,17 +828,28 @@ main {
 
 .mode-picker select {
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--fg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  /* Solid background so the option list (rendered by the OS / browser)
+     stays legible on dark themes — translucent rgba bled into the
+     desktop background on Windows. */
+  background-color: #2a2520;
+  color: #f5ecd6;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
   font: inherit;
   font-size: 13px;
   cursor: pointer;
+  /* Override native dark-control rendering on browsers that take the OS
+     theme into account. */
+  color-scheme: dark;
 }
 
 .mode-picker select:hover {
   border-color: var(--accent);
+}
+
+.mode-picker select option {
+  background-color: #2a2520;
+  color: #f5ecd6;
 }
 
 .note {

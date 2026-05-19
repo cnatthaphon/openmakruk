@@ -105,6 +105,15 @@ export default function App() {
   const [reviewProgress, setReviewProgress] = useState<{ current: number; total: number } | null>(
     null,
   );
+
+  // Self-play pause / auto-stop. Engines at < skill 20 introduce small
+  // randomness so 3-fold repetition doesn't reliably trigger; we add our
+  // own ply cap + halfmove-clock stagnation guard so users don't watch
+  // a shuffle forever.
+  const [selfPlayPaused, setSelfPlayPaused] = useState(false);
+  const [selfPlayStopReason, setSelfPlayStopReason] = useState<
+    'user' | 'max-plies' | 'stagnation' | null
+  >(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -141,6 +150,30 @@ export default function App() {
     const computerSide = computerSideForMode(mode);
     if (computerSide === null) return; // manual: no computer
     if (computerSide !== 'both' && computerSide !== state.turn) return;
+
+    // Self-play guards: manual pause + 200-fullmove ceiling + halfmove
+    // stagnation (capture/pawn-less shuffle). Engines below skill 20
+    // introduce small randomness, so 3-fold repetition often never
+    // exactly fires — we add the safety net here.
+    if (mode === 'self-play') {
+      if (selfPlayPaused) return;
+      if (state.fullmove > 200) {
+        setSelfPlayPaused(true);
+        setSelfPlayStopReason('max-plies');
+        log('selfPlay.autoPause', { reason: 'max-plies', fullmove: state.fullmove });
+        return;
+      }
+      if (!state.counting.active) {
+        const fenParts = state.fen.split(' ');
+        const halfmove = fenParts.length > 4 ? Number(fenParts[4]) || 0 : 0;
+        if (halfmove > 100) {
+          setSelfPlayPaused(true);
+          setSelfPlayStopReason('stagnation');
+          log('selfPlay.autoPause', { reason: 'stagnation', halfmove });
+          return;
+        }
+      }
+    }
 
     setThinking(true);
     let cancelled = false;
@@ -197,7 +230,7 @@ export default function App() {
       }
       setThinking(false);
     };
-  }, [board, state, mode, speed, difficulty]);
+  }, [board, state, mode, speed, difficulty, selfPlayPaused]);
 
   const lastMove = useMemo(() => {
     const last = history[history.length - 1];
@@ -302,6 +335,65 @@ export default function App() {
     setHistory((h) => [...h, tryMove]);
     setState(snapshot(board));
     log('user.move.applied', { move: tryMove });
+  };
+
+  const handleToggleSelfPlay = () => {
+    setSelfPlayPaused((paused) => {
+      const next = !paused;
+      if (next) {
+        if (pendingTimer.current !== null) {
+          clearTimeout(pendingTimer.current);
+          pendingTimer.current = null;
+        }
+        setSelfPlayStopReason('user');
+        log('selfPlay.pause', { reason: 'user', fullmove: state?.fullmove });
+      } else {
+        setSelfPlayStopReason(null);
+        log('selfPlay.resume', { fullmove: state?.fullmove });
+      }
+      return next;
+    });
+  };
+
+  const handleTakeOverFromSelfPlay = () => {
+    if (!state) return;
+    // Whichever side is to move becomes the user's; the other stays CPU.
+    const newMode: Mode = state.turn === 'white' ? 'play-white' : 'play-black';
+    setMode(newMode);
+    if (newMode === 'play-black') setFlipped(true);
+    else setFlipped(false);
+    setSelfPlayPaused(false);
+    setSelfPlayStopReason(null);
+    if (pendingTimer.current !== null) {
+      clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+  };
+
+  const handleResign = () => {
+    if (!board || !state || state.isGameOver) return;
+    if (mode !== 'play-white' && mode !== 'play-black') return;
+    if (!confirm('ยอมแพ้ในเกมนี้?')) return;
+    log('user.resign', { mode, fullmove: state.fullmove });
+    // Record the loss into stats — same path as a real game-over would
+    // take, with a synthetic result.
+    const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+    const losingResult = userColor === 'white' ? '0-1' : '1-0';
+    setStats((prev) => {
+      const next = recordGame(prev, difficulty, userColor, losingResult, history.length);
+      saveStats(next);
+      log('stats.gameRecorded', {
+        outcome: 'loss',
+        opponent: difficulty,
+        ratingBefore: prev.rating,
+        ratingAfter: next.rating,
+        delta: next.rating - prev.rating,
+        reason: 'resign',
+      });
+      return next;
+    });
+    gameRecordedRef.current = true;
+    handleReset();
   };
 
   const handleUndo = () => {
@@ -691,6 +783,32 @@ export default function App() {
             )}
           </div>
 
+          {mode === 'self-play' && !state.isGameOver && (
+            <div className="self-play-controls">
+              <button
+                className={`self-play-pause ${selfPlayPaused ? 'is-paused' : ''}`}
+                onClick={handleToggleSelfPlay}
+              >
+                {selfPlayPaused ? '▶ เล่นต่อ' : '⏸ พักคอม'}
+              </button>
+              {selfPlayPaused && (
+                <button
+                  className="self-play-takeover"
+                  onClick={handleTakeOverFromSelfPlay}
+                >
+                  🎮 เล่นเอง (เป็น{state.turn === 'white' ? 'ขาว' : 'ดำ'})
+                </button>
+              )}
+              {selfPlayStopReason && selfPlayStopReason !== 'user' && (
+                <div className="self-play-banner">
+                  {selfPlayStopReason === 'max-plies'
+                    ? `หยุดอัตโนมัติ — เล่นเกิน 200 รอบ (${state.fullmove}) แต่ยังไม่จบ`
+                    : `หยุดอัตโนมัติ — ไม่มี capture/pawn move เกิน 100 ตา (ดูเหมือนเดินวน)`}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="controls">
             <button
               className="hint-button"
@@ -720,6 +838,18 @@ export default function App() {
             <button onClick={() => setFlipped((f) => !f)}>
               ⇅ พลิกกระดาน
             </button>
+            {(mode === 'play-white' || mode === 'play-black') &&
+              !state.isGameOver &&
+              history.length > 0 && (
+                <button
+                  className="resign-button"
+                  onClick={handleResign}
+                  disabled={thinking}
+                  title="ยอมแพ้และเริ่มเกมใหม่"
+                >
+                  🏳 ยอมแพ้
+                </button>
+              )}
           </div>
           {hint && hintInfo && (
             <div className="hint-info">
