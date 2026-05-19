@@ -1,3 +1,5 @@
+import { log, timeStart, timeEnd } from './log';
+
 // Thin wrapper over `fairy-stockfish-nnue.wasm` that exposes a Promise-based
 // `search(fen, opts)` for the React layer. The engine loader (stockfish.js)
 // is fetched dynamically as a global script and creates internal pthread
@@ -51,6 +53,9 @@ export function getEngine(): Promise<EngineInstance> {
 }
 
 async function bootEngine(): Promise<EngineInstance> {
+  timeStart('engine.boot');
+  log('engine.boot.start');
+
   // The package's stockfish.js is a UMD/CJS bundle that attaches to
   // window.Stockfish when loaded as a regular <script>. Vite's module
   // bundler chokes on its `document.currentScript` / pthread bootstrap,
@@ -70,6 +75,7 @@ async function bootEngine(): Promise<EngineInstance> {
   sf.postMessage('setoption name UCI_Variant value makruk');
   await sendAndWait(sf, 'isready', (line) => line === 'readyok');
 
+  timeEnd('engine.boot');
   return sf;
 }
 
@@ -113,6 +119,9 @@ export async function searchBestMove(
   opts: SearchOpts = {},
 ): Promise<SearchResult> {
   const sf = await getEngine();
+  const searchId = `engine.search#${++searchCounter}`;
+  timeStart(searchId);
+  log('engine.search.start', { fen, opts });
 
   if (typeof opts.skillLevel === 'number') {
     sf.postMessage(`setoption name Skill Level value ${opts.skillLevel}`);
@@ -160,8 +169,16 @@ export async function searchBestMove(
     sf.postMessage(goCmd);
   });
 
+  timeEnd(searchId, {
+    bestMove: result.bestMove,
+    scoreCp: result.scoreCp,
+    mateIn: result.mateIn,
+    depth: result.depth,
+  });
   return result;
 }
+
+let searchCounter = 0;
 
 // Difficulty presets — depth + skill-level pair so very low skills also
 // time out fast (no use thinking deep when you're going to blunder anyway).

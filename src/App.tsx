@@ -13,6 +13,7 @@ import {
   searchBestMove,
   type Difficulty,
 } from './lib/engine';
+import { log, timeStart, timeEnd } from './lib/log';
 
 type BoardState = {
   turn: 'white' | 'black';
@@ -68,12 +69,16 @@ export default function App() {
   // Load ffish-es6 once on mount.
   useEffect(() => {
     let cancelled = false;
+    timeStart('ffish.load');
+    log('ffish.load.start');
     loadFfish()
       .then((ffish) => {
         if (cancelled) return;
+        timeEnd('ffish.load');
         const b = new ffish.Board('makruk');
         setBoard(b);
         setState(snapshot(b));
+        log('game.ready', { fen: b.fen() });
       })
       .catch((err) => {
         if (cancelled) return;
@@ -183,18 +188,38 @@ export default function App() {
   // chessground hands us (from, to) after both click-to-move and drag-drop.
   // We only need to validate against the legal move list and push.
   const handleMove = (from: Square, to: Square) => {
-    if (state.isGameOver) return;
-    if (thinking) return;
-    if (userSide !== 'both' && userSide !== state.turn) return;
+    if (state.isGameOver) {
+      log('user.move.reject', { reason: 'gameOver', from, to });
+      return;
+    }
+    if (thinking) {
+      log('user.move.reject', { reason: 'thinking', from, to });
+      return;
+    }
+    if (userSide !== 'both' && userSide !== state.turn) {
+      log('user.move.reject', {
+        reason: 'notYourTurn',
+        from, to, turn: state.turn, userSide,
+      });
+      return;
+    }
 
     const tryMove = state.legalMoves.find(
       (m) => m.slice(0, 2) === from && m.slice(2, 4) === to,
     );
-    if (!tryMove) return; // illegal — chessground will snap back
+    if (!tryMove) {
+      log('user.move.reject', {
+        reason: 'illegal',
+        from, to,
+        availableFromSquare: state.legalMoves.filter((m) => m.slice(0, 2) === from),
+      });
+      return;
+    }
 
     board.push(tryMove);
     setHistory((h) => [...h, tryMove]);
     setState(snapshot(board));
+    log('user.move.applied', { move: tryMove });
   };
 
   const handleUndo = () => {
