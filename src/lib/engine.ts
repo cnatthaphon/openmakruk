@@ -1,5 +1,11 @@
 import { log, timeStart, timeEnd } from './log';
 
+// Where the Makruk NNUE network lives. Pinned to a tag so users hit
+// jsDelivr's edge cache hard — bump the tag in nnue/README.md when you
+// replace the file and clients will pick up the new build.
+export const NNUE_URL =
+  'https://cdn.jsdelivr.net/gh/cnatthaphon/openmakruk@nnue-v1/nnue/makruk.nnue';
+
 // Thin wrapper over `fairy-stockfish-nnue.wasm` that exposes a Promise-based
 // `search(fen, opts)` for the React layer. The engine loader (stockfish.js)
 // is fetched dynamically as a global script and creates internal pthread
@@ -26,6 +32,10 @@ type EngineInstance = {
   addMessageListener: (cb: (line: string) => void) => void;
   removeMessageListener: (cb: (line: string) => void) => void;
   terminate: () => void;
+  // Emscripten virtual filesystem — required to inject the NNUE network.
+  FS: {
+    writeFile: (path: string, data: Uint8Array) => void;
+  };
 };
 
 export type SearchOpts = {
@@ -197,3 +207,154 @@ export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   hard:   'ยาก',
   master: 'ระดับมาสเตอร์',
 };
+
+// ---- NNUE loading + caching --------------------------------------------
+//
+// The NNUE file is ~46 MB raw / ~24 MB on the wire. We:
+//   1. Cache the blob in IndexedDB after the first successful download
+//      → second visit is instant, no jsDelivr round-trip
+//   2. Stream the fetch and report progress so the UI can show a bar
+//   3. Inject the buffer into Fairy-Stockfish's emscripten virtual
+//      filesystem and finally tell UCI to use it via
+//      `setoption name EvalFile value <path>`
+
+const IDB_NAME = 'openmakruk';
+const IDB_STORE = 'engine';
+const IDB_KEY = 'nnue';
+
+type ProgressCb = (loaded: number, total: number) => void;
+
+let nnueLoaded = false;
+
+export function isNNUELoaded(): boolean {
+  return nnueLoaded;
+}
+
+export async function loadNNUE(
+  url: string = NNUE_URL,
+  onProgress?: ProgressCb,
+): Promise<void> {
+  if (nnueLoaded) {
+    log('engine.nnue.alreadyLoaded');
+    return;
+  }
+  const sf = await getEngine();
+  timeStart('engine.nnue.total');
+
+  // Try cache first — typically <100ms hit
+  let buffer = await readCachedNNUE();
+  if (buffer) {
+    log('engine.nnue.cacheHit', { size: buffer.byteLength });
+  } else {
+    log('engine.nnue.download.start', { url });
+    timeStart('engine.nnue.download');
+    buffer = await fetchWithProgress(url, onProgress);
+    timeEnd('engine.nnue.download', { size: buffer.byteLength });
+    // Best effort cache; if quota is exceeded, we still proceed.
+    void writeCachedNNUE(buffer).catch((err) =>
+      log('engine.nnue.cacheWrite.error', { error: String(err) }),
+    );
+  }
+
+  // Hand the bytes to the engine's virtual filesystem, then point UCI at it.
+  const fileName = 'makruk.nnue';
+  sf.FS.writeFile(`/${fileName}`, new Uint8Array(buffer));
+  sf.postMessage(`setoption name EvalFile value ${fileName}`);
+  await sendAndWait(sf, 'isready', (line) => line === 'readyok');
+
+  nnueLoaded = true;
+  timeEnd('engine.nnue.total', { size: buffer.byteLength });
+  log('engine.nnue.active');
+}
+
+async function fetchWithProgress(
+  url: string,
+  onProgress?: ProgressCb,
+): Promise<ArrayBuffer> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`NNUE fetch failed: HTTP ${response.status}`);
+  }
+
+  // Streamed body: lets us report progress. If unavailable (rare), fall
+  // back to a single arrayBuffer() call.
+  if (!response.body) return response.arrayBuffer();
+
+  const totalHeader = response.headers.get('content-length');
+  const total = totalHeader ? Number(totalHeader) : 0;
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let loaded = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    onProgress?.(loaded, total);
+  }
+
+  const merged = new Uint8Array(loaded);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return merged.buffer;
+}
+
+// ---- IndexedDB cache (Promise wrapper) ---------------------------------
+
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(IDB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readCachedNNUE(): Promise<ArrayBuffer | null> {
+  try {
+    const db = await openDB();
+    return await new Promise<ArrayBuffer | null>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = () => resolve((req.result as ArrayBuffer | undefined) ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    log('engine.nnue.cacheRead.error', { error: String(err) });
+    return null;
+  }
+}
+
+async function writeCachedNNUE(buffer: ArrayBuffer): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(buffer, IDB_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function clearCachedNNUE(): Promise<void> {
+  try {
+    const db = await openDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(IDB_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    nnueLoaded = false;
+  } catch (err) {
+    log('engine.nnue.cacheClear.error', { error: String(err) });
+  }
+}

@@ -269,6 +269,169 @@ main {
 .rating-row-stats .loss { color: #e87a5d; }
 .rating-row-stats .draw { color: var(--fg-dim); }
 
+/* ---- NNUE controls ---- */
+
+.nnue-picker {
+  margin-top: 4px;
+}
+
+.nnue-enable-button {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(140, 100, 220, 0.15);
+  color: var(--fg);
+  border: 1px solid rgba(140, 100, 220, 0.55);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+  line-height: 1.4;
+}
+
+.nnue-enable-button:hover:not(:disabled) {
+  background: rgba(140, 100, 220, 0.25);
+  border-color: rgba(170, 140, 240, 0.85);
+}
+
+.nnue-enable-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.nnue-loading {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(140, 100, 220, 0.15);
+  border: 1px solid rgba(140, 100, 220, 0.55);
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.nnue-loading-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.nnue-bar {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.nnue-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #aa8af0, #d4a23c);
+  transition: width 200ms ease-out;
+}
+
+.nnue-active {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(140, 100, 220, 0.18);
+  border: 1px solid rgba(170, 140, 240, 0.8);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.nnue-badge {
+  font-weight: 700;
+  color: #c9adff;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  background: rgba(140, 100, 220, 0.3);
+  border-radius: 4px;
+}
+
+/* ---- Game-over overlay (on the board itself) ---- */
+
+.board-container {
+  position: relative;
+  width: min(90vmin, 640px);
+  aspect-ratio: 1 / 1;
+}
+
+.game-over-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 14, 10, 0.62);
+  backdrop-filter: blur(2px);
+  border-radius: 4px;
+  z-index: 20;
+  animation: fade-in 250ms ease-out;
+  padding: 16px;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(2px); }
+}
+
+.game-over-card {
+  background: linear-gradient(180deg, rgba(58, 38, 24, 0.96), rgba(36, 24, 16, 0.96));
+  padding: 24px 28px;
+  border-radius: 12px;
+  text-align: center;
+  border: 2px solid var(--accent);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.7);
+  max-width: 88%;
+  animation: card-pop 320ms cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes card-pop {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.game-over-icon {
+  font-size: 52px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.game-over-result {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+
+.game-over-subtitle {
+  font-size: 14px;
+  color: var(--fg-dim);
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.game-over-button {
+  padding: 12px 28px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.12s ease;
+}
+
+.game-over-button:hover {
+  background: #e0b855;
+  transform: translateY(-1px);
+}
+
 .controls {
   display: flex;
   gap: 8px;

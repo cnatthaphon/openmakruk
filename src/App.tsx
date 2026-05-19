@@ -12,6 +12,8 @@ import {
 import {
   DIFFICULTY_LABELS,
   DIFFICULTY_PRESETS,
+  isNNUELoaded,
+  loadNNUE,
   searchBestMove,
   type Difficulty,
 } from './lib/engine';
@@ -79,6 +81,8 @@ export default function App() {
   const [hintInfo, setHintInfo] = useState<string | null>(null);
   const [stats, setStats] = useState<UserStats>(() => loadStats());
   const gameRecordedRef = useRef(false);
+  const [nnueState, setNnueState] = useState<'off' | 'loading' | 'on'>('off');
+  const [nnueProgress, setNnueProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -300,6 +304,48 @@ export default function App() {
     setState(snapshot(board));
   };
 
+  const handleEnableNNUE = async () => {
+    if (nnueState !== 'off') return;
+    // If preference was previously enabled in this browser, the NNUE blob
+    // is likely already in IndexedDB → fast path. Otherwise this triggers
+    // a one-time 46 MB download.
+    setNnueState('loading');
+    setNnueProgress({ loaded: 0, total: 0 });
+    try {
+      await loadNNUE(undefined, (loaded, total) => {
+        setNnueProgress({ loaded, total });
+      });
+      setNnueState('on');
+      setNnueProgress(null);
+      try {
+        localStorage.setItem('openmakruk_nnue', '1');
+      } catch {
+        // ignore — best-effort persistence
+      }
+    } catch (err) {
+      console.error('NNUE load failed:', err);
+      setNnueState('off');
+      setNnueProgress(null);
+    }
+  };
+
+  // Auto-enable NNUE on next visit if it was enabled before — the
+  // IndexedDB cache makes this near-instant. We trigger it once the
+  // engine + board are ready so we don't compete with the initial
+  // search-time work.
+  useEffect(() => {
+    if (!board || !state) return;
+    if (nnueState !== 'off') return;
+    try {
+      if (localStorage.getItem('openmakruk_nnue') === '1' && !isNNUELoaded()) {
+        handleEnableNNUE();
+      }
+    } catch {
+      // localStorage disabled — silently skip
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, state?.fen]);
+
   const handleHint = async () => {
     if (!state || hintLoading || thinking || state.isGameOver) return;
     if (userSide !== 'both' && userSide !== state.turn) return;
@@ -354,17 +400,39 @@ export default function App() {
         <p className="tagline">หมากรุกไทย · v0.0 prototype</p>
       </header>
       <main>
-        <Board
-          fen={state.fen}
-          legalMoves={state.legalMoves}
-          flipped={flipped}
-          disabled={thinking || state.isGameOver || (userSide !== 'both' && userSide !== state.turn)}
-          turn={state.turn}
-          isCheck={state.isCheck}
-          lastMove={lastMove}
-          hint={hint}
-          onMove={handleMove}
-        />
+        <div className="board-container">
+          <Board
+            fen={state.fen}
+            legalMoves={state.legalMoves}
+            flipped={flipped}
+            disabled={thinking || state.isGameOver || (userSide !== 'both' && userSide !== state.turn)}
+            turn={state.turn}
+            isCheck={state.isCheck}
+            lastMove={lastMove}
+            hint={hint}
+            onMove={handleMove}
+          />
+          {state.isGameOver && (
+            <div className="game-over-overlay" role="dialog" aria-live="polite">
+              <div className="game-over-card">
+                <div className="game-over-icon">
+                  {gameOverIcon(state.result, mode)}
+                </div>
+                <div className="game-over-result">
+                  {formatResult(state.result, state.counting)}
+                </div>
+                {gameOverSubtitle(state.result, mode, state.counting) && (
+                  <div className="game-over-subtitle">
+                    {gameOverSubtitle(state.result, mode, state.counting)}
+                  </div>
+                )}
+                <button className="game-over-button" onClick={handleReset}>
+                  ⟳ เริ่มเกมใหม่
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <aside className="sidebar">
           <div className="mode-picker">
             <span className="label">โหมด</span>
@@ -388,6 +456,45 @@ export default function App() {
                 <option key={d} value={d}>{DIFFICULTY_LABELS[d]}</option>
               ))}
             </select>
+          </div>
+
+          <div className="nnue-picker">
+            {nnueState === 'on' ? (
+              <div className="nnue-active">
+                <span className="nnue-badge">⚡ NNUE</span>
+                <span className="label-aside">+248 Elo · ใช้งานอยู่</span>
+              </div>
+            ) : nnueState === 'loading' ? (
+              <div className="nnue-loading">
+                <span className="spinner-sm" aria-hidden="true" />
+                <div className="nnue-loading-text">
+                  กำลังโหลด NNUE...
+                  {nnueProgress && nnueProgress.total > 0 && (
+                    <>
+                      {' '}
+                      {(nnueProgress.loaded / 1024 / 1024).toFixed(1)} /
+                      {' '}{(nnueProgress.total / 1024 / 1024).toFixed(1)} MB
+                      <div className="nnue-bar">
+                        <div
+                          className="nnue-bar-fill"
+                          style={{
+                            width: `${(nnueProgress.loaded / nnueProgress.total) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button
+                className="nnue-enable-button"
+                onClick={handleEnableNNUE}
+                disabled={!board || !state}
+              >
+                ⚡ เปิด NNUE (+248 Elo, โหลด 1 ครั้ง ~46 MB)
+              </button>
+            )}
           </div>
 
           <div className="mode-picker">
@@ -563,6 +670,32 @@ function formatResult(result: string, counting: CountInfo): string {
     return 'เสมอ (½-½)';
   }
   return result;
+}
+
+function gameOverIcon(result: string, mode: Mode): string {
+  if (result === '1/2-1/2') return '🤝';
+  const userWon =
+    (mode === 'play-white' && result === '1-0') ||
+    (mode === 'play-black' && result === '0-1');
+  if (mode === 'play-white' || mode === 'play-black') {
+    return userWon ? '🏆' : '😞';
+  }
+  // self-play / manual: neutral celebration
+  return '🎉';
+}
+
+function gameOverSubtitle(result: string, mode: Mode, counting: CountInfo): string | null {
+  if (mode !== 'play-white' && mode !== 'play-black') return null;
+  if (result === '1/2-1/2') {
+    if (counting.active && counting.remaining === 0) {
+      return 'ฝ่ายแข็งกว่าไล่ไม่จนภายใน count limit';
+    }
+    return 'ไม่ฝ่ายไหนชนะ';
+  }
+  const userWon =
+    (mode === 'play-white' && result === '1-0') ||
+    (mode === 'play-black' && result === '0-1');
+  return userWon ? 'ยินดีด้วย! คุณชนะคอม 🎯' : 'คอมเก่งกว่ารอบนี้ — ลองอีกครั้ง';
 }
 
 function snapshot(b: FfishBoard): BoardState {
