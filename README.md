@@ -75,10 +75,13 @@ A `postinstall` hook copies `ffish.wasm` from `node_modules/ffish-es6` into `pub
 
 ## Credits
 
-Makruk piece SVG silhouettes in `public/pieces/` are by **Yevrowl** on
-[Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:Makruk_pieces),
+Makruk piece artwork in `public/pieces/makruk/` is by **Fulmene** —
+[Fulmene/makruk-pieces-image](https://github.com/Fulmene/makruk-pieces-image),
 licensed under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
-See `public/pieces/NOTICE` for the full attribution and licensing details.
+These are gradient-shaded "turned-wood" Makruk pieces. A reference set
+of minimalist silhouettes by Yevrowl (Wikimedia Commons, same license)
+sits alongside in `public/pieces/`. See `public/pieces/NOTICE` for full
+attribution and licensing details.
 
 The Makruk variant rules engine is [Fairy-Stockfish](https://github.com/fairy-stockfish/Fairy-Stockfish)
 loaded at runtime via two npm packages, both used unmodified:
