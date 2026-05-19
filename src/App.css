@@ -791,6 +791,27 @@ main {
   border-color: rgba(255, 130, 120, 0.85) !important;
 }
 
+.draw-button {
+  flex: 1 1 auto;
+  background: rgba(180, 180, 200, 0.16) !important;
+  border-color: rgba(180, 180, 200, 0.5) !important;
+}
+
+.draw-button:hover:not(:disabled) {
+  background: rgba(180, 180, 200, 0.28) !important;
+  border-color: rgba(220, 220, 240, 0.85) !important;
+}
+
+.draw-refused-banner {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: rgba(232, 122, 93, 0.14);
+  border-left: 3px solid rgba(232, 122, 93, 0.7);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .controls {
   display: flex;
   gap: 8px;

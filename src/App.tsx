@@ -114,6 +114,14 @@ export default function App() {
   const [selfPlayStopReason, setSelfPlayStopReason] = useState<
     'user' | 'max-plies' | 'stagnation' | null
   >(null);
+
+  // forcedResult lets us end the game outside of ffish's normal
+  // checkmate/stalemate detection — i.e. resignation and accepted draw
+  // offer. When non-null we treat the game as over: CPU stops moving,
+  // the overlay appears, and rating gets recorded with this result.
+  const [forcedResult, setForcedResult] = useState<string | null>(null);
+  const [drawOfferPending, setDrawOfferPending] = useState(false);
+  const [drawOfferRefused, setDrawOfferRefused] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -145,7 +153,7 @@ export default function App() {
   // (per current mode), schedule an auto-move after a short delay.
   useEffect(() => {
     if (!board || !state) return;
-    if (state.isGameOver) return;
+    if (state.isGameOver || forcedResult) return;
 
     const computerSide = computerSideForMode(mode);
     if (computerSide === null) return; // manual: no computer
@@ -230,7 +238,7 @@ export default function App() {
       }
       setThinking(false);
     };
-  }, [board, state, mode, speed, difficulty, selfPlayPaused]);
+  }, [board, state, mode, speed, difficulty, selfPlayPaused, forcedResult]);
 
   const lastMove = useMemo(() => {
     const last = history[history.length - 1];
@@ -250,7 +258,7 @@ export default function App() {
   // vs-CPU games (play-white / play-black) — self-play and manual
   // modes aren't competitive.
   useEffect(() => {
-    if (!state || !state.isGameOver) {
+    if (!state || (!state.isGameOver && !forcedResult)) {
       gameRecordedRef.current = false;
       return;
     }
@@ -258,8 +266,9 @@ export default function App() {
     if (mode !== 'play-white' && mode !== 'play-black') return;
     if (history.length === 0) return; // safeguard against stale gameover on init
     const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+    const recordResult = forcedResult ?? state.result;
     setStats((prev) => {
-      const next = recordGame(prev, difficulty, userColor, state.result, history.length);
+      const next = recordGame(prev, difficulty, userColor, recordResult, history.length);
       saveStats(next);
       log('stats.gameRecorded', {
         result: state.result,
@@ -277,7 +286,7 @@ export default function App() {
       return next;
     });
     gameRecordedRef.current = true;
-  }, [state?.isGameOver, state?.result, mode, difficulty, history.length]);
+  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length]);
 
   if (loadError) {
     return (
@@ -371,29 +380,67 @@ export default function App() {
   };
 
   const handleResign = () => {
-    if (!board || !state || state.isGameOver) return;
+    if (!board || !state || state.isGameOver || forcedResult) return;
     if (mode !== 'play-white' && mode !== 'play-black') return;
-    if (!confirm('ยอมแพ้ในเกมนี้?')) return;
+    if (!confirm('ยอมแพ้ในเกมนี้? (จะเสีย rating)')) return;
     log('user.resign', { mode, fullmove: state.fullmove });
-    // Record the loss into stats — same path as a real game-over would
-    // take, with a synthetic result.
     const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
     const losingResult = userColor === 'white' ? '0-1' : '1-0';
-    setStats((prev) => {
-      const next = recordGame(prev, difficulty, userColor, losingResult, history.length);
-      saveStats(next);
-      log('stats.gameRecorded', {
-        outcome: 'loss',
-        opponent: difficulty,
-        ratingBefore: prev.rating,
-        ratingAfter: next.rating,
-        delta: next.rating - prev.rating,
-        reason: 'resign',
-      });
-      return next;
-    });
-    gameRecordedRef.current = true;
-    handleReset();
+    // Keep history intact so the user can still review the game; the
+    // auto-recorder effect picks up forcedResult and writes the loss
+    // into stats. The game-over overlay also keys off forcedResult.
+    setForcedResult(losingResult);
+  };
+
+  const handleOfferDraw = async () => {
+    if (!board || !state || state.isGameOver || forcedResult) return;
+    if (mode !== 'play-white' && mode !== 'play-black') return;
+    if (thinking || drawOfferPending) return;
+    setDrawOfferPending(true);
+    setDrawOfferRefused(null);
+    log('user.drawOffer.request', { fen: state.fen, fullmove: state.fullmove });
+    try {
+      // Quick depth-12 search; engine's scoreCp tells us whether the
+      // opponent would happily agree to a draw.
+      const result = await searchBestMove(state.fen, { depth: 12 });
+      const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+      const isUserToMove = state.turn === userColor;
+      // searchBestMove returns eval from current side-to-move's POV.
+      // We need the OPPONENT's POV (the side deciding whether to accept).
+      let opponentCp: number | undefined;
+      if (typeof result.scoreCp === 'number') {
+        opponentCp = isUserToMove ? -result.scoreCp : result.scoreCp;
+      }
+
+      if (typeof result.mateIn === 'number' && result.mateIn !== 0) {
+        const opponentMate = isUserToMove ? -result.mateIn : result.mateIn;
+        if (opponentMate > 0) {
+          setDrawOfferRefused(`คอมไม่ยอมเสมอ — เห็น mate in ${opponentMate}`);
+          log('user.drawOffer.refused', { reason: 'opponentMate', mateIn: opponentMate });
+          return;
+        }
+      }
+
+      // Threshold: opponent accepts when they're not clearly winning.
+      // 60cp = ~half a pawn, a forgiving cutoff so end-game equal
+      // positions get drawn even with some imprecision.
+      const ACCEPT_THRESHOLD = 60;
+      if (typeof opponentCp === 'number' && opponentCp >= ACCEPT_THRESHOLD) {
+        setDrawOfferRefused(
+          `คอมไม่ยอมเสมอ — เห็นว่าตัวเองได้เปรียบ (+${(opponentCp / 100).toFixed(2)})`,
+        );
+        log('user.drawOffer.refused', { reason: 'opponentWinning', opponentCp });
+        return;
+      }
+
+      log('user.drawOffer.accepted', { opponentCp });
+      setForcedResult('1/2-1/2');
+    } catch (err) {
+      console.error('draw offer eval failed:', err);
+      log('user.drawOffer.error', { error: String(err) });
+    } finally {
+      setDrawOfferPending(false);
+    }
   };
 
   const handleUndo = () => {
@@ -600,18 +647,22 @@ export default function App() {
             hint={reviewActive ? null : hint}
             onMove={handleMove}
           />
-          {state.isGameOver && !reviewActive && (
+          {(state.isGameOver || forcedResult) && !reviewActive && (
             <div className="game-over-overlay" role="dialog" aria-live="polite">
               <div className="game-over-card">
                 <div className="game-over-icon">
-                  {gameOverIcon(state.result, mode)}
+                  {gameOverIcon(forcedResult ?? state.result, mode)}
                 </div>
                 <div className="game-over-result">
-                  {formatResult(state.result, state.counting)}
+                  {forcedResult
+                    ? formatForcedResult(forcedResult, mode)
+                    : formatResult(state.result, state.counting)}
                 </div>
-                {gameOverSubtitle(state.result, mode, state.counting) && (
+                {gameOverSubtitle(forcedResult ?? state.result, mode, state.counting) && (
                   <div className="game-over-subtitle">
-                    {gameOverSubtitle(state.result, mode, state.counting)}
+                    {forcedResult
+                      ? forcedSubtitle(forcedResult, mode)
+                      : gameOverSubtitle(state.result, mode, state.counting)}
                   </div>
                 )}
                 <div className="game-over-actions">
@@ -642,7 +693,7 @@ export default function App() {
               onExit={handleExitReview}
             />
           )}
-          {!reviewActive && state.isGameOver && history.length > 0 && (
+          {!reviewActive && (state.isGameOver || forcedResult) && history.length > 0 && (
             <button
               className="review-launch-button"
               onClick={handleStartReview}
@@ -840,17 +891,38 @@ export default function App() {
             </button>
             {(mode === 'play-white' || mode === 'play-black') &&
               !state.isGameOver &&
+              !forcedResult &&
               history.length > 0 && (
-                <button
-                  className="resign-button"
-                  onClick={handleResign}
-                  disabled={thinking}
-                  title="ยอมแพ้และเริ่มเกมใหม่"
-                >
-                  🏳 ยอมแพ้
-                </button>
+                <>
+                  <button
+                    className="draw-button"
+                    onClick={handleOfferDraw}
+                    disabled={thinking || drawOfferPending}
+                    title="ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน"
+                  >
+                    {drawOfferPending ? (
+                      <>
+                        <span className="spinner-sm" aria-hidden="true" />
+                        กำลังพิจารณา...
+                      </>
+                    ) : (
+                      <>🤝 ขอเสมอ</>
+                    )}
+                  </button>
+                  <button
+                    className="resign-button"
+                    onClick={handleResign}
+                    disabled={thinking}
+                    title="ยอมแพ้ — บันทึกเป็น loss"
+                  >
+                    🏳 ยอมแพ้
+                  </button>
+                </>
               )}
           </div>
+          {drawOfferRefused && (
+            <div className="draw-refused-banner">{drawOfferRefused}</div>
+          )}
           {hint && hintInfo && (
             <div className="hint-info">
               💡 แนะนำ <strong>{hint.from} → {hint.to}</strong>
@@ -1099,6 +1171,22 @@ function ReviewPanel({
       </div>
     </div>
   );
+}
+
+function formatForcedResult(result: string, mode: Mode): string {
+  if (result === '1/2-1/2') return 'เสมอ (ตกลงเสมอ ½-½)';
+  // resign
+  if (mode === 'play-white' && result === '0-1') return 'ยอมแพ้ — ดำชนะ (0-1)';
+  if (mode === 'play-black' && result === '1-0') return 'ยอมแพ้ — ขาวชนะ (1-0)';
+  return result;
+}
+
+function forcedSubtitle(result: string, mode: Mode): string {
+  if (result === '1/2-1/2') return 'คอมยอมรับข้อเสนอเสมอ';
+  if (mode === 'play-white' || mode === 'play-black') {
+    return 'คุณยอมแพ้ในเกมนี้ — rating ปรับเป็น loss';
+  }
+  return '';
 }
 
 function gameOverIcon(result: string, mode: Mode): string {
