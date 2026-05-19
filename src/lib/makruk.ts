@@ -35,6 +35,35 @@ export function parseLegalMoves(movesStr: string): string[] {
   return movesStr.trim().split(/\s+/).filter(Boolean);
 }
 
+// Parse Makruk-specific counting fields from a FEN.
+//
+// Standard chess FEN: "pos side castling enPassant halfmove fullmove"
+// Fairy-Stockfish Makruk FEN repurposes the enPassant slot once counting
+// has started — instead of '-' it carries the count target, e.g.:
+//   "8/8/.../8 b - 88 33 87"   (count target 88, current count = halfmove)
+//
+// If counting is active, returns { active: true, target, current, remaining }.
+// Otherwise returns { active: false }.
+export type CountInfo =
+  | { active: false }
+  | { active: true; target: number; current: number; remaining: number };
+
+export function parseCounting(fen: string): CountInfo {
+  const fields = fen.split(/\s+/);
+  if (fields.length < 6) return { active: false };
+  const enPassantSlot = fields[3];
+  const halfmove = Number(fields[4]);
+  if (enPassantSlot === '-' || !/^\d+$/.test(enPassantSlot)) {
+    return { active: false };
+  }
+  const target = Number(enPassantSlot);
+  // FS encodes the start of count in halfmove; current count = halfmove.
+  // Remaining = target - halfmove. When remaining hits 0 → counting draw.
+  const current = halfmove;
+  const remaining = Math.max(0, target - current);
+  return { active: true, target, current, remaining };
+}
+
 // Parse the position segment of a FEN string into a {square: piece} map.
 // FEN ranks are listed from rank 8 (top) down to rank 1 (bottom).
 // Each rank token uses piece letters (uppercase=white, lowercase=black)

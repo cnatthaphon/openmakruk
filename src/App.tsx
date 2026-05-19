@@ -3,8 +3,10 @@ import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from './components/Board';
 import {
   loadFfish,
+  parseCounting,
   parseLegalMoves,
   parseUci,
+  type CountInfo,
   type Square,
 } from './lib/makruk';
 import {
@@ -23,6 +25,7 @@ type BoardState = {
   legalMoves: string[];
   fen: string;
   fullmove: number;
+  counting: CountInfo;
 };
 
 type Mode =
@@ -335,9 +338,20 @@ export default function App() {
               <span className="label">รอบที่:</span> {state.fullmove}
               <span className="label-aside"> ({history.length} ตา)</span>
             </div>
+            {state.counting.active && (
+              <div className="count-indicator">
+                <span className="label">นับ:</span>{' '}
+                <strong>{state.counting.current}</strong>
+                {' / '}
+                <span>{state.counting.target}</span>
+                <span className="label-aside">
+                  {' '}เหลือ {state.counting.remaining} ตา · ถ้าไล่ไม่จน → เสมอ
+                </span>
+              </div>
+            )}
             {state.isGameOver && (
               <div className="gameover">
-                จบเกม · {state.result}
+                จบเกม · {formatResult(state.result, state.counting)}
               </div>
             )}
           </div>
@@ -378,15 +392,33 @@ export default function App() {
   );
 }
 
+function formatResult(result: string, counting: CountInfo): string {
+  // ffish returns "1-0", "0-1", "1/2-1/2", "*"
+  if (result === '1-0') return 'ขาวชนะ (1-0)';
+  if (result === '0-1') return 'ดำชนะ (0-1)';
+  if (result === '1/2-1/2') {
+    if (counting.active && counting.remaining === 0) {
+      return 'เสมอ (นับไม่จน — ½-½)';
+    }
+    return 'เสมอ (½-½)';
+  }
+  return result;
+}
+
 function snapshot(b: FfishBoard): BoardState {
+  const fen = b.fen();
+  // claimDraw=true makes ffish honour Makruk's counting rule + 3-fold
+  // repetition: when the weak side (bare king) hits the count limit
+  // without being mated, the game is declared drawn automatically.
   return {
     turn: b.turn() ? 'white' : 'black',
     isCheck: b.isCheck(),
-    isGameOver: b.isGameOver(),
-    result: b.result(),
+    isGameOver: b.isGameOver(true),
+    result: b.result(true),
     legalMoves: parseLegalMoves(b.legalMoves()),
-    fen: b.fen(),
+    fen,
     fullmove: b.fullmoveNumber(),
+    counting: parseCounting(fen),
   };
 }
 

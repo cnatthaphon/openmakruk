@@ -111,6 +111,20 @@ main {
   font-weight: 600;
 }
 
+.count-indicator {
+  margin-top: 4px;
+  padding: 8px 10px;
+  background: rgba(212, 162, 60, 0.14);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.count-indicator strong {
+  color: var(--accent);
+}
+
 .controls {
   display: flex;
   gap: 8px;
