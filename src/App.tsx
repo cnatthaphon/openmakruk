@@ -16,6 +16,14 @@ import {
   type Difficulty,
 } from './lib/engine';
 import { log, timeStart, timeEnd } from './lib/log';
+import {
+  CPU_RATINGS,
+  loadStats,
+  recommendedLevel,
+  recordGame,
+  saveStats,
+  type UserStats,
+} from './lib/stats';
 
 type BoardState = {
   turn: 'white' | 'black';
@@ -69,6 +77,8 @@ export default function App() {
   const [hint, setHint] = useState<{ from: Square; to: Square } | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [hintInfo, setHintInfo] = useState<string | null>(null);
+  const [stats, setStats] = useState<UserStats>(() => loadStats());
+  const gameRecordedRef = useRef(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
@@ -176,6 +186,39 @@ export default function App() {
     setHint(null);
     setHintInfo(null);
   }, [state?.fen]);
+
+  // Record a finished game into rating + per-level stats. Only counts
+  // vs-CPU games (play-white / play-black) — self-play and manual
+  // modes aren't competitive.
+  useEffect(() => {
+    if (!state || !state.isGameOver) {
+      gameRecordedRef.current = false;
+      return;
+    }
+    if (gameRecordedRef.current) return;
+    if (mode !== 'play-white' && mode !== 'play-black') return;
+    if (history.length === 0) return; // safeguard against stale gameover on init
+    const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+    setStats((prev) => {
+      const next = recordGame(prev, difficulty, userColor, state.result, history.length);
+      saveStats(next);
+      log('stats.gameRecorded', {
+        result: state.result,
+        outcome:
+          state.result === '1-0'
+            ? userColor === 'white' ? 'win' : 'loss'
+            : state.result === '0-1'
+              ? userColor === 'black' ? 'win' : 'loss'
+              : 'draw',
+        opponent: difficulty,
+        ratingBefore: prev.rating,
+        ratingAfter: next.rating,
+        delta: next.rating - prev.rating,
+      });
+      return next;
+    });
+    gameRecordedRef.current = true;
+  }, [state?.isGameOver, state?.result, mode, difficulty, history.length]);
 
   if (loadError) {
     return (
@@ -302,8 +345,10 @@ export default function App() {
     else if (newMode === 'play-white') setFlipped(false);
   };
 
+  const suggestedLevel = recommendedLevel(stats.rating);
+
   return (
-    <div className="app">
+    <div className={`app ${state.isCheck ? 'is-check' : ''}`}>
       <header>
         <h1>OpenMakruk</h1>
         <p className="tagline">หมากรุกไทย · v0.0 prototype</p>
@@ -358,7 +403,7 @@ export default function App() {
           </div>
 
 
-          <div className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''}`}>
+          <div className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''} ${state.isCheck ? 'is-check' : ''}`}>
             {thinking ? (
               <>
                 <span className="spinner-sm" aria-hidden="true" />
@@ -376,7 +421,50 @@ export default function App() {
                 </span>
               </>
             )}
-            {state.isCheck && <span className="check-flag">รุก!</span>}
+            {state.isCheck && <span className="check-flag">⚠ รุก!</span>}
+          </div>
+
+          {state.isCheck && (
+            <div className="check-banner" role="alert">
+              <strong>ขุนถูกรุก!</strong>{' '}
+              ต้องบล็อก/หนี/จับตัวที่รุกเท่านั้น (ตาเดินอื่นถูก reject อัตโนมัติ)
+            </div>
+          )}
+
+          <div className="rating-panel">
+            <div className="rating-header">
+              <span className="label">Rating</span>
+              <strong className="rating-value">{stats.rating}</strong>
+              <span className="label-aside">
+                ({stats.totalGames} เกม)
+              </span>
+            </div>
+            <div className="rating-recommend">
+              แนะนำเล่นที่: <strong>{DIFFICULTY_LABELS[suggestedLevel]}</strong>
+            </div>
+            <div className="rating-byLevel">
+              {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => {
+                const r = stats.byLevel[d];
+                const total = r.wins + r.losses + r.draws;
+                return (
+                  <div key={d} className="rating-row">
+                    <span className="rating-row-name">{DIFFICULTY_LABELS[d]}</span>
+                    <span className="rating-row-stats">
+                      {total === 0 ? (
+                        <span className="label-aside">ยังไม่เคยเล่น</span>
+                      ) : (
+                        <>
+                          <span className="win">{r.wins}W</span>{' '}
+                          <span className="loss">{r.losses}L</span>{' '}
+                          <span className="draw">{r.draws}D</span>
+                          <span className="label-aside"> · ~{CPU_RATINGS[d]}</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="status">
