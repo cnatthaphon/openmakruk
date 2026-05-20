@@ -2613,6 +2613,88 @@ footer a:hover {
   font-size: 11px;
 }
 
+/* ============ Mobile responsive ============ */
+
+/* Tab strip wraps + scrolls horizontally on narrow viewports so users
+   can still reach every tab without clipping. */
+@media (max-width: 720px) {
+  .tabs {
+    max-width: 100vw;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    box-sizing: border-box;
+  }
+  .tab {
+    flex-shrink: 0;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+  .app {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+}
+
+/* Play page side panel stacks below the board on phones, so the board
+   gets the full width and controls flow underneath. */
+@media (max-width: 880px) {
+  main {
+    flex-direction: column !important;
+  }
+  .board-container {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .cg-wrap {
+    max-width: 100vmin;
+  }
+  .side-panel,
+  .right-panel,
+  aside {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .analyze-row {
+    grid-template-columns: 28px 1fr;
+  }
+}
+
+/* Smaller phones: shrink lesson/puzzle/profile pages' padding so
+   content uses available width. */
+@media (max-width: 480px) {
+  .learn-page,
+  .puzzles-page,
+  .profile-page,
+  .custom-page,
+  .about-page,
+  .lesson-view,
+  .puzzle-view,
+  .settings-page {
+    padding: 10px;
+  }
+  .learn-cards {
+    grid-template-columns: 1fr !important;
+  }
+  .puzzles-categories {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .puzzles-stats-bar {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px;
+  }
+  .lesson-board {
+    width: min(96vmin, 420px) !important;
+  }
+  .profile-history-row {
+    flex-wrap: wrap;
+    font-size: 12px;
+  }
+  .clock-row-time { font-size: 16px; }
+  .eval-bar { min-height: 160px; }
+}
+
 /* ============ Analyze panel ============ */
 
 .analyze-panel {

@@ -2,12 +2,31 @@
 <html lang="th">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="OpenMakruk — เล่นหมากรุกไทยกับคอม ฝึกฝน เรียนรู้ ไม่ต้องสมัคร" />
+    <meta name="theme-color" content="#1a1816" />
+
+    <!-- PWA wiring -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+
     <title>OpenMakruk · หมากรุกไทย</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register the service worker once the page is loaded so the
+      // initial render isn't blocked. Skipped in dev to avoid stale
+      // cache issues — sw.js still ships in prod via /public/.
+      if ('serviceWorker' in navigator && !location.hostname.includes('localhost') && !location.hostname.includes('127.0.0.1')) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) => {
+            console.warn('SW registration failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

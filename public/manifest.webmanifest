@@ -1,0 +1,22 @@
+{
+  "name": "OpenMakruk — Thai Chess training platform",
+  "short_name": "OpenMakruk",
+  "description": "เว็บฝึก / เล่น / วิเคราะห์ หมากรุกไทย · เปิด source · ทำงาน 100% บน browser",
+  "lang": "th",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1816",
+  "theme_color": "#1a1816",
+  "categories": ["games", "education"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

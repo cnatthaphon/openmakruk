@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Solid background — Makruk wood dark accent + the project's gold mark -->
+  <rect width="512" height="512" rx="64" fill="#1a1816"/>
+
+  <!-- Repeating 8x8 board pattern in the centre, very faded — establishes the
+       "chess platform" identity without being literal -->
+  <defs>
+    <pattern id="board" x="0" y="0" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="32" height="32" fill="#e3c187" opacity="0.08"/>
+      <rect x="32" y="32" width="32" height="32" fill="#e3c187" opacity="0.08"/>
+    </pattern>
+  </defs>
+  <rect x="64" y="64" width="384" height="384" fill="url(#board)"/>
+
+  <!-- Stylised "K" for King in the project's gold accent. Centred + chunky
+       so it's still legible at 48x48 favicons. -->
+  <g fill="#d4a23c">
+    <path d="M 168 128 H 208 V 246 L 296 128 H 344 L 270 230 L 360 384 H 312 L 238 262 L 208 304 V 384 H 168 Z"/>
+  </g>
+
+  <!-- "MK" subscript (Makruk) — small, in the muted foreground colour -->
+  <g fill="#8a857d" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="48">
+    <text x="256" y="448" text-anchor="middle">MAKRUK</text>
+  </g>
+</svg>
