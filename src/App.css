@@ -3083,6 +3083,240 @@ footer a:hover {
   background: rgba(232, 92, 92, 0.3);
 }
 
+/* ============ Game Report (post-game) ============ */
+
+.game-report {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.report-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.report-result {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.report-result.win  { background: rgba(82,145,90,0.18); color: #79b87f; }
+.report-result.draw { background: rgba(212,162,60,0.18); color: var(--accent); }
+.report-result.loss { background: rgba(232,92,92,0.18); color: #e87a7a; }
+
+.report-accuracy-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.accuracy-card {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.accuracy-card.highlight {
+  border-color: var(--accent);
+}
+
+.accuracy-card-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.accuracy-card-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.accuracy-card-sub {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.accuracy-card.tier-gold  .accuracy-card-value { color: #f5d76e; }
+.accuracy-card.tier-green .accuracy-card-value { color: #79b87f; }
+.accuracy-card.tier-amber .accuracy-card-value { color: #e8c45a; }
+.accuracy-card.tier-red   .accuracy-card-value { color: #e87a7a; }
+
+.report-counts {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+
+.report-count {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 4px;
+  background: rgba(0,0,0,0.15);
+  border-left: 3px solid;
+  border-radius: 3px;
+}
+
+.report-count-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.report-count-label {
+  font-size: 9px;
+  color: var(--fg-dim);
+  text-align: center;
+  margin-top: 2px;
+  line-height: 1.1;
+}
+
+.report-section-title {
+  font-size: 13px;
+  margin: 4px 0 0;
+  color: var(--fg);
+}
+
+.report-key-moments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-clean {
+  padding: 14px;
+  background: rgba(82,145,90,0.1);
+  border: 1px solid #79b87f;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+  color: #79b87f;
+}
+
+.report-verdict {
+  padding: 8px 12px;
+  background: rgba(212,162,60,0.1);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.report-verdict code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0,0,0,0.3);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* Key moment card */
+
+.key-moment {
+  display: flex;
+  gap: 10px;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.key-moment:hover {
+  background: rgba(212,162,60,0.08);
+  border-color: var(--accent);
+}
+
+.key-moment-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  background: repeating-conic-gradient(#e3c187 0% 25%, #885e35 0% 50%);
+  background-size: 25% 25%;
+}
+
+.key-moment-square {
+  position: relative;
+}
+
+.key-moment-piece {
+  position: absolute;
+  inset: 0;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.key-moment-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.key-moment-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.key-moment-ply {
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.key-moment-side {
+  opacity: 0.7;
+}
+
+.key-moment-class {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border: 1px solid;
+  border-radius: 3px;
+}
+
+.key-moment-line code {
+  font-family: 'JetBrains Mono', monospace;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.key-moment-line code.bad  { background: rgba(232,92,92,0.15); color: #e87a7a; }
+.key-moment-line code.good { background: rgba(82,145,90,0.15); color: #79b87f; }
+
 /* ============ Advanced controls (collapsible) ============ */
 
 .advanced-controls {

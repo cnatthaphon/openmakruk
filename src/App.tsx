@@ -66,6 +66,7 @@ import { EvalBar } from './components/EvalBar';
 import { MultiPV } from './components/MultiPV';
 import type { EvalInfo, EvalScore } from './lib/evalParser';
 import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
+import { GameReport } from './components/GameReport';
 
 type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'library' | 'profile' | 'settings' | 'about';
 
@@ -1154,13 +1155,24 @@ export default function App() {
         </div>
         <aside className="sidebar">
           {reviewActive && (
-            <ReviewPanel
-              moves={reviewMoves}
-              currentPly={reviewPly}
-              currentMove={reviewCurrent}
-              onPlySelect={setReviewPly}
-              onExit={handleExitReview}
-            />
+            <>
+              <GameReport
+                moves={reviewMoves}
+                userSide={
+                  mode === 'play-white' ? 'white' :
+                  mode === 'play-black' ? 'black' : null
+                }
+                result={forcedResult ?? state.result ?? '*'}
+                onJumpToPly={setReviewPly}
+              />
+              <ReviewPanel
+                moves={reviewMoves}
+                currentPly={reviewPly}
+                currentMove={reviewCurrent}
+                onPlySelect={setReviewPly}
+                onExit={handleExitReview}
+              />
+            </>
           )}
           {!reviewActive && (state.isGameOver || forcedResult) && history.length > 0 && (
             <button

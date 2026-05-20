@@ -195,6 +195,78 @@ export function summarize(moves: AnnotatedMove[]): Record<Classification, number
   return totals;
 }
 
+/**
+ * Per-classification "quality score" used to compute Accuracy %.
+ * Calibrated so a perfect game ≈ 100 and a game of pure blunders ≈ 15.
+ * Same approach lichess uses (different curve, same idea): squash
+ * move-quality into a single comparable number across games.
+ */
+const QUALITY_SCORE: Record<Classification, number> = {
+  best:       100,
+  good:        90,
+  inaccuracy:  65,
+  mistake:     40,
+  blunder:     15,
+};
+
+/** Average move-quality across a side's moves, on 0-100 scale. */
+export function accuracyFor(
+  moves: AnnotatedMove[],
+  side: 'white' | 'black',
+): number {
+  const sideMoves = moves.filter((m) => m.side === side);
+  if (sideMoves.length === 0) return 100;
+  const sum = sideMoves.reduce((s, m) => s + QUALITY_SCORE[m.classification], 0);
+  return Math.round(sum / sideMoves.length);
+}
+
+/** Average centipawn loss per move, on a side. Lower = better. */
+export function acplFor(
+  moves: AnnotatedMove[],
+  side: 'white' | 'black',
+): number {
+  const sideMoves = moves.filter((m) => m.side === side);
+  if (sideMoves.length === 0) return 0;
+  const sum = sideMoves.reduce((s, m) => s + m.delta, 0);
+  return Math.round(sum / sideMoves.length);
+}
+
+/** Count moves by classification, restricted to one side. */
+export function classCountFor(
+  moves: AnnotatedMove[],
+  side: 'white' | 'black',
+): Record<Classification, number> {
+  const totals: Record<Classification, number> = {
+    best: 0,
+    good: 0,
+    inaccuracy: 0,
+    mistake: 0,
+    blunder: 0,
+  };
+  for (const m of moves) {
+    if (m.side === side) totals[m.classification]++;
+  }
+  return totals;
+}
+
+/**
+ * Pick the N most impactful "key moments" of a player's game —
+ * highest-delta inaccuracies / mistakes / blunders, sorted worst
+ * first. Used by GameReport to surface the 3-5 moves worth learning
+ * from, instead of forcing the user to scan every ply.
+ */
+export function keyMoments(
+  moves: AnnotatedMove[],
+  side: 'white' | 'black',
+  n: number = 3,
+): AnnotatedMove[] {
+  const significant: Classification[] = ['inaccuracy', 'mistake', 'blunder'];
+  return moves
+    .filter((m) => m.side === side && significant.includes(m.classification))
+    .sort((a, b) => b.delta - a.delta)
+    .slice(0, n);
+}
+
 /** Format an EvalPoint as a short human string: "+0.45" or "M3" or "—". */
 export function formatEval(e?: EvalPoint | null): string {
   if (!e) return '—';
