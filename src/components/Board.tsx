@@ -16,6 +16,20 @@ type Props = {
   lastMove: { from: Square; to: Square } | null;
   hint: { from: Square; to: Square } | null; // engine-suggested move arrow
   onMove: (from: Square, to: Square) => void;
+
+  // ---- Display preferences (drive chessground config + CSS variant) ----
+  /** Which piece SVG set to use. Default: 'fulmene'. */
+  pieceSet?: 'fulmene' | 'yevrowl';
+  /** Board square palette. Default: 'wood'. */
+  boardTheme?: 'wood' | 'green' | 'blue';
+  /** Show file/rank labels around the board. Default: true. */
+  showCoordinates?: boolean;
+  /** Highlight the previous move's source + target squares. */
+  highlightLastMove?: boolean;
+  /** Render legal-move dots when a piece is selected. */
+  showLegalDots?: boolean;
+  /** Animation duration in ms. 0 disables animation. */
+  animationMs?: number;
 };
 
 /**
@@ -30,10 +44,6 @@ type Props = {
  *   N (Ma)    → knight
  *   R (Ruea)  → rook
  *   P (Bia)   → pawn
- *
- * Movement legality is still produced by ffish-es6 (Fairy-Stockfish);
- * chessground only renders. CSS in Board.css repaints the queen and
- * bishop slots with Makruk artwork so users still see Met and Khon.
  */
 function toChessgroundFen(makrukFen: string): string {
   return makrukFen
@@ -65,6 +75,12 @@ export function Board({
   lastMove,
   hint,
   onMove,
+  pieceSet = 'fulmene',
+  boardTheme = 'wood',
+  showCoordinates = true,
+  highlightLastMove = true,
+  showLegalDots = true,
+  animationMs = 220,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -92,13 +108,13 @@ export function Board({
       orientation: flipped ? 'black' : 'white',
       turnColor: turn,
       check: isCheck,
-      coordinates: true,
+      coordinates: showCoordinates,
       lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       movable: {
         free: false,
         color: disabled ? undefined : turn,
         dests: buildDests(legalMoves),
-        showDests: true,
+        showDests: showLegalDots,
         events: {
           after: (orig, dest) =>
             onMoveRef.current(orig as Square, dest as Square),
@@ -112,11 +128,11 @@ export function Board({
         enabled: true,
       },
       animation: {
-        enabled: true,
-        duration: 220,
+        enabled: animationMs > 0,
+        duration: animationMs,
       },
       highlight: {
-        lastMove: true,
+        lastMove: highlightLastMove,
         check: true,
       },
       premovable: { enabled: false },
@@ -139,10 +155,20 @@ export function Board({
       orientation: flipped ? 'black' : 'white',
       turnColor: turn,
       check: isCheck,
+      coordinates: showCoordinates,
       lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : [],
       movable: {
         color: disabled ? undefined : turn,
         dests: buildDests(legalMoves),
+        showDests: showLegalDots,
+      },
+      animation: {
+        enabled: animationMs > 0,
+        duration: animationMs,
+      },
+      highlight: {
+        lastMove: highlightLastMove,
+        check: true,
       },
     });
   }, [
@@ -154,11 +180,13 @@ export function Board({
     isCheck,
     lastMove?.from,
     lastMove?.to,
+    showCoordinates,
+    highlightLastMove,
+    showLegalDots,
+    animationMs,
   ]);
 
-  // Drive engine-suggested hint arrow. setAutoShapes is the "programmatic"
-  // overlay channel; user-drawn shapes (if we enable drawable later) are
-  // kept on a different channel via setShapes.
+  // Drive engine-suggested hint arrow.
   useEffect(() => {
     if (!apiRef.current) return;
     if (hint) {
@@ -174,5 +202,10 @@ export function Board({
     }
   }, [hint?.from, hint?.to]);
 
-  return <div ref={containerRef} className="cg-wrap" />;
+  // Compose the CSS variant classes. Keeping piece-set + theme as
+  // separate flags on the same element lets the CSS cascade override
+  // piece images AND board colours independently.
+  const variantClasses = `cg-wrap piece-set-${pieceSet} theme-${boardTheme}`;
+
+  return <div ref={containerRef} className={variantClasses} />;
 }

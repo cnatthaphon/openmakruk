@@ -24,6 +24,17 @@ import {
   recordPuzzleSolve,
   savePuzzleProgress,
 } from '../lib/puzzleProgress';
+import {
+  loadPuzzleRating,
+  recordAttempt,
+  savePuzzleRating,
+} from '../lib/puzzleRating';
+import {
+  applyOutcome,
+  loadSchedule,
+  outcomeToQuality,
+  saveSchedule,
+} from '../lib/spacedRepetition';
 import type { Puzzle } from '../lib/puzzleSchema';
 
 type Props = {
@@ -128,7 +139,14 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
       const finishedAll = nextStep + (opponentUci ? 1 : 0) >= puzzle.solution.length;
 
       if (finishedAll) {
-        recordSolve(puzzle.id, state.attempts + 1, state.wrongStreak > 0 || showHint);
+        const totalAttempts = state.attempts + 1;
+        const usedHint = state.wrongStreak > 0 || showHint;
+        recordSolve(puzzle.id, totalAttempts, usedHint);
+        // Personal rating: first-try solve without hint = full credit;
+        // anything else = half credit. Failure path goes through the
+        // reveal-solution handler so we never double-count.
+        const outcome = totalAttempts === 1 && !usedHint ? 'solved' : 'partial';
+        recordCoachOutcome(puzzle.id, puzzle.rating, outcome);
         setState({
           fen: board.fen(),
           legalMoves: [],
@@ -188,6 +206,10 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
     const board = new ffish.Board('makruk', puzzle.fen);
     for (const move of puzzle.solution) board.push(move);
     boardRef.current = board;
+    // Count the reveal as a "failed" outcome for rating + SR purposes
+    // so the puzzle re-appears in the review queue and the user's
+    // rating reflects difficulty honestly.
+    recordCoachOutcome(puzzle.id, puzzle.rating, 'failed');
     setState({
       fen: board.fen(),
       legalMoves: [],
@@ -318,4 +340,28 @@ function recordSolve(puzzleId: string, attempts: number, usedHint: boolean): voi
     usedHint,
   });
   savePuzzleProgress(updated);
+}
+
+/**
+ * Update personal puzzle rating + SR schedule for one outcome.
+ * Called from BOTH the successful-solve path and the reveal-solution
+ * path. Idempotent — multiple solves of the same puzzle don't keep
+ * inflating the rating because the schedule entry's repetition count
+ * also advances on each successful repeat.
+ */
+function recordCoachOutcome(
+  puzzleId: string,
+  puzzleRating: number,
+  outcome: 'solved' | 'partial' | 'failed',
+): void {
+  // Personal rating bump
+  const rating = loadPuzzleRating();
+  const nextRating = recordAttempt(rating, puzzleRating, outcome);
+  savePuzzleRating(nextRating);
+
+  // Spaced-repetition schedule update
+  const schedule = loadSchedule();
+  const quality = outcomeToQuality(outcome);
+  const nextSchedule = applyOutcome(schedule, puzzleId, quality);
+  saveSchedule(nextSchedule);
 }

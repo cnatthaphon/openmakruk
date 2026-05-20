@@ -42,10 +42,7 @@ export function SettingsPage({ onSettingsChange }: Props) {
       <section className="settings-section">
         <h3>🎨 หน้าตา (Visuals)</h3>
 
-        <SettingRow
-          label="ชุดตัวหมาก"
-          hint="🚧 ตอนนี้ใช้ Fulmene เท่านั้น · Yevrowl เปิดได้ใน Phase ถัดไป"
-        >
+        <SettingRow label="ชุดตัวหมาก" hint="เปลี่ยนแล้วผลกระทบทันทีบน ♔ เล่น">
           <select
             value={settings.pieceSet}
             onChange={(e) => set('pieceSet', e.target.value as Settings['pieceSet'])}
@@ -55,7 +52,7 @@ export function SettingsPage({ onSettingsChange }: Props) {
           </select>
         </SettingRow>
 
-        <SettingRow label="สีกระดาน" hint="🚧 ต่อจริงใน Phase ถัดไป">
+        <SettingRow label="สีกระดาน">
           <select
             value={settings.boardTheme}
             onChange={(e) => set('boardTheme', e.target.value as Settings['boardTheme'])}

@@ -130,6 +130,14 @@ export default function App() {
   const [board, setBoard] = useState<FfishBoard | null>(null);
   const [state, setState] = useState<BoardState | null>(null);
   const [history, setHistory] = useState<string[]>([]);
+  /** FEN snapshot AFTER each ply, parallel to `history`. historyFens[0]
+   * is the starting position; historyFens[N] is the position after
+   * history[N-1] has been pushed. Used to power click-to-inspect on
+   * the move list — replay-free O(1) lookup. */
+  const [historyFens, setHistoryFens] = useState<string[]>([]);
+  /** When non-null, the board displays the FEN at this ply instead of
+   * the live position. User input is locked. null = live. */
+  const [inspectPly, setInspectPly] = useState<number | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [mode, setMode] = useState<Mode>('play-white');
   const [speed, setSpeed] = useState<Speed>('normal');
@@ -237,6 +245,7 @@ export default function App() {
         const b = new ffish.Board('makruk');
         setBoard(b);
         setState(snapshot(b));
+        setHistoryFens([b.fen()]);
         log('game.ready', { fen: b.fen() });
       })
       .catch((err) => {
@@ -314,6 +323,7 @@ export default function App() {
           if (cancelled) return;
           board.push(move);
           setHistory((h) => [...h, move]);
+          setHistoryFens((f) => [...f, board.fen()]);
           setState(snapshot(board));
           setThinking(false);
         }, wait);
@@ -324,6 +334,7 @@ export default function App() {
         if (fallback) {
           board.push(fallback);
           setHistory((h) => [...h, fallback]);
+          setHistoryFens((f) => [...f, board.fen()]);
           setState(snapshot(board));
         }
         setThinking(false);
@@ -346,6 +357,20 @@ export default function App() {
     const { from, to } = parseUci(last);
     return { from, to };
   }, [history]);
+
+  /** Effective board view: when inspecting a past ply, override fen +
+   * lastMove + legalMoves so the user sees that historical snapshot.
+   * Moves are disabled in inspect mode (viewDisabled gate). */
+  const inspectedView = useMemo(() => {
+    if (inspectPly === null || !state) return null;
+    const fen = historyFens[inspectPly] ?? state.fen;
+    const moveUci = inspectPly > 0 ? history[inspectPly - 1] : null;
+    const lm = moveUci ? parseUci(moveUci) : null;
+    return {
+      fen,
+      lastMove: lm ? { from: lm.from, to: lm.to } : null,
+    };
+  }, [inspectPly, historyFens, history, state]);
 
   // Clear hint whenever the position changes — once a move is played
   // (by either side), last hint is stale and shouldn't linger.
@@ -585,6 +610,7 @@ export default function App() {
 
     board.push(tryMove);
     setHistory((h) => [...h, tryMove]);
+    setHistoryFens((f) => [...f, board.fen()]);
     setState(snapshot(board));
     log('user.move.applied', { move: tryMove });
   };
@@ -705,6 +731,8 @@ export default function App() {
     }
     for (let i = 0; i < history.length; i++) board.pop();
     setHistory([]);
+    setHistoryFens([board.fen()]);
+    setInspectPly(null);
     setState(snapshot(board));
   };
 
@@ -858,11 +886,18 @@ export default function App() {
   // Derived "view" state. When in review mode we override the board
   // FEN + lastMove with the snapshot at reviewPly; the real game state
   // is preserved so the user can exit review and keep playing if desired.
+  // Three view modes, in priority order:
+  //   1. reviewActive  — post-game engine analysis stepping
+  //   2. inspectedView — mid-game peek at a past ply (lightweight,
+  //                      no engine)
+  //   3. live          — actual current position, input enabled
   const viewFen = reviewActive
     ? reviewPly === 0
       ? MAKRUK_START_FEN
       : reviewMoves[reviewPly - 1]?.fenAfter ?? state.fen
-    : state.fen;
+    : inspectedView
+      ? inspectedView.fen
+      : state.fen;
   const viewLastMove = reviewActive
     ? reviewPly === 0
       ? null
@@ -870,10 +905,13 @@ export default function App() {
           const m = reviewMoves[reviewPly - 1];
           return m ? parseUci(m.uci) : null;
         })()
-    : lastMove;
-  const viewLegalMoves = reviewActive ? [] : state.legalMoves;
+    : inspectedView
+      ? inspectedView.lastMove
+      : lastMove;
+  const viewLegalMoves = reviewActive || inspectedView ? [] : state.legalMoves;
   const viewDisabled =
     reviewActive ||
+    inspectedView !== null ||
     thinking ||
     state.isGameOver ||
     (userSide !== 'both' && userSide !== state.turn);
@@ -904,10 +942,12 @@ export default function App() {
     }
     // Reset board to start, then replay every saved move.
     for (let i = 0; i < history.length; i++) board.pop();
+    const fens: string[] = [board.fen()];
     let applied = 0;
     for (const move of saved.moves) {
       try {
         board.push(move);
+        fens.push(board.fen());
         applied += 1;
       } catch {
         // Saved move is no longer legal (engine version skew, position
@@ -916,6 +956,8 @@ export default function App() {
       }
     }
     setHistory(saved.moves.slice(0, applied));
+    setHistoryFens(fens);
+    setInspectPly(null);
     setState(snapshot(board));
     gameStartedAtRef.current = saved.startedAt;
     setMode(saved.userSide === 'white' ? 'play-white' : 'play-black');
@@ -941,6 +983,8 @@ export default function App() {
     setResumeAvailable(false);
     for (let i = 0; i < history.length; i++) board.pop();
     setHistory([]);
+    setHistoryFens([board.fen()]);
+    setInspectPly(null);
     setState(snapshot(board));
     setSelfPlayPaused(false);
     setSelfPlayStopReason(null);
@@ -982,6 +1026,8 @@ export default function App() {
                 const fresh = new ffish.Board('makruk', fen);
                 setBoard(fresh);
                 setHistory([]);
+                setHistoryFens([fresh.fen()]);
+                setInspectPly(null);
                 setState(snapshot(fresh));
                 setForcedResult(null);
                 setDrawOfferRefused(null);
@@ -1007,6 +1053,8 @@ export default function App() {
                 const fresh = new ffish.Board('makruk', fen);
                 setBoard(fresh);
                 setHistory([]);
+                setHistoryFens([fresh.fen()]);
+                setInspectPly(null);
                 setState(snapshot(fresh));
                 setForcedResult(null);
                 setDrawOfferRefused(null);
@@ -1060,6 +1108,12 @@ export default function App() {
             lastMove={viewLastMove}
             hint={reviewActive ? null : hint}
             onMove={handleMove}
+            pieceSet={settings.pieceSet}
+            boardTheme={settings.boardTheme}
+            showCoordinates={settings.showCoordinates}
+            highlightLastMove={settings.highlightLastMove}
+            showLegalDots={settings.showLegalDots}
+            animationMs={settings.animationMs}
           />
           {(state.isGameOver || forcedResult) && !reviewActive && (
             <div className="game-over-overlay" role="dialog" aria-live="polite">
@@ -1371,6 +1425,53 @@ export default function App() {
           </div>
           {drawOfferRefused && (
             <div className="draw-refused-banner">{drawOfferRefused}</div>
+          )}
+
+          {history.length > 0 && (
+            <div className="move-log">
+              <div className="move-log-header">
+                <span className="label">ตาเดินในเกมนี้</span>
+                {inspectPly !== null && (
+                  <button
+                    className="move-log-live"
+                    onClick={() => setInspectPly(null)}
+                    title="กลับไปดูตำแหน่งปัจจุบัน"
+                  >
+                    🔴 LIVE
+                  </button>
+                )}
+              </div>
+              <div className="move-log-list" role="list">
+                <button
+                  role="listitem"
+                  className={`move-log-row start ${
+                    inspectPly === 0 ? 'is-current' : ''
+                  }`}
+                  onClick={() => setInspectPly(0)}
+                  title="ตำแหน่งเริ่มต้น"
+                >
+                  <span className="move-log-num">0</span>
+                  <span className="move-log-uci">⏪ start</span>
+                </button>
+                {history.map((uci, i) => {
+                  const ply = i + 1;
+                  const isWhite = i % 2 === 0;
+                  const isCurrent = inspectPly === ply;
+                  return (
+                    <button
+                      key={`${ply}-${uci}`}
+                      role="listitem"
+                      className={`move-log-row ${isCurrent ? 'is-current' : ''}`}
+                      onClick={() => setInspectPly(ply)}
+                    >
+                      <span className="move-log-num">{ply}</span>
+                      <span className="move-log-side">{isWhite ? '♔' : '♚'}</span>
+                      <span className="move-log-uci">{uci}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
           {hint && (
             <div className={`hint-info coach-${hintCoach?.strength ?? 'neutral'}`}>

@@ -68,7 +68,7 @@ test.describe('comprehensive integration', () => {
     await expect(page.locator('.lesson-nav-prev')).toBeDisabled();
   });
 
-  test('puzzles: solving updates personal rating', async ({ page }) => {
+  test('puzzles: solving updates personal rating + SR schedule', async ({ page }) => {
     await page.goto('/#/puzzles');
     await waitForContentReady(page);
 
@@ -76,18 +76,31 @@ test.describe('comprehensive integration', () => {
     const ratingValue = page.locator('.puzzles-stat').first().locator('.puzzles-stat-value');
     await expect(ratingValue).toHaveText('1200');
 
-    // Note: the puzzle-progress lib records solves into localStorage but
-    // the personal-rating library is updated via a recordAttempt call
-    // that the UI doesn't yet wire automatically — Phase A. For now we
-    // verify the rating widget renders, and that solving a puzzle
-    // records the basic solve flag.
-
     await page.locator('.puzzle-category-card').first().click();
     await page.waitForSelector('.cg-wrap', { timeout: 15_000 });
     await page.waitForTimeout(1500);
     await dragMove(page, 'a1', 'a8');
     await expect(page.locator('.puzzle-feedback-text.good')).toBeVisible({ timeout: 5_000 });
 
+    // Personal rating now updated — should be != 1200 (could go up or
+    // down depending on solved puzzle's rating relative to ours).
+    await page.waitForTimeout(500);
+    const ratingAfter = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('openmakruk_puzzle_rating') ?? '{}'),
+    );
+    expect(ratingAfter.attempts).toBe(1);
+    expect(ratingAfter.solved).toBe(1);
+    expect(ratingAfter.rating).not.toBe(1200);
+
+    // SR schedule has an entry for this puzzle with a future dueAt
+    const sched = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('openmakruk_puzzle_schedule') ?? '{}'),
+    );
+    expect(Object.keys(sched.entries ?? {})).toHaveLength(1);
+    const entry = Object.values(sched.entries)[0] as { dueAt: number };
+    expect(entry.dueAt).toBeGreaterThan(Date.now());
+
+    // Basic progress record still recorded
     const progress = await page.evaluate(() =>
       JSON.parse(localStorage.getItem('openmakruk_puzzle_progress') ?? '{}'),
     );
@@ -162,6 +175,57 @@ test.describe('comprehensive integration', () => {
     const boardBox = await page.locator('.cg-wrap').boundingBox();
     expect(boardBox?.width).toBeLessThanOrEqual(375);
     expect(boardBox?.width ?? 0).toBeGreaterThan(200); // not collapsed
+  });
+
+  test('settings → board: pieceSet + boardTheme classes apply on the wrap', async ({ page }) => {
+    test.setTimeout(60_000);
+    // Seed settings to green theme + yevrowl pieces
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'openmakruk_settings',
+        JSON.stringify({ pieceSet: 'yevrowl', boardTheme: 'green' }),
+      );
+    });
+    await page.goto('/#/play');
+    await page.reload();
+    await waitForContentReady(page);
+    await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
+
+    const classes = await page.locator('.cg-wrap').first().getAttribute('class');
+    expect(classes).toContain('piece-set-yevrowl');
+    expect(classes).toContain('theme-green');
+  });
+
+  test('move log: appears after a move, clicking past ply enters inspect mode', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/#/play');
+    await waitForContentReady(page);
+    await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
+
+    // Move log is hidden when there are no moves
+    await expect(page.locator('.move-log')).toHaveCount(0);
+
+    // Play one move
+    await dragMove(page, 'e3', 'e4');
+    let visible = false;
+    for (let i = 0; i < 30 && !visible; i++) {
+      const count = await page.locator('.move-log-row').count();
+      if (count >= 2) { // start + e3e4
+        visible = true;
+        break;
+      }
+      await page.waitForTimeout(200);
+    }
+    expect(visible).toBe(true);
+
+    // Click the start row → inspect mode begins; LIVE button appears
+    await page.locator('.move-log-row.start').click();
+    await expect(page.locator('.move-log-live')).toBeVisible();
+    // Click LIVE → returns to current position
+    await page.locator('.move-log-live').click();
+    await expect(page.locator('.move-log-live')).toHaveCount(0);
   });
 
   test('save & resume: in-progress game restores after reload', async ({ page }) => {

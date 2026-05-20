@@ -132,6 +132,30 @@ export function PuzzlesPage() {
         />
       )}
 
+      {puzzles && reviewQueueSize > 0 && (() => {
+        // Surface the first due-now puzzle as a callable card. Once the
+        // user solves it, the schedule library re-dates it forward and
+        // it falls off this queue automatically.
+        const due = dueNow(loadSchedule());
+        const next = puzzles.find((p) => due.includes(p.id));
+        if (!next) return null;
+        return (
+          <section className="review-card">
+            <div className="review-card-tag">🔁 ทบทวน · {reviewQueueSize} ปริศนา</div>
+            <h3 className="review-card-title">ปริศนาที่ถึงเวลาทบทวน</h3>
+            <p className="review-card-meta">
+              Spaced repetition · ตำราใน SM-2 · ทำซ้ำเพื่อจดจำ pattern ระยะยาว
+            </p>
+            <button
+              className="review-card-button"
+              onClick={() => setActivePuzzleId(next.id)}
+            >
+              ▶ เริ่มทบทวน
+            </button>
+          </section>
+        );
+      })()}
+
       <div className="puzzles-categories">
         {PUZZLE_CATEGORY_ORDER.map((cat) => {
           const list = byCategory[cat];

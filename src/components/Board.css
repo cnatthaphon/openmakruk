@@ -19,7 +19,7 @@
   border-radius: 4px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 
-  /* Wood palette */
+  /* Default = wood palette (overridable by .theme-* classes below). */
   --sq-light: #e3c187;
   --sq-dark: #885e35;
 
@@ -31,6 +31,25 @@
   --sq-move-dot-edge: rgba(20, 85, 30, 0.85);
   --sq-capture-ring: rgba(180, 30, 30, 0.78);
   --check-glow: rgba(232, 70, 50, 0.85);
+}
+
+/* Theme variants — overwrite the two square-colour CSS vars and the
+ * board border to match. The wood default is set on .cg-wrap above. */
+.cg-wrap.theme-wood {
+  --sq-light: #e3c187;
+  --sq-dark: #885e35;
+}
+
+.cg-wrap.theme-green {
+  --sq-light: #eeeed2;
+  --sq-dark: #769656;
+  border-color: #3d5a30;
+}
+
+.cg-wrap.theme-blue {
+  --sq-light: #dee3e6;
+  --sq-dark: #788a94;
+  border-color: #3d4750;
 }
 
 /* Wood-toned checkerboard:
@@ -116,6 +135,23 @@
 .cg-wrap piece.knight.black { background-image: url('/pieces/makruk/black_knight.svg'); }
 .cg-wrap piece.rook.black   { background-image: url('/pieces/makruk/black_rook.svg'); }
 .cg-wrap piece.pawn.black   { background-image: url('/pieces/makruk/black_pawn.svg'); }
+
+/* Yevrowl piece set — flat silhouette artwork. Selected from Settings.
+ * Files live at the top of /pieces/ with capitalised role names from
+ * the original Wikimedia upload. */
+.cg-wrap.piece-set-yevrowl piece.king.white   { background-image: url('/pieces/Khun_white.svg'); }
+.cg-wrap.piece-set-yevrowl piece.queen.white  { background-image: url('/pieces/Met_white.svg'); }
+.cg-wrap.piece-set-yevrowl piece.bishop.white { background-image: url('/pieces/Khon_white.svg'); }
+.cg-wrap.piece-set-yevrowl piece.knight.white { background-image: url('/pieces/Ma_white.svg'); }
+.cg-wrap.piece-set-yevrowl piece.rook.white   { background-image: url('/pieces/Ruea_white.svg'); }
+.cg-wrap.piece-set-yevrowl piece.pawn.white   { background-image: url('/pieces/Bia_white.svg'); }
+
+.cg-wrap.piece-set-yevrowl piece.king.black   { background-image: url('/pieces/Khun_black.svg'); }
+.cg-wrap.piece-set-yevrowl piece.queen.black  { background-image: url('/pieces/Met_black.svg'); }
+.cg-wrap.piece-set-yevrowl piece.bishop.black { background-image: url('/pieces/Khon_black.svg'); }
+.cg-wrap.piece-set-yevrowl piece.knight.black { background-image: url('/pieces/Ma_black.svg'); }
+.cg-wrap.piece-set-yevrowl piece.rook.black   { background-image: url('/pieces/Ruea_black.svg'); }
+.cg-wrap.piece-set-yevrowl piece.pawn.black   { background-image: url('/pieces/Bia_black.svg'); }
 
 .cg-wrap piece.ghost {
   opacity: 0.32;
