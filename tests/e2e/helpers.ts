@@ -56,6 +56,11 @@ export async function squareCoords(
  * Drag a piece from one square to another using synthesised mouse
  * events. Chessground listens for pointermove on document, so we
  * must include multiple intermediate steps to trip its drag-state.
+ *
+ * For ONE-SQUARE moves (e.g. bia d5→d6) the drag distance is short
+ * enough that chessground's drag-threshold logic can mis-detect the
+ * gesture as a stationary click. We fall back to chessground's
+ * built-in click-to-select + click-to-move flow for those cases.
  */
 export async function dragMove(
   page: Page,
@@ -65,10 +70,21 @@ export async function dragMove(
 ) {
   const a = await squareCoords(page, from, flipped);
   const b = await squareCoords(page, to, flipped);
+  const dx = Math.abs(b.x - a.x);
+  const dy = Math.abs(b.y - a.y);
+  const wrap = await page.locator('.cg-wrap').first().boundingBox();
+  const cellW = wrap ? wrap.width / 8 : 80;
+  // Adjacent-square move → click-then-click. Multi-square move → drag.
+  if (dx < cellW * 1.3 && dy < cellW * 1.3) {
+    await page.mouse.click(a.x, a.y);
+    await page.waitForTimeout(60);
+    await page.mouse.click(b.x, b.y);
+    return;
+  }
   await page.mouse.move(a.x, a.y);
   await page.mouse.down();
-  // Tiny jiggle first — chessground considers a move only when the
-  // pointer leaves the source square. Then sweep to the target.
+  // Jiggle outside the source square first so chessground commits to
+  // drag-state, then sweep to the target.
   await page.mouse.move(a.x + 4, a.y + 4, { steps: 2 });
   await page.mouse.move(b.x, b.y, { steps: 12 });
   await page.mouse.up();
