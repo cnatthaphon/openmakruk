@@ -72,9 +72,17 @@ export function LessonView({
     setStepIdx(0);
   }, [lesson.id]);
 
-  const isLast = stepIdx === steps.length - 1;
-  const isFirst = stepIdx === 0;
-  const step = steps[stepIdx];
+  // Clamp stepIdx against the current lesson's step count. When the
+  // user clicks "complete" on the LAST step of lesson A, the parent
+  // immediately swaps in lesson B (which has its own — possibly
+  // smaller — steps array). The useEffect above eventually resets
+  // stepIdx to 0, but on that first render BEFORE the effect fires
+  // we'd otherwise index past the new array's end and crash with
+  // `Cannot read properties of undefined (reading 'kind')`.
+  const safeStepIdx = Math.min(stepIdx, steps.length - 1);
+  const isLast = safeStepIdx === steps.length - 1;
+  const isFirst = safeStepIdx === 0;
+  const step = steps[safeStepIdx];
 
   const handleNext = () => {
     if (isLast) {
@@ -98,10 +106,10 @@ export function LessonView({
       <header className="lesson-header">
         <h2>{lesson.title}</h2>
         <p className="lesson-desc">{lesson.description}</p>
-        <LessonStepIndicator current={stepIdx} total={steps.length} />
+        <LessonStepIndicator current={safeStepIdx} total={steps.length} />
       </header>
 
-      <StepRenderer step={step} />
+      {step && <StepRenderer step={step} />}
 
       <footer className="lesson-footer">
         <div className="lesson-nav">

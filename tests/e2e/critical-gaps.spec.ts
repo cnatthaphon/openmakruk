@@ -143,6 +143,10 @@ test.describe('critical gap coverage', () => {
     await page.goto('/#/play');
     await waitForContentReady(page);
     await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+
+    // NNUE lives inside the collapsible "Advanced controls" panel —
+    // open it first.
+    await page.locator('.advanced-controls > summary').click();
     await page.waitForSelector('.nnue-enable-button', { timeout: 15_000 });
 
     // Block the actual 46MB jsDelivr fetch — we just want to verify

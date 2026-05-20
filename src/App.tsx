@@ -1039,7 +1039,7 @@ export default function App() {
               });
             } catch (err) {
               console.error('Load custom position failed:', err);
-              alert('โหลด position ไม่สำเร็จ — FEN อาจไม่ถูกต้องตามกฎ Makruk');
+              alert('โหลด position ไม่สำเร็จ — FEN อาจไม่ถูกต้องตามกฎหมากรุกไทย');
             }
           }}
         />
@@ -1223,6 +1223,8 @@ export default function App() {
             </label>
           )}
 
+          <details className="advanced-controls">
+            <summary>⚙ ตั้งค่า engine (NNUE / ความเร็ว)</summary>
           <div className="nnue-picker">
             {nnueState === 'on' ? (
               <div className="nnue-active">
@@ -1273,6 +1275,7 @@ export default function App() {
               ))}
             </select>
           </div>
+          </details>
 
 
           <div className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''} ${state.isCheck ? 'is-check' : ''}`}>
@@ -1499,7 +1502,10 @@ export default function App() {
           )}
 
           {/* On-demand position analysis: top-3 candidate moves +
-              eval bar. Available in any mode — even after game ends. */}
+              eval bar. Eval bar + Multi-PV ONLY appear after the
+              user explicitly clicks Analyze — otherwise this panel
+              eats vertical space on mobile and pushes the board
+              off-screen. */}
           <div className="analyze-panel">
             <button
               className="analyze-button"
@@ -1512,17 +1518,29 @@ export default function App() {
                   ? '🔁 วิเคราะห์ใหม่'
                   : '🔍 วิเคราะห์ตำแหน่ง (top 3)'}
             </button>
-            {(settings.showEvalBar || analysisLines.length > 0) && (
+            {analysisLines.length > 0 && (
               <div className="analyze-row">
                 <EvalBar score={liveEval} depth={analysisLines[0]?.depth} flipped={flipped} />
                 <MultiPV lines={analysisLines} />
               </div>
             )}
+            {analysisLines.length > 0 && (
+              <button
+                className="analyze-close"
+                onClick={() => {
+                  setAnalysisLines([]);
+                  setLiveEval(null);
+                }}
+                title="ซ่อนผลวิเคราะห์"
+              >
+                ✕ ปิดผลวิเคราะห์
+              </button>
+            )}
           </div>
 
           <div className="note">
             <strong>v0.1:</strong> ใช้ Fairy-Stockfish engine จริงแล้ว
-            (classical eval, ยังไม่ได้โหลด Makruk NNUE network).
+            (classical eval, ยังไม่ได้โหลด NNUE network ของหมากรุกไทย).
             ปรับระดับด้านบนเพื่อให้คอมเล่นง่ายขึ้น/ยากขึ้น.
           </div>
 
@@ -1644,6 +1662,9 @@ function formatDateShort(timestamp: number): string {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
+type ReviewSideFilter = 'both' | 'white' | 'black';
+type ReviewSeverityFilter = 'all' | 'mistakes' | 'blunders-only';
+
 function ReviewPanel({
   moves,
   currentPly,
@@ -1659,6 +1680,24 @@ function ReviewPanel({
 }) {
   const summary = useMemo(() => summarize(moves), [moves]);
   const total = moves.length;
+  const [sideFilter, setSideFilter] = useState<ReviewSideFilter>('both');
+  const [severityFilter, setSeverityFilter] =
+    useState<ReviewSeverityFilter>('all');
+
+  // Filtered subset for the move list, but never filter the navigator
+  // — full ply count + step controls always reflect the full game.
+  const filteredMoves = useMemo(() => {
+    return moves.filter((m) => {
+      if (sideFilter !== 'both' && m.side !== sideFilter) return false;
+      if (severityFilter === 'mistakes') {
+        return ['inaccuracy', 'mistake', 'blunder'].includes(m.classification);
+      }
+      if (severityFilter === 'blunders-only') {
+        return m.classification === 'blunder';
+      }
+      return true;
+    });
+  }, [moves, sideFilter, severityFilter]);
   return (
     <div className="review-panel">
       <div className="review-header">
@@ -1736,28 +1775,74 @@ function ReviewPanel({
         </div>
       )}
 
-      <div className="review-list" role="list">
-        {moves.map((m) => (
-          <button
-            key={m.ply}
-            role="listitem"
-            className={`review-row ${m.ply === currentPly ? 'is-current' : ''}`}
-            onClick={() => onPlySelect(m.ply)}
-            style={{ borderLeftColor: CLASSIFICATION_COLORS[m.classification] }}
-          >
-            <span className="review-row-num">{m.ply}.</span>
-            <span className="review-row-side">{m.side === 'white' ? '♔' : '♚'}</span>
-            <span className="review-row-uci">{m.uci}</span>
-            <span
-              className="review-row-tag"
-              style={{ color: CLASSIFICATION_COLORS[m.classification] }}
-              title={CLASSIFICATION_LABELS[m.classification]}
+      <div className="review-filters">
+        <div className="review-filter-group">
+          <span className="review-filter-label">ฝ่าย:</span>
+          {(['both', 'white', 'black'] as ReviewSideFilter[]).map((s) => (
+            <button
+              key={s}
+              className={`review-filter-button ${sideFilter === s ? 'is-active' : ''}`}
+              onClick={() => setSideFilter(s)}
             >
-              {CLASSIFICATION_GLYPHS[m.classification]}
-            </span>
-            <span className="review-row-eval">{formatEval(m.evalAfter)}</span>
-          </button>
-        ))}
+              {s === 'both' ? 'ทั้งสอง' : s === 'white' ? '♔ ขาว' : '♚ ดำ'}
+            </button>
+          ))}
+        </div>
+        <div className="review-filter-group">
+          <span className="review-filter-label">ระดับ:</span>
+          {(
+            [
+              ['all', 'ทั้งหมด'],
+              ['mistakes', 'ไม่แม่นยำ+'],
+              ['blunders-only', 'เฉพาะร้ายแรง'],
+            ] as [ReviewSeverityFilter, string][]
+          ).map(([s, label]) => (
+            <button
+              key={s}
+              className={`review-filter-button ${severityFilter === s ? 'is-active' : ''}`}
+              onClick={() => setSeverityFilter(s)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="label-aside">
+          แสดง {filteredMoves.length} / {moves.length} ตา
+        </span>
+      </div>
+
+      <div className="review-list" role="list">
+        {filteredMoves.length === 0 ? (
+          <div className="review-empty label-aside">
+            ไม่พบตาเดินตามตัวกรอง
+          </div>
+        ) : (
+          filteredMoves.map((m) => (
+            <button
+              key={m.ply}
+              role="listitem"
+              className={`review-row ${m.ply === currentPly ? 'is-current' : ''}`}
+              onClick={() => onPlySelect(m.ply)}
+              style={{ borderLeftColor: CLASSIFICATION_COLORS[m.classification] }}
+            >
+              <span className="review-row-num">{m.ply}.</span>
+              <span className="review-row-side">{m.side === 'white' ? '♔' : '♚'}</span>
+              <span className="review-row-uci">{m.uci}</span>
+              <span
+                className="review-row-tag"
+                style={{
+                  color: CLASSIFICATION_COLORS[m.classification],
+                  borderColor: CLASSIFICATION_COLORS[m.classification],
+                }}
+                title={CLASSIFICATION_LABELS[m.classification]}
+              >
+                {CLASSIFICATION_GLYPHS[m.classification]}{' '}
+                {CLASSIFICATION_LABELS[m.classification]}
+              </span>
+              <span className="review-row-eval">{formatEval(m.evalAfter)}</span>
+            </button>
+          ))
+        )}
       </div>
     </div>
   );

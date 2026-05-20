@@ -130,8 +130,8 @@ export function AboutPage() {
           อยากได้ — สร้างโดยเด็กคนนั้นเอง.
         </p>
         <p>
-          เป้าหมาย: <em>lichess-style training platform สำหรับ Makruk
-          โดยเฉพาะ</em> — ภาษาไทย, เปิด source, ฟรีตลอด,
+          เป้าหมาย: <em>lichess-style training platform สำหรับ
+          หมากรุกไทยโดยเฉพาะ</em> — ภาษาไทย, เปิด source, ฟรีตลอด,
           เริ่มเล่นทันทีไม่ต้องสมัคร.
         </p>
       </section>
@@ -182,7 +182,7 @@ export function AboutPage() {
             (ตั้งแต่กระดาน → นับศักดิ์ → endgame)
           </li>
           <li>
-            <strong>กฎ Makruk-specific:</strong> นับศักดิ์ (counting rule), 3-fold
+            <strong>กฎเฉพาะของหมากรุกไทย:</strong> นับศักดิ์ (counting rule), 3-fold
             repetition, การโปรโมตเบี้ย → เม็ด, การเดินของขุน/เม็ด/โคน
           </li>
           <li>
