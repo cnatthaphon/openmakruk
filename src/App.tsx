@@ -44,6 +44,22 @@ import { ProfilePage } from './pages/ProfilePage';
 import { CustomPage } from './pages/CustomPage';
 import { AboutPage } from './pages/AboutPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { loadSettings, type Settings } from './lib/settings';
+import {
+  playCapture,
+  playCheck,
+  playDraw,
+  playLoss,
+  playMove,
+  playWin,
+} from './lib/audio';
+import {
+  clearSavedGame,
+  hasResumableGame,
+  loadSavedGame,
+  saveCurrentGame,
+} from './lib/gameState';
+import { fenToPieceMap } from './lib/makruk';
 
 type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'settings' | 'about';
 
@@ -145,6 +161,23 @@ export default function App() {
   const [forcedResult, setForcedResult] = useState<string | null>(null);
   const [drawOfferPending, setDrawOfferPending] = useState(false);
   const [drawOfferRefused, setDrawOfferRefused] = useState<string | null>(null);
+
+  // User preferences (sounds, animation, eval bar...). Read at mount,
+  // re-loaded whenever the user leaves the Settings tab so newly-saved
+  // values take effect without needing a full reload.
+  const [settings, setSettings] = useState<Settings>(() => loadSettings());
+
+  // Save & resume — when a game is in progress in a play mode, snapshot
+  // the move history + game options to localStorage. On Play tab mount
+  // we offer to restore. gameStartedAtRef stamps a single startedAt so
+  // multiple saves of the same game share a timestamp.
+  const gameStartedAtRef = useRef<number>(Date.now());
+  const [resumeAvailable, setResumeAvailable] = useState<boolean>(() => hasResumableGame());
+
+  // Track previous history length + FEN to detect new moves / captures
+  // for sound effects.
+  const prevHistoryLenRef = useRef(0);
+  const prevPieceCountRef = useRef<number | null>(null);
 
   // Rated vs Casual: in Rated mode hint/undo are disabled and the
   // game's outcome is written to the rating ledger. Casual is the
@@ -372,6 +405,86 @@ export default function App() {
   // critique was correct: clicking along an arrow every move is just
   // autopilot with extra friction, no actual learning happens. The
   // Mistake Coach toggle (next sprint) replaces it.
+
+  // Re-load settings whenever the user leaves the Settings tab, so
+  // sound/volume/etc. changes take effect on Play without a refresh.
+  useEffect(() => {
+    if (currentTab !== 'settings') {
+      setSettings(loadSettings());
+    }
+  }, [currentTab]);
+
+  // Sound effects on every new move. Compare history length + total
+  // piece count (parsed from current FEN) against the previous state
+  // to decide between playMove and playCapture. End-of-game cues
+  // override the regular move sounds.
+  useEffect(() => {
+    if (!state) {
+      prevHistoryLenRef.current = 0;
+      prevPieceCountRef.current = null;
+      return;
+    }
+    const newLen = history.length;
+    const prevLen = prevHistoryLenRef.current;
+    const pieceCount = Object.keys(fenToPieceMap(state.fen)).length;
+    const prevCount = prevPieceCountRef.current;
+    const advanced = newLen > prevLen;
+    prevHistoryLenRef.current = newLen;
+    prevPieceCountRef.current = pieceCount;
+    if (!advanced || !settings.soundsEnabled) return;
+    const userSide = mode === 'play-white' ? 'white' : mode === 'play-black' ? 'black' : null;
+    const vol = settings.soundsVolume;
+    if (state.isGameOver || forcedResult) {
+      const result = forcedResult ?? state.result;
+      if (result === '1/2-1/2') playDraw(vol);
+      else if (result === '1-0') (userSide === 'white' ? playWin : playLoss)(vol);
+      else if (result === '0-1') (userSide === 'black' ? playWin : playLoss)(vol);
+      else playMove(vol);
+      return;
+    }
+    if (state.isCheck) {
+      playCheck(vol);
+      return;
+    }
+    // Piece count dropped → a capture just happened. (Promotion alone
+    // doesn't reduce piece count.)
+    if (prevCount !== null && pieceCount < prevCount) {
+      playCapture(vol);
+      return;
+    }
+    playMove(vol);
+  }, [history.length, state?.fen, state?.isCheck, state?.isGameOver, state?.result, forcedResult, mode, settings.soundsEnabled, settings.soundsVolume]);
+
+  // Persist the in-progress game to localStorage on every move. Only
+  // save in actual play modes — self-play / manual aren't resumable.
+  useEffect(() => {
+    if (!state || history.length === 0) return;
+    if (mode !== 'play-white' && mode !== 'play-black') return;
+    if (state.isGameOver || forcedResult) return;
+    if (history.length === 1) gameStartedAtRef.current = Date.now();
+    saveCurrentGame({
+      version: 1,
+      startedAt: gameStartedAtRef.current,
+      lastMoveAt: Date.now(),
+      startFen: MAKRUK_START_FEN,
+      moves: history,
+      mode: rated ? 'rated' : 'casual',
+      difficulty,
+      nnue: nnueState === 'on',
+      timeControlId: null,
+      clockMs: null,
+      userSide: mode === 'play-white' ? 'white' : 'black',
+    });
+  }, [history.length, state?.isGameOver, state?.fen, mode, rated, difficulty, nnueState, forcedResult]);
+
+  // Once a game ends, drop the saved game so the next visit starts
+  // fresh and doesn't offer "resume" on a terminal position.
+  useEffect(() => {
+    if (state?.isGameOver || forcedResult) {
+      clearSavedGame();
+      setResumeAvailable(false);
+    }
+  }, [state?.isGameOver, forcedResult]);
 
   if (loadError) {
     return (
@@ -685,11 +798,50 @@ export default function App() {
   // because there's no sensible Elo update against yourself.
   const effectivelyRated = isVsCpu && rated;
 
+  const handleResume = () => {
+    if (!board) return;
+    const saved = loadSavedGame();
+    if (!saved) {
+      setResumeAvailable(false);
+      return;
+    }
+    // Reset board to start, then replay every saved move.
+    for (let i = 0; i < history.length; i++) board.pop();
+    let applied = 0;
+    for (const move of saved.moves) {
+      try {
+        board.push(move);
+        applied += 1;
+      } catch {
+        // Saved move is no longer legal (engine version skew, position
+        // corruption); bail out and start fresh from where we got.
+        break;
+      }
+    }
+    setHistory(saved.moves.slice(0, applied));
+    setState(snapshot(board));
+    gameStartedAtRef.current = saved.startedAt;
+    setMode(saved.userSide === 'white' ? 'play-white' : 'play-black');
+    setFlipped(saved.userSide === 'black');
+    setDifficulty(saved.difficulty);
+    setRated(saved.mode === 'rated');
+    setResumeAvailable(false);
+    log('game.resumed', { plies: applied, mode: saved.mode });
+  };
+
+  const handleDiscardSaved = () => {
+    clearSavedGame();
+    setResumeAvailable(false);
+    log('game.savedDiscarded');
+  };
+
   const handleResetAll = () => {
     if (pendingTimer.current !== null) {
       clearTimeout(pendingTimer.current);
       pendingTimer.current = null;
     }
+    clearSavedGame();
+    setResumeAvailable(false);
     for (let i = 0; i < history.length; i++) board.pop();
     setHistory([]);
     setState(snapshot(board));
@@ -760,6 +912,21 @@ export default function App() {
       {currentTab === 'about' && <AboutPage />}
       {currentTab === 'play' && (
       <main>
+        {resumeAvailable && history.length === 0 && (
+          <div className="resume-banner">
+            <div className="resume-banner-text">
+              ⏸ มีเกมที่ค้างไว้ — ต้องการเล่นต่อหรือไม่?
+            </div>
+            <div className="resume-banner-actions">
+              <button className="resume-button-primary" onClick={handleResume}>
+                ▶ ดำเนินต่อ
+              </button>
+              <button className="resume-button-secondary" onClick={handleDiscardSaved}>
+                🗑 เริ่มใหม่
+              </button>
+            </div>
+          </div>
+        )}
         <div className="board-container">
           <Board
             fen={viewFen}

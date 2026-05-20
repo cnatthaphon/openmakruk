@@ -2613,6 +2613,53 @@ footer a:hover {
   font-size: 11px;
 }
 
+/* ============ Resume banner ============ */
+
+.resume-banner {
+  margin: 0 auto 12px;
+  max-width: 720px;
+  padding: 12px 16px;
+  background: rgba(212, 162, 60, 0.12);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.resume-banner-text {
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.resume-banner-actions { display: flex; gap: 8px; }
+
+.resume-button-primary {
+  padding: 8px 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.resume-button-secondary {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 /* ============ Settings page ============ */
 
 .settings-page {

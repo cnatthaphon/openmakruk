@@ -7,6 +7,8 @@
 // the mode/difficulty that was in effect. The Play page already
 // derives the current FEN from this list by replaying through ffish.
 
+import type { Difficulty } from './engine';
+
 const STORAGE_KEY = 'openmakruk_current_game';
 
 export type SavedGame = {
@@ -23,8 +25,8 @@ export type SavedGame = {
   /** 'rated' | 'casual' — needs to be preserved on resume so rating
    * doesn't double-count. */
   mode: 'rated' | 'casual';
-  /** Engine difficulty (level 0-3 or so). */
-  difficulty: number;
+  /** Engine difficulty preset name. */
+  difficulty: Difficulty;
   /** Whether NNUE was on for this game. */
   nnue: boolean;
   /** Time control id (from clock.ts TIME_CONTROLS); null for unlimited. */
