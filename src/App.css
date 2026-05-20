@@ -2429,3 +2429,187 @@ footer a:hover {
   color: #e57a7a;
 }
 
+/* ---- Multi-step lesson chrome ---- */
+
+.lesson-step-indicator {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lesson-step-bar {
+  display: flex;
+  gap: 3px;
+}
+
+.lesson-step-bar-cell {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+
+.lesson-step-bar-cell.on {
+  background: var(--accent);
+}
+
+.lesson-step-heading {
+  margin: 0 0 8px;
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.lesson-caption {
+  font-size: 13px;
+  text-align: center;
+  color: var(--fg-dim);
+  font-style: italic;
+  margin: 0 0 8px;
+}
+
+.lesson-nav {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.lesson-nav-prev {
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.lesson-nav-prev:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+}
+
+.lesson-nav-prev:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Resume button on the list view header */
+
+.learn-resume-button {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px 14px;
+  background: rgba(212, 162, 60, 0.15);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.learn-resume-button:hover {
+  background: rgba(212, 162, 60, 0.25);
+}
+
+/* Replay demo controls */
+
+.replay-commentary {
+  padding: 12px 14px;
+  background: rgba(212, 162, 60, 0.08);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.replay-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.replay-controls button {
+  padding: 8px 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.replay-controls button.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.replay-controls button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Counting demo panel */
+
+.counting-panel {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+
+.counting-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.counting-stat-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.counting-stat-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+}
+
+.counting-stat-value.low {
+  color: #e87a3c;
+}
+
+.counting-status {
+  text-align: center;
+  font-size: 13px;
+  padding: 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.lesson-quiz-stats {
+  text-align: center;
+  font-size: 11px;
+}
+

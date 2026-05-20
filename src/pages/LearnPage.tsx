@@ -1,13 +1,17 @@
 // 🎓 Tutorial tab.
 //
 // Loads lessons from /content/lessons/all.json (via lib/content) and
-// groups them by group. Clicking a card opens LessonView, which
-// dispatches on the lesson's `demo` field to render the right
-// interactive body.
+// renders the list grouped by group. Clicking a card opens LessonView,
+// which is driven by the lesson's `steps` field (or v1 `body`/`demo`).
 //
-// Progress (per-lesson completion) lives in localStorage. A lesson is
-// "unlocked" iff it's the first one OR the previous one in the same
-// flat order is completed.
+// Resume flow: progress.lastViewedId is bumped every time the user
+// opens a card. The header shows a "เรียนต่อ" shortcut to that lesson
+// so reload-then-resume is one click.
+//
+// Next-lesson flow: when finishing a lesson, the next still-unlocked
+// lesson (linear order) is offered directly inside LessonView so the
+// user can blow through the tutorial without bouncing back to the
+// list every time.
 
 import { useEffect, useMemo, useState } from 'react';
 import { loadLessons } from '../lib/content';
@@ -15,6 +19,7 @@ import {
   isLessonCompleted,
   loadLessonProgress,
   markLessonCompleted,
+  recordLessonViewed,
   saveLessonProgress,
   type LessonProgress,
 } from '../lib/learnProgress';
@@ -40,6 +45,23 @@ function statusFor(
   return 'locked';
 }
 
+function findNextLesson(
+  current: LessonContent,
+  lessons: LessonContent[],
+  progress: LessonProgress,
+): LessonContent | null {
+  const currentIdx = lessons.findIndex((l) => l.id === current.id);
+  if (currentIdx === -1) return null;
+  // Look forward for the next not-yet-completed lesson
+  for (let i = currentIdx + 1; i < lessons.length; i++) {
+    if (!isLessonCompleted(progress, lessons[i].id)) {
+      return lessons[i];
+    }
+  }
+  // All ahead are completed — just return the next one if any
+  return lessons[currentIdx + 1] ?? null;
+}
+
 export function LearnPage() {
   const [lessons, setLessons] = useState<LessonContent[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -56,11 +78,31 @@ export function LearnPage() {
     saveLessonProgress(progress);
   }, [progress]);
 
+  const handleOpenLesson = (lessonId: string) => {
+    setProgress((p) => recordLessonViewed(p, lessonId));
+    setActiveLessonId(lessonId);
+  };
+
   const handleMarkComplete = (lessonId: string) => {
     setProgress((p) => markLessonCompleted(p, lessonId));
   };
 
   const handleBackToList = () => setActiveLessonId(null);
+
+  const handleNextLessonFromView = () => {
+    if (!lessons || !activeLessonId) return;
+    const current = lessons.find((l) => l.id === activeLessonId);
+    if (!current) return;
+    // Use the LATEST progress (may have just been mutated by complete)
+    const latest = loadLessonProgress();
+    const next = findNextLesson(current, lessons, latest);
+    if (next) {
+      setProgress((p) => recordLessonViewed(p, next.id));
+      setActiveLessonId(next.id);
+    } else {
+      setActiveLessonId(null);
+    }
+  };
 
   const groupedLessons = useMemo(() => {
     if (!lessons) return null;
@@ -73,20 +115,24 @@ export function LearnPage() {
     return map;
   }, [lessons]);
 
+  // ---- detail view ----
   if (activeLessonId && lessons) {
     const lesson = lessons.find((l) => l.id === activeLessonId);
     if (lesson) {
+      const nextLesson = findNextLesson(lesson, lessons, progress);
       return (
         <LessonView
           lesson={lesson}
           isCompleted={isLessonCompleted(progress, lesson.id)}
           onMarkComplete={() => handleMarkComplete(lesson.id)}
           onBack={handleBackToList}
+          onNextLesson={nextLesson ? handleNextLessonFromView : undefined}
         />
       );
     }
   }
 
+  // ---- list view ----
   if (loadError) {
     return (
       <div className="learn-page">
@@ -105,7 +151,19 @@ export function LearnPage() {
 
   const totalCompleted = lessons.filter((l) => isLessonCompleted(progress, l.id)).length;
   const totalMinutes = lessons.reduce((sum, l) => sum + l.estimateMinutes, 0);
-  const interactiveCount = lessons.filter((l) => l.demo).length;
+  const interactiveCount = lessons.filter((l) => l.demo || l.steps).length;
+
+  const lastViewed = progress.lastViewedId
+    ? lessons.find((l) => l.id === progress.lastViewedId)
+    : null;
+  const lastViewedUnlocked = lastViewed
+    ? statusFor(
+        lastViewed,
+        lessons.findIndex((l) => l.id === lastViewed.id),
+        lessons,
+        progress,
+      ) !== 'locked'
+    : false;
 
   return (
     <div className="learn-page">
@@ -116,9 +174,18 @@ export function LearnPage() {
           ความคืบหน้า: <strong>{totalCompleted}</strong> / {lessons.length} บทเรียน
           <span className="label-aside"> · ทั้งหมด ~{totalMinutes} นาที</span>
         </div>
+        {lastViewed && lastViewedUnlocked && (
+          <button
+            className="learn-resume-button"
+            onClick={() => handleOpenLesson(lastViewed.id)}
+            title={lastViewed.description}
+          >
+            ▶ เรียนต่อจาก: {lastViewed.title}
+          </button>
+        )}
         <p className="learn-status-note">
-          🎮 บทที่มี interactive demo: <strong>{interactiveCount}</strong> / {lessons.length} ·
-          content เก็บใน <code>content/lessons/all.json</code> · เติมเพิ่มได้โดยไม่ต้อง rebuild
+          🎮 บทที่มี demo/steps: <strong>{interactiveCount}</strong> / {lessons.length} ·
+          content เก็บใน <code>content/lessons/all.json</code> · เติมได้โดยไม่ต้อง rebuild
         </p>
       </header>
 
@@ -139,13 +206,14 @@ export function LearnPage() {
             <div className="learn-cards">
               {groupLessons.map(({ lesson, idx }) => {
                 const st = statusFor(lesson, idx, lessons, progress);
-                const interactive = !!lesson.demo;
+                const interactive = !!(lesson.demo || lesson.steps);
+                const stepCount = lesson.steps?.length ?? (lesson.body ? 1 : 0) + (lesson.demo ? 1 : 0);
                 return (
                   <button
                     key={lesson.id}
                     className={`learn-card learn-card-${st}`}
                     disabled={st === 'locked'}
-                    onClick={() => setActiveLessonId(lesson.id)}
+                    onClick={() => handleOpenLesson(lesson.id)}
                     title={st === 'locked' ? 'จบบทเรียนก่อนหน้าก่อนปลดล็อก' : lesson.description}
                   >
                     <div className="learn-card-status">
@@ -162,7 +230,9 @@ export function LearnPage() {
                       </div>
                       <div className="learn-card-desc">{lesson.description}</div>
                       <div className="learn-card-meta">
-                        <span className="label-aside">~{lesson.estimateMinutes} นาที</span>
+                        <span className="label-aside">
+                          ~{lesson.estimateMinutes} นาที{stepCount > 1 ? ` · ${stepCount} ขั้น` : ''}
+                        </span>
                       </div>
                     </div>
                   </button>

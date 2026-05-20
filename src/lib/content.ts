@@ -1,20 +1,17 @@
 // Content loader for lessons + puzzles.
 //
-// All content lives as static JSON in /public/content/ — bundled with
-// the site for v0, but the loader goes through a manifest indirection
-// so we can flip to a CDN-pinned content URL (jsDelivr, R2, etc.)
-// later without touching any page code.
+// Three-tier fetch:
+//   1. In-memory promise cache (per session) — instant on subsequent
+//      calls within the same page load
+//   2. IndexedDB persistent cache — instant on full-page reloads as
+//      long as the manifest version still matches
+//   3. Network fetch via the manifest URL — first time, or after a
+//      content version bump
 //
-// Pattern:
-//   1. App calls loadLessons() / loadPuzzles()
-//   2. Loader fetches /content/manifest.json (once, cached in memory)
-//   3. Manifest tells us where the actual content lives + version
-//   4. Loader fetches that URL, parses JSON, caches the promise
-//   5. Subsequent calls reuse the cached promise — no network re-hit
-//
-// Future Phase 9: extend with IndexedDB persistence + version-diff
-// check on app start so users get fresh content without a full reload.
+// On a version mismatch we evict the old IDB record and fetch fresh.
+// All caches share the same key, so freshness propagates cleanly.
 
+import { getCached, putCached } from './contentCache';
 import type { LessonContent } from './lessonSchema';
 import type { Puzzle } from './puzzleSchema';
 
@@ -34,7 +31,7 @@ export type ManifestEntry = {
 const MANIFEST_URL = '/content/manifest.json';
 
 let manifestPromise: Promise<ContentManifest> | null = null;
-const contentCache = new Map<string, Promise<unknown>>();
+const memoryCache = new Map<string, Promise<unknown>>();
 
 export function loadManifest(): Promise<ContentManifest> {
   if (manifestPromise) return manifestPromise;
@@ -44,7 +41,6 @@ export function loadManifest(): Promise<ContentManifest> {
       return r.json() as Promise<ContentManifest>;
     })
     .catch((err) => {
-      // Clear the cached failure so a retry has a chance
       manifestPromise = null;
       throw err;
     });
@@ -60,24 +56,33 @@ export function loadPuzzles(): Promise<Puzzle[]> {
 }
 
 function fetchFromManifest<T>(key: 'lessons' | 'puzzles'): Promise<T> {
-  const cached = contentCache.get(key);
+  const cached = memoryCache.get(key);
   if (cached) return cached as Promise<T>;
-  const promise = loadManifest()
-    .then((manifest) => fetch(manifest[key].url))
-    .then((r) => {
-      if (!r.ok) throw new Error(`${key} fetch failed: ${r.status}`);
-      return r.json() as Promise<T>;
-    })
-    .catch((err) => {
-      contentCache.delete(key);
-      throw err;
-    });
-  contentCache.set(key, promise);
+  const promise = (async (): Promise<T> => {
+    const manifest = await loadManifest();
+    const entry = manifest[key];
+    // Tier 2: IDB cache by version
+    const persisted = await getCached<T>(key);
+    if (persisted && persisted.version === entry.version) {
+      return persisted.data;
+    }
+    // Tier 3: network
+    const r = await fetch(entry.url);
+    if (!r.ok) throw new Error(`${key} fetch failed: ${r.status}`);
+    const data = (await r.json()) as T;
+    // Persist for next reload (non-blocking, failure is non-fatal)
+    putCached(key, entry.version, data).catch(() => {});
+    return data;
+  })().catch((err) => {
+    memoryCache.delete(key);
+    throw err;
+  });
+  memoryCache.set(key, promise);
   return promise;
 }
 
-/** For dev: clears in-memory caches so the next load hits the network. */
+/** For dev tools — clear the in-memory cache so the next load re-hits IDB/network. */
 export function resetContentCache(): void {
   manifestPromise = null;
-  contentCache.clear();
+  memoryCache.clear();
 }
