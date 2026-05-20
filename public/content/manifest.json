@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-20",
+  "lessons": {
+    "version": 1,
+    "url": "/content/lessons/all.json",
+    "count": 28
+  },
+  "puzzles": {
+    "version": 1,
+    "url": "/content/puzzles/all.json",
+    "count": 3
+  }
+}

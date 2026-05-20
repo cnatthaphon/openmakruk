@@ -1,10 +1,14 @@
 // Detail view for a single lesson — opened when the user clicks a card
 // in LearnPage.
 //
-// Phase 2B ships the 6 piece-movement bodies (king / met / khon /
-// knight / rook / bia). Anything outside that range falls into the
-// "coming-soon" placeholder which still shows the title/description
-// and a "mark complete" button so we never block progression.
+// Content-driven: receives a LessonContent (loaded from JSON) and
+// dispatches on lesson.demo.kind to pick the renderer. Adding a new
+// demo type = (1) add a new variant to LessonDemo in lessonSchema.ts,
+// (2) write a new component below, (3) wire it up in the switch.
+//
+// Lessons whose `demo` is null/undefined render the read-only body
+// (still useful — most "rules" and "strategy" lessons are explanatory
+// prose, not interactive).
 
 import { useState } from 'react';
 import {
@@ -14,90 +18,25 @@ import {
   ROLE_TO_CG,
   type Color,
   type Role,
+  parseSquare,
 } from '../lib/lessonRules';
-
-type LessonDescriptor = {
-  id: string;
-  title: string;
-  description: string;
-};
+import { fenToPieceMap } from '../lib/makruk';
+import type {
+  LessonContent,
+  LessonDemo,
+  PieceMovementDemo,
+  PositionQuizDemo,
+  PositionViewerDemo,
+} from '../lib/lessonSchema';
 
 type Props = {
-  lesson: LessonDescriptor;
+  lesson: LessonContent;
   isCompleted: boolean;
   onMarkComplete: () => void;
   onBack: () => void;
 };
 
-// Map lesson id → piece-movement lesson config (Phase 2B content).
-type PieceConfig = {
-  role: Role;
-  color: Color;
-  startSquare: string;
-  body: string; // longer explanation in Thai
-};
-
-const PIECE_LESSON_CONFIG: Record<string, PieceConfig> = {
-  'piece-king': {
-    role: 'king',
-    color: 'white',
-    startSquare: 'e4',
-    body:
-      'ขุนเดินได้ 1 ช่อง ทุกทิศทาง — รวมทั้งหมด 8 ช่องโดยรอบ. ' +
-      'ห้ามเดินเข้าช่องที่ฝ่ายตรงข้ามรุก (จะถูกจับ = ผิดกฎ). ' +
-      'ขุนคือตัวที่สำคัญที่สุด — ปกป้องไว้ดี ๆ',
-  },
-  'piece-met': {
-    role: 'met',
-    color: 'white',
-    startSquare: 'e4',
-    body:
-      'เม็ดเดินได้ 1 ช่อง เฉพาะแนวเฉียง (4 ทิศทาง) — ทำให้อ่อนกว่าควีนหมากรุกสากลเยอะ. ' +
-      'เป็นตัว power piece ที่อ่อนสุดของ Makruk แต่ก็ยังมีค่ามากกว่าโคน. ' +
-      'เบี้ยที่ขึ้นไปแถว 6 (สำหรับขาว) จะเปลี่ยนเป็นเม็ด',
-  },
-  'piece-khon': {
-    role: 'khon',
-    color: 'white',
-    startSquare: 'e4',
-    body:
-      'โคนเดินได้ 5 ช่อง: ตรงหน้า 1 ช่อง + เฉียง 4 ช่อง. ' +
-      'มีทิศ "หน้า" ที่ขึ้นกับสี — ขาวมองขึ้น (rank +1), ดำมองลง (rank -1). ' +
-      'แข็งกว่าเม็ดเพราะมีช่องเดินเพิ่ม',
-  },
-  'piece-knight': {
-    role: 'knight',
-    color: 'white',
-    startSquare: 'e4',
-    body:
-      'ม้าเดิน L-shape เหมือนหมากรุกสากล — 2 ช่องตรง + 1 ช่องขวาง. ' +
-      'จุดพิเศษ: กระโดดข้ามตัวอื่นได้ (เป็นตัวเดียวที่ทำได้). ' +
-      'มีค่าเทียบเท่าโคนคร่าว ๆ — ขึ้นกับตำแหน่ง',
-  },
-  'piece-rook': {
-    role: 'rook',
-    color: 'white',
-    startSquare: 'e4',
-    body:
-      'เรือเดินแนวตรง / แนวขวาง ไกลเท่าไหร่ก็ได้ (จนชนตัวอื่นหรือสุดกระดาน). ' +
-      'เป็นตัวที่แรงที่สุดในระยะไกล. ' +
-      '2 เรือร่วมมือกันสามารถ checkmate ขุนเปลือยภายใน count 8 เท่านั้น',
-  },
-  'piece-bia': {
-    role: 'bia',
-    color: 'white',
-    startSquare: 'd3',
-    body:
-      'เบี้ยเดินตรง 1 ช่อง (ขึ้นข้างหน้า — สีเขียวด้านล่าง), ' +
-      'จับเฉียง 1 ช่อง (ช่องส้ม — เฉพาะถ้ามีตัวฝ่ายตรงข้ามให้จับ). ' +
-      'ไม่มี en-passant ใน Makruk. ' +
-      'เมื่อถึงแถว 6 (สำหรับขาว) → เปลี่ยนเป็นเม็ดอัตโนมัติ — เรียกว่า "เบี้ยหงาย"',
-  },
-};
-
 export function LessonView({ lesson, isCompleted, onMarkComplete, onBack }: Props) {
-  const pieceConfig = PIECE_LESSON_CONFIG[lesson.id];
-
   return (
     <div className="lesson-view">
       <button className="lesson-back" onClick={onBack}>
@@ -108,11 +47,11 @@ export function LessonView({ lesson, isCompleted, onMarkComplete, onBack }: Prop
         <p className="lesson-desc">{lesson.description}</p>
       </header>
 
-      {pieceConfig ? (
-        <PieceMovementLesson config={pieceConfig} body={pieceConfig.body} />
-      ) : (
-        <ComingSoonLesson />
+      {lesson.body && (
+        <p className="lesson-explanation">{lesson.body}</p>
       )}
+
+      <DemoRenderer demo={lesson.demo ?? null} />
 
       <footer className="lesson-footer">
         <button
@@ -131,30 +70,62 @@ export function LessonView({ lesson, isCompleted, onMarkComplete, onBack }: Prop
   );
 }
 
-// ---- Piece-movement interactive demo ----------------------------------
+// ---- Demo dispatcher ---------------------------------------------------
 
-function PieceMovementLesson({ config, body }: { config: PieceConfig; body: string }) {
-  const [pieceSquare, setPieceSquare] = useState(config.startSquare);
+function DemoRenderer({ demo }: { demo: LessonDemo | null }) {
+  if (!demo) return <ReadOnlyLessonNote />;
+  switch (demo.kind) {
+    case 'piece-movement':
+      return <PieceMovementDemoView demo={demo} />;
+    case 'position-viewer':
+      return <PositionViewerDemoView demo={demo} />;
+    case 'position-quiz':
+      return <PositionQuizDemoView demo={demo} />;
+    default: {
+      // Exhaustive guard: if someone adds a new demo kind to the
+      // schema and forgets to wire it up here, TS surfaces it.
+      const _exhaustive: never = demo;
+      void _exhaustive;
+      return null;
+    }
+  }
+}
+
+function ReadOnlyLessonNote() {
+  return (
+    <div className="lesson-readonly-note">
+      <p className="label-aside">
+        บทเรียนนี้เป็นเนื้อหาอ่าน — ทำความเข้าใจ body ด้านบน แล้วกด
+        "เข้าใจแล้ว" ด้านล่าง
+      </p>
+    </div>
+  );
+}
+
+// ---- Demo: single piece on empty board ---------------------------------
+
+function PieceMovementDemoView({ demo }: { demo: PieceMovementDemo }) {
+  const [pieceSquare, setPieceSquare] = useState(demo.startSquare);
   const [moveCount, setMoveCount] = useState(0);
 
-  const legals = legalSquaresForPiece(config.role, config.color, pieceSquare);
+  const legals = legalSquaresForPiece(demo.role, demo.color, pieceSquare);
   const biaSplit =
-    config.role === 'bia' ? biaSquaresSplit(config.color, pieceSquare) : null;
+    demo.pawnSplit && demo.role === 'bia'
+      ? biaSquaresSplit(demo.color, pieceSquare)
+      : null;
 
   const handleSquareClick = (sq: string) => {
     if (sq === pieceSquare) return;
-    if (!legals.includes(sq)) return; // ignore non-legal clicks
+    if (!legals.includes(sq)) return;
     setPieceSquare(sq);
     setMoveCount((n) => n + 1);
   };
 
   return (
     <div className="lesson-body">
-      <p className="lesson-explanation">{body}</p>
-
       <div className="lesson-stats">
         <span>
-          ตอนนี้ <strong>{ROLE_TH[config.role]}</strong> อยู่ที่{' '}
+          ตอนนี้ <strong>{ROLE_TH[demo.role]}</strong> อยู่ที่{' '}
           <code>{pieceSquare}</code>
         </span>
         <span className="label-aside">
@@ -163,22 +134,22 @@ function PieceMovementLesson({ config, body }: { config: PieceConfig; body: stri
       </div>
 
       <LessonBoard
-        piece={{ role: config.role, color: config.color }}
-        pieceSquare={pieceSquare}
+        pieces={[{ square: pieceSquare, role: demo.role, color: demo.color }]}
         legalSquares={legals}
         biaSplit={biaSplit}
         onSquareClick={handleSquareClick}
       />
 
       <div className="lesson-legend">
-        {config.role === 'bia' ? (
+        {biaSplit ? (
           <>
             <span className="legend-chip legend-push">●</span> เดินไปข้างหน้า{' '}
             <span className="legend-chip legend-capture">●</span> จับเฉียง
           </>
         ) : (
           <>
-            <span className="legend-chip legend-push">●</span> ช่องที่ {ROLE_TH[config.role]} เดินได้ทั้งหมด
+            <span className="legend-chip legend-push">●</span> ช่องที่{' '}
+            {ROLE_TH[demo.role]} เดินได้ทั้งหมด
           </>
         )}
       </div>
@@ -186,40 +157,91 @@ function PieceMovementLesson({ config, body }: { config: PieceConfig; body: stri
   );
 }
 
-function ComingSoonLesson() {
+// ---- Demo: position viewer (read-only with optional highlights) --------
+
+function PositionViewerDemoView({ demo }: { demo: PositionViewerDemo }) {
+  const pieces = fenToBoardPieces(demo.fen);
+  const highlights = demo.highlights ?? [];
   return (
-    <div className="lesson-comingsoon">
-      <p>🚧 บทเรียน interactive ของบทนี้จะใส่ในเวอร์ชั่นถัดไป (Phase 2C)</p>
-      <p className="label-aside">
-        ตอนนี้กดปุ่ม "ทำเครื่องหมายเสร็จ" ก่อนได้ถ้าอ่านคำอธิบายในการ์ดแล้ว
-      </p>
+    <div className="lesson-body">
+      {demo.caption && <p className="lesson-explanation">{demo.caption}</p>}
+      <LessonBoard
+        pieces={pieces}
+        legalSquares={highlights.map((h) => h.square)}
+        coloredHighlights={highlights}
+      />
     </div>
   );
 }
 
-// ---- Lesson board: a static 8x8 grid that knows how to highlight ------
+// ---- Demo: click-the-square quiz ---------------------------------------
+
+function PositionQuizDemoView({ demo }: { demo: PositionQuizDemo }) {
+  const pieces = fenToBoardPieces(demo.fen);
+  const [verdict, setVerdict] = useState<'idle' | 'good' | 'bad'>('idle');
+  const [clickedSquare, setClickedSquare] = useState<string | null>(null);
+
+  const handleClick = (sq: string) => {
+    setClickedSquare(sq);
+    setVerdict(demo.correctSquares.includes(sq) ? 'good' : 'bad');
+  };
+
+  return (
+    <div className="lesson-body">
+      <p className="lesson-quiz-prompt">{demo.question}</p>
+      <LessonBoard
+        pieces={pieces}
+        legalSquares={clickedSquare ? [clickedSquare] : []}
+        onSquareClick={handleClick}
+        clickAnySquare
+        coloredHighlights={
+          clickedSquare && verdict !== 'idle'
+            ? [{ square: clickedSquare, color: verdict === 'good' ? 'green' : 'red' }]
+            : undefined
+        }
+      />
+      {verdict === 'good' && (
+        <div className="lesson-feedback good">{demo.successMessage}</div>
+      )}
+      {verdict === 'bad' && (
+        <div className="lesson-feedback bad">{demo.failureMessage}</div>
+      )}
+    </div>
+  );
+}
+
+// ---- Shared lesson board (supports multi-piece via FEN) ----------------
+
+type PieceOnBoard = { square: string; role: Role; color: Color };
 
 type LessonBoardProps = {
-  piece: { role: Role; color: Color };
-  pieceSquare: string;
-  legalSquares: string[];
-  biaSplit: { push: string[]; capture: string[] } | null;
-  onSquareClick: (sq: string) => void;
+  pieces: PieceOnBoard[];
+  legalSquares?: string[];
+  biaSplit?: { push: string[]; capture: string[] } | null;
+  coloredHighlights?: { square: string; color: 'green' | 'red' | 'yellow' }[];
+  onSquareClick?: (sq: string) => void;
+  clickAnySquare?: boolean; // if true, all squares clickable (for quiz)
 };
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 
 function LessonBoard({
-  piece,
-  pieceSquare,
+  pieces,
   legalSquares,
   biaSplit,
+  coloredHighlights,
   onSquareClick,
+  clickAnySquare,
 }: LessonBoardProps) {
-  const legalSet = new Set(legalSquares);
+  const legalSet = new Set(legalSquares ?? []);
   const biaPush = new Set(biaSplit?.push ?? []);
   const biaCapture = new Set(biaSplit?.capture ?? []);
+  const pieceBySquare = new Map<string, PieceOnBoard>();
+  for (const p of pieces) pieceBySquare.set(p.square, p);
+
+  const highlightBySquare = new Map<string, 'green' | 'red' | 'yellow'>();
+  for (const h of coloredHighlights ?? []) highlightBySquare.set(h.square, h.color);
 
   return (
     <div className="lesson-board">
@@ -227,18 +249,19 @@ function LessonBoard({
         FILES.map((file, fileIdx) => {
           const sq = `${file}${rank}`;
           const isDark = (rankIdx + fileIdx) % 2 === 1;
-          const hasPiece = sq === pieceSquare;
+          const piece = pieceBySquare.get(sq);
           const isLegal = legalSet.has(sq);
-          const isBiaPush = biaPush.has(sq);
-          const isBiaCapture = biaCapture.has(sq);
+          const highlight = highlightBySquare.get(sq);
+          const clickable =
+            (onSquareClick && isLegal) || (onSquareClick && clickAnySquare);
 
           const classes = [
             'lesson-square',
             isDark ? 'dark' : 'light',
-            hasPiece && 'has-piece',
+            piece && 'has-piece',
             isLegal && 'legal',
-            isBiaCapture && 'bia-capture',
-            isBiaPush && !isBiaCapture && 'bia-push',
+            highlight && `tint-${highlight}`,
+            clickable && 'clickable',
           ]
             .filter(Boolean)
             .join(' ');
@@ -247,10 +270,11 @@ function LessonBoard({
             <button
               key={sq}
               className={classes}
-              onClick={() => onSquareClick(sq)}
+              onClick={() => onSquareClick?.(sq)}
               aria-label={sq}
+              disabled={!clickable}
             >
-              {hasPiece && (
+              {piece && (
                 <div
                   className="lesson-piece"
                   style={{
@@ -260,7 +284,7 @@ function LessonBoard({
                   }}
                 />
               )}
-              {isLegal && !hasPiece && (
+              {isLegal && !piece && !highlight && (
                 <span
                   className={`lesson-dot ${
                     biaCapture.has(sq)
@@ -280,4 +304,34 @@ function LessonBoard({
       )}
     </div>
   );
+}
+
+// ---- FEN helpers -------------------------------------------------------
+
+function fenToBoardPieces(fen: string): PieceOnBoard[] {
+  const out: PieceOnBoard[] = [];
+  const map = fenToPieceMap(fen);
+  for (const [square, letter] of Object.entries(map)) {
+    if (!parseSquare(square)) continue;
+    const lower = letter.toLowerCase();
+    const role = letterToRole(lower);
+    if (!role) continue;
+    const color: Color = letter === letter.toUpperCase() ? 'white' : 'black';
+    out.push({ square, role, color });
+  }
+  return out;
+}
+
+function letterToRole(lower: string): Role | null {
+  switch (lower) {
+    case 'k': return 'king';
+    case 'm': return 'met';
+    case 'q': return 'met'; // chessground-style FEN
+    case 's': return 'khon';
+    case 'b': return 'khon';
+    case 'n': return 'knight';
+    case 'r': return 'rook';
+    case 'p': return 'bia';
+    default: return null;
+  }
 }

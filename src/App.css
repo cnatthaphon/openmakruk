@@ -2223,3 +2223,209 @@ footer a:hover {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ---- Content-driven additions (Phase 2C/4 foundation) ---- */
+
+.puzzles-error {
+  padding: 10px 14px;
+  background: rgba(232, 122, 60, 0.1);
+  border-left: 3px solid #e87a3c;
+  border-radius: 4px;
+  color: #e87a3c;
+  font-size: 13px;
+}
+
+.puzzle-category-emoji {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.puzzles-footer {
+  margin-top: 18px;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: center;
+}
+
+.puzzles-footer code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--accent);
+}
+
+/* Puzzle player */
+
+.puzzle-view {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.puzzle-loading {
+  text-align: center;
+  color: var(--fg-dim);
+  padding: 40px 0;
+}
+
+.puzzle-header h2 {
+  margin: 0;
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.puzzle-rating-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 10px;
+}
+
+.puzzle-meta {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.puzzle-feedback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+}
+
+.puzzle-feedback-text {
+  font-size: 15px;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.puzzle-feedback-text.good {
+  background: rgba(82, 145, 90, 0.18);
+  color: #79b87f;
+}
+
+.puzzle-feedback-text.bad {
+  background: rgba(232, 92, 92, 0.18);
+  color: #e57a7a;
+}
+
+.puzzle-feedback-text.reveal {
+  background: rgba(212, 162, 60, 0.18);
+  color: var(--accent);
+}
+
+.puzzle-stats {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.puzzle-hint-box {
+  padding: 10px 14px;
+  background: rgba(212, 162, 60, 0.12);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.puzzle-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.puzzle-controls button {
+  padding: 8px 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.puzzle-controls button.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.puzzle-controls button:hover {
+  filter: brightness(1.1);
+}
+
+/* Lesson board: extra states */
+
+.lesson-square.clickable {
+  cursor: pointer;
+}
+
+.lesson-square.tint-green {
+  background-color: rgba(82, 145, 90, 0.35);
+}
+
+.lesson-square.tint-red {
+  background-color: rgba(232, 92, 92, 0.35);
+}
+
+.lesson-square.tint-yellow {
+  background-color: rgba(212, 162, 60, 0.35);
+}
+
+/* Lesson detail extras (read-only note, quiz feedback) */
+
+.lesson-readonly-note {
+  margin: 6px 0;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.lesson-quiz-prompt {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px;
+  margin: 0;
+  color: var(--accent);
+}
+
+.lesson-feedback {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+}
+
+.lesson-feedback.good {
+  background: rgba(82, 145, 90, 0.18);
+  color: #79b87f;
+}
+
+.lesson-feedback.bad {
+  background: rgba(232, 92, 92, 0.18);
+  color: #e57a7a;
+}
+

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "mate-001",
+    "fen": "7k/8/6K1/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-1",
+    "rating": 800,
+    "toMove": "white",
+    "solution": ["a1a8"],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา",
+    "hint": "ใช้เรือไล่หลังพระราชา · ขุนของคุณช่วยปิดทางหนีทางใต้",
+    "themes": ["back-rank", "rook-king-mate"],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-002",
+    "fen": "7k/R7/8/8/8/8/8/1R3K2 w - - 0 1",
+    "category": "mate-1",
+    "rating": 900,
+    "toMove": "white",
+    "solution": ["b1b8"],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (สองเรือ ladder)",
+    "hint": "เรือ a7 คุมแถว 7 อยู่แล้ว · เรืออีกตัวขึ้นไปแถว 8 เพื่อปิดเกม",
+    "themes": ["ladder-mate", "two-rooks"],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-003",
+    "fen": "7k/5ppp/8/8/8/8/8/R1K5 w - - 0 1",
+    "category": "mate-1",
+    "rating": 750,
+    "toMove": "white",
+    "solution": ["a1a8"],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (back-rank ทำงาน เพราะเบี้ยฝ่ายตรงข้ามปิดทาง)",
+    "hint": "เบี้ย f7-g7-h7 ของฝ่ายตรงข้ามปิดทางหนีของขุนตัวเอง · ใช้เรือรุกท้ายแถว",
+    "themes": ["back-rank", "trapped-king"],
+    "source": "OpenMakruk starter set"
+  }
+]
