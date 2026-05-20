@@ -29,6 +29,8 @@ export const CPU_RATINGS: Record<Difficulty, number> = {
 export type GameOutcome = 'win' | 'loss' | 'draw';
 
 export type GameRecord = {
+  /** Stable id for joining with analysis/PGN store. */
+  id: string;
   outcome: GameOutcome;
   opponent: Difficulty;
   userSide: 'white' | 'black';
@@ -37,6 +39,17 @@ export type GameRecord = {
   ratingBefore: number;
   ratingAfter: number;
   ratingDelta: number;
+  /** UCI move sequence — optional for back-compat with games saved
+   * before the moves field was added. PGN export skips the moves
+   * section for records missing this. */
+  moves?: string[];
+  /** Rated counted toward the user's Elo; casual didn't. Older
+   * records assume rated. */
+  mode?: 'rated' | 'casual';
+  /** Time-control id from clock.ts. null/undefined = unlimited. */
+  timeControlId?: string | null;
+  /** Final FEN of the game — for resume-from-final-position. */
+  finalFen?: string;
 };
 
 export type LevelRecord = { wins: number; losses: number; draws: number };
@@ -150,6 +163,7 @@ export function recordGame(
   const newRating = stats.rating + delta;
 
   const record: GameRecord = {
+    id: `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     outcome,
     opponent,
     userSide,
