@@ -42,12 +42,13 @@ import { LearnPage } from './pages/LearnPage';
 import { PuzzlesPage } from './pages/PuzzlesPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CustomPage } from './pages/CustomPage';
+import { AboutPage } from './pages/AboutPage';
 
-type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile';
+type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'about';
 
 function readTabFromHash(): Tab {
   if (typeof window === 'undefined') return 'play';
-  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|profile)/);
+  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|profile|about)/);
   return (m?.[1] as Tab | undefined) ?? 'play';
 }
 
@@ -57,6 +58,7 @@ const TAB_LABELS: Record<Tab, string> = {
   puzzles: '🧩 ปริศนา',
   custom:  '🎨 ออกแบบ',
   profile: '👤 โปรไฟล์',
+  about:   'ℹ️ เกี่ยวกับ',
 };
 
 type BoardState = {
@@ -752,6 +754,7 @@ export default function App() {
           onResetAll={handleResetAll}
         />
       )}
+      {currentTab === 'about' && <AboutPage />}
       {currentTab === 'play' && (
       <main>
         <div className="board-container">
