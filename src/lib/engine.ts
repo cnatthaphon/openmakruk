@@ -190,6 +190,90 @@ export async function searchBestMove(
 
 let searchCounter = 0;
 
+// ---- Multi-PV analysis ------------------------------------------------
+//
+// Same UCI lifecycle as searchBestMove() but with MultiPV > 1 so the
+// engine reports its top N candidate moves alongside the chosen one.
+// Used by the Analyze button on the Play page to populate the MultiPV
+// panel + the eval bar.
+//
+// We always restore MultiPV to 1 at the end so subsequent
+// searchBestMove() calls aren't slowed by ranking extra lines.
+
+export type AnalysisLine = {
+  multipv: number;
+  depth: number;
+  scoreCp?: number;
+  mateIn?: number;
+  pv: string[];
+};
+
+export async function searchTopMoves(
+  fen: string,
+  opts: SearchOpts = {},
+  multipv: number = 3,
+): Promise<AnalysisLine[]> {
+  const sf = await getEngine();
+  const searchId = `engine.analyze#${++searchCounter}`;
+  timeStart(searchId);
+  log('engine.analyze.start', { fen, opts, multipv });
+
+  if (typeof opts.skillLevel === 'number') {
+    sf.postMessage(`setoption name Skill Level value ${opts.skillLevel}`);
+  }
+  sf.postMessage(`setoption name MultiPV value ${multipv}`);
+  sf.postMessage(`position fen ${fen}`);
+
+  // Per-multipv-index latest info line. Engine emits info lines at
+  // increasing depths; we keep the last one for each multipv slot,
+  // which gives us the final analysis at the deepest depth.
+  const lines = new Map<number, AnalysisLine>();
+
+  const result = await new Promise<AnalysisLine[]>((resolve) => {
+    const listener = (line: string) => {
+      if (line.startsWith('info') && !line.includes('string')) {
+        const mpvMatch = line.match(/\bmultipv (\d+)/);
+        if (!mpvMatch) return;
+        const idx = Number(mpvMatch[1]);
+        const dMatch = line.match(/\bdepth (\d+)/);
+        const depth = dMatch ? Number(dMatch[1]) : 0;
+        const cpMatch = line.match(/\bscore cp (-?\d+)/);
+        const mateMatch = line.match(/\bscore mate (-?\d+)/);
+        const pvMatch = line.match(/\bpv ([a-h1-8 ]+)$/);
+        const pv = pvMatch ? pvMatch[1].trim().split(/\s+/) : [];
+        if (depth > 0 && pv.length > 0) {
+          lines.set(idx, {
+            multipv: idx,
+            depth,
+            scoreCp: cpMatch ? Number(cpMatch[1]) : undefined,
+            mateIn: mateMatch ? Number(mateMatch[1]) : undefined,
+            pv,
+          });
+        }
+        return;
+      }
+      if (line.startsWith('bestmove')) {
+        sf.removeMessageListener(listener);
+        // Restore MultiPV=1 for subsequent searchBestMove calls
+        sf.postMessage('setoption name MultiPV value 1');
+        const sorted = Array.from(lines.values()).sort(
+          (a, b) => a.multipv - b.multipv,
+        );
+        resolve(sorted);
+      }
+    };
+    sf.addMessageListener(listener);
+
+    const goCmd = opts.movetime
+      ? `go movetime ${opts.movetime}`
+      : `go depth ${opts.depth ?? 12}`;
+    sf.postMessage(goCmd);
+  });
+
+  timeEnd(searchId, { lines: result.length });
+  return result;
+}
+
 // Difficulty presets — depth + skill-level pair so very low skills also
 // time out fast (no use thinking deep when you're going to blunder anyway).
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'master';

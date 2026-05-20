@@ -2613,6 +2613,41 @@ footer a:hover {
   font-size: 11px;
 }
 
+/* ============ Analyze panel ============ */
+
+.analyze-panel {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.analyze-button {
+  width: 100%;
+  padding: 8px 14px;
+  background: rgba(82, 145, 90, 0.15);
+  color: #79b87f;
+  border: 1px solid #79b87f;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.analyze-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.analyze-row {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  margin-top: 10px;
+  align-items: stretch;
+  min-height: 140px;
+}
+
 /* ============ Resume banner ============ */
 
 .resume-banner {

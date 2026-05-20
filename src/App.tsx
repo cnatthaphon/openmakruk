@@ -60,6 +60,10 @@ import {
   saveCurrentGame,
 } from './lib/gameState';
 import { fenToPieceMap } from './lib/makruk';
+import { searchTopMoves } from './lib/engine';
+import { EvalBar } from './components/EvalBar';
+import { MultiPV } from './components/MultiPV';
+import type { EvalInfo, EvalScore } from './lib/evalParser';
 
 type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'settings' | 'about';
 
@@ -166,6 +170,13 @@ export default function App() {
   // re-loaded whenever the user leaves the Settings tab so newly-saved
   // values take effect without needing a full reload.
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+
+  // On-demand engine analysis — triggered by the 🔍 วิเคราะห์ button.
+  // analysisLines holds the top-N candidate moves; liveEval is the
+  // single-number eval for the EvalBar.
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisLines, setAnalysisLines] = useState<EvalInfo[]>([]);
+  const [liveEval, setLiveEval] = useState<EvalScore | null>(null);
 
   // Save & resume — when a game is in progress in a play mode, snapshot
   // the move history + game options to localStorage. On Play tab mount
@@ -331,6 +342,10 @@ export default function App() {
   useEffect(() => {
     setHint(null);
     setHintInfo(null);
+    // Analysis is also position-specific — drop it on any move so the
+    // user re-runs analyze for the new position.
+    setAnalysisLines([]);
+    setLiveEval(null);
   }, [state?.fen]);
 
   // Record a finished game into rating + per-level stats. Only counts
@@ -685,6 +700,32 @@ export default function App() {
       console.error('NNUE load failed:', err);
       setNnueState('off');
       setNnueProgress(null);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!state || analyzing) return;
+    setAnalyzing(true);
+    log('analyze.request', { fen: state.fen });
+    try {
+      const lines = await searchTopMoves(state.fen, { depth: 14 }, 3);
+      const infos: EvalInfo[] = lines.map((l) => ({
+        depth: l.depth,
+        multipv: l.multipv,
+        score:
+          typeof l.mateIn === 'number'
+            ? { type: 'mate', mate: l.mateIn }
+            : { type: 'cp', cp: l.scoreCp ?? 0 },
+        pv: l.pv,
+      }));
+      setAnalysisLines(infos);
+      if (infos[0]) setLiveEval(infos[0].score);
+      log('analyze.done', { lines: infos.length, depth: infos[0]?.depth });
+    } catch (err) {
+      console.error('analyze failed:', err);
+      log('analyze.error', { error: String(err) });
+    } finally {
+      setAnalyzing(false);
     }
   };
 
@@ -1257,6 +1298,28 @@ export default function App() {
               <span className="label-aside">{hintInfo}</span>
             </div>
           )}
+
+          {/* On-demand position analysis: top-3 candidate moves +
+              eval bar. Available in any mode — even after game ends. */}
+          <div className="analyze-panel">
+            <button
+              className="analyze-button"
+              onClick={handleAnalyze}
+              disabled={analyzing || !board}
+            >
+              {analyzing
+                ? '🔍 กำลังวิเคราะห์ตำแหน่ง...'
+                : analysisLines.length > 0
+                  ? '🔁 วิเคราะห์ใหม่'
+                  : '🔍 วิเคราะห์ตำแหน่ง (top 3)'}
+            </button>
+            {(settings.showEvalBar || analysisLines.length > 0) && (
+              <div className="analyze-row">
+                <EvalBar score={liveEval} depth={analysisLines[0]?.depth} flipped={flipped} />
+                <MultiPV lines={analysisLines} />
+              </div>
+            )}
+          </div>
 
           <div className="note">
             <strong>v0.1:</strong> ใช้ Fairy-Stockfish engine จริงแล้ว
