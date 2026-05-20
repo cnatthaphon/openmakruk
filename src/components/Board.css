@@ -52,6 +52,59 @@
   border-color: #3d4750;
 }
 
+/* Thai coordinate labels — ก ข ค ง จ ฉ ช ซ for files a-h, ๑-๘ for
+ * ranks. Chessground draws each coord as a <coord> with text content
+ * set to the chess letter/digit. We:
+ *   1. Hide the original text via color:transparent
+ *   2. Inject the Thai equivalent via ::before, positioned over the
+ *      same area
+ * The :nth-child mapping mirrors the DOM order chessground produces.
+ * UCI move strings remain a-h / 1-8 — this is display only.
+ *
+ * When the board is FLIPPED (orientation: black), chessground reverses
+ * the DOM order of coord children. The CSS below uses :nth-of-type
+ * positioning rules that hold for the unflipped board — flipped
+ * support reuses the same DOM positions because chessground's
+ * column-reverse / row-reverse handles the visual flip via flexbox. */
+.cg-wrap.lang-th coords coord {
+  color: transparent;
+  position: relative;
+}
+
+.cg-wrap.lang-th coords coord::before {
+  color: var(--fg, #ebe8e2);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: none;
+}
+
+/* Files (a-h → ก ข ค ง จ ฉ ช ซ) */
+.cg-wrap.lang-th coords.files coord:nth-child(1)::before { content: 'ก'; }
+.cg-wrap.lang-th coords.files coord:nth-child(2)::before { content: 'ข'; }
+.cg-wrap.lang-th coords.files coord:nth-child(3)::before { content: 'ค'; }
+.cg-wrap.lang-th coords.files coord:nth-child(4)::before { content: 'ง'; }
+.cg-wrap.lang-th coords.files coord:nth-child(5)::before { content: 'จ'; }
+.cg-wrap.lang-th coords.files coord:nth-child(6)::before { content: 'ฉ'; }
+.cg-wrap.lang-th coords.files coord:nth-child(7)::before { content: 'ช'; }
+.cg-wrap.lang-th coords.files coord:nth-child(8)::before { content: 'ซ'; }
+
+/* Ranks (1-8 → ๑ ๒ ๓ ๔ ๕ ๖ ๗ ๘). DOM order is bottom-up (rank 1
+ * first) and chessground reverses visually via column-reverse, so
+ * nth-child(N) === rank N. */
+.cg-wrap.lang-th coords.ranks coord:nth-child(1)::before { content: '๑'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(2)::before { content: '๒'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(3)::before { content: '๓'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(4)::before { content: '๔'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(5)::before { content: '๕'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(6)::before { content: '๖'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(7)::before { content: '๗'; }
+.cg-wrap.lang-th coords.ranks coord:nth-child(8)::before { content: '๘'; }
+
 /* Wood-toned checkerboard:
  *   layer 1 (top): vertical "grain" — faint dark stripes for woodiness
  *   layer 2:       checkerboard pattern via conic-gradient

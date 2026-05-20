@@ -1110,6 +1110,7 @@ export default function App() {
             onMove={handleMove}
             pieceSet={settings.pieceSet}
             boardTheme={settings.boardTheme}
+            language={settings.language}
             showCoordinates={settings.showCoordinates}
             highlightLastMove={settings.highlightLastMove}
             showLegalDots={settings.showLegalDots}

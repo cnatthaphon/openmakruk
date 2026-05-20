@@ -113,9 +113,9 @@
     "category": "tactic",
     "rating": 900,
     "toMove": "white",
-    "solution": ["d4e5"],
+    "solution": ["d4c5"],
     "prompt": "ขาวเดิน · เลือกจับให้ฉลาด — มี 2 ทาง แต่ตัวไหนค่ามากกว่า?",
-    "hint": "เบี้ยจับเฉียง — c5 มีโคน (Khon), e5 มีเม็ด (Met). เม็ดค่าสูงกว่าโคน · จับเม็ดดีกว่า",
+    "hint": "เบี้ยจับเฉียง — c5 มีโคน (Khon), e5 มีเม็ด (Met). ในหมากรุกไทย Khon ค่าสูงกว่า Met เพราะมี mobility 5 ช่อง (เม็ด 4 ช่อง) + Khon ไม่มี promotion มาทดแทน · จับ Khon ดีกว่า",
     "themes": ["pawn-capture", "best-capture", "material-value"],
     "source": "OpenMakruk starter set"
   },

@@ -22,6 +22,11 @@ type Props = {
   pieceSet?: 'fulmene' | 'yevrowl';
   /** Board square palette. Default: 'wood'. */
   boardTheme?: 'wood' | 'green' | 'blue';
+  /** UI language — drives the visual coordinate labels. 'th' replaces
+   * the chessground-rendered a-h / 1-8 with Thai consonants ก-ซ and
+   * Thai digits ๑-๘ via CSS pseudo-elements. Internal UCI move strings
+   * are still a-h / 1-8 — display only. */
+  language?: 'th' | 'en';
   /** Show file/rank labels around the board. Default: true. */
   showCoordinates?: boolean;
   /** Highlight the previous move's source + target squares. */
@@ -77,6 +82,7 @@ export function Board({
   onMove,
   pieceSet = 'fulmene',
   boardTheme = 'wood',
+  language = 'th',
   showCoordinates = true,
   highlightLastMove = true,
   showLegalDots = true,
@@ -205,7 +211,7 @@ export function Board({
   // Compose the CSS variant classes. Keeping piece-set + theme as
   // separate flags on the same element lets the CSS cascade override
   // piece images AND board colours independently.
-  const variantClasses = `cg-wrap piece-set-${pieceSet} theme-${boardTheme}`;
+  const variantClasses = `cg-wrap piece-set-${pieceSet} theme-${boardTheme} lang-${language}`;
 
   return <div ref={containerRef} className={variantClasses} />;
 }

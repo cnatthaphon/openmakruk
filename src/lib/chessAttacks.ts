@@ -26,13 +26,20 @@ export function letterToPiece(letter: string): { role: Role; color: Color } | nu
   }
 }
 
-/** Roman piece values used for trade evaluation. Roughly chess values
- * but with Met (ferz) and Khon (silver) MUCH lower than chess Q/B. */
+/** Piece values for trade evaluation, calibrated to standard Makruk
+ * literature. Note Khon > Met (opposite of how chess Queen > Bishop):
+ *   - Khon has 5 squares of mobility (forward + 4 diagonals) vs
+ *     Met's 4 (4 diagonals)
+ *   - Khon cannot be "manufactured" — only the original 2 per side
+ *     ever exist
+ *   - Met is "cheap" because every Bia that reaches rank 6 (white) /
+ *     rank 3 (black) promotes to Met
+ * So in Makruk, losing a Khon hurts more than losing a Met. */
 export const PIECE_VALUE: Record<Role, number> = {
   king:   1000,  // sentinel — losing king ends the game anyway
-  met:    2.5,
-  khon:   1.7,
-  knight: 3.0,
+  met:    1.5,
+  khon:   2.5,
+  knight: 2.5,
   rook:   5.0,
   bia:    1.0,
 };

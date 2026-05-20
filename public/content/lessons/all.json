@@ -151,7 +151,9 @@
           "kind": "try-move",
           "fen": "6k1/8/8/7r/8/6N1/8/6K1 w - - 0 1",
           "prompt": "ดำลืมป้องกันเรือที่ h5 — จับให้ได้ (ขาวเดิน)",
-          "correctMoves": ["g3h5"],
+          "correctMoves": [
+            "g3h5"
+          ],
           "successMessage": "✓ Ng3xh5! ม้าจับเรือฟรี — material +5 (เรือมีค่า 5, ม้ามีค่า 2.5 → ได้กำไรครึ่งหนึ่ง)",
           "failureMessage": "✗ ตานี้ไม่จับ · ลองคิดว่าตัวไหนเดินถึงเรือที่ h5 ได้",
           "hint": "ม้าที่ g3 เดิน L-shape ได้: g3 → h5 คือ (+1, +2) ใช่ knight move"
@@ -184,7 +186,9 @@
         "demo": {
           "kind": "replay",
           "fen": "7k/8/6K1/8/8/8/8/R7 w - - 0 1",
-          "moves": ["a1a8"],
+          "moves": [
+            "a1a8"
+          ],
           "commentary": [
             {
               "plyAfter": 0,
@@ -321,7 +325,11 @@
         "demo": {
           "kind": "replay",
           "fen": "k7/8/1K6/7R/8/8/8/8 w - - 0 1",
-          "moves": ["h5h7", "a8b8", "h7h8"],
+          "moves": [
+            "h5h7",
+            "a8b8",
+            "h7h8"
+          ],
           "commentary": [
             {
               "plyAfter": 0,

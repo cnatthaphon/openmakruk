@@ -109,7 +109,7 @@ export function LessonView({
         <LessonStepIndicator current={safeStepIdx} total={steps.length} />
       </header>
 
-      {step && <StepRenderer step={step} />}
+      <StepRenderer step={step} />
 
       <footer className="lesson-footer">
         <div className="lesson-nav">
@@ -158,7 +158,11 @@ function LessonStepIndicator({ current, total }: { current: number; total: numbe
 
 // ---- Step dispatcher ---------------------------------------------------
 
-function StepRenderer({ step }: { step: LessonStep }) {
+function StepRenderer({ step }: { step: LessonStep | undefined | null }) {
+  // Defensive: a transient render between lesson swaps can hand us an
+  // undefined step. Returning null here is harmless — the next tick's
+  // setStepIdx(0) reset puts us back on solid ground.
+  if (!step) return null;
   switch (step.kind) {
     case 'text':
       return <TextStepView step={step} />;
