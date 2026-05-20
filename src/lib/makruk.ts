@@ -1,8 +1,17 @@
 import Module from 'ffish-es6';
 import type { FairyStockfish } from 'ffish-es6';
 
+// Fairy-Stockfish canonical Makruk starting FEN.
+//
+// Note the asymmetry between white and black on the K/M files:
+//   Black side (rank 8):  rnsmksnr → M at d8, K at e8
+//   White side (rank 1):  RNSKMSNR → K at d1, M at e1
+// The kings face each other DIAGONALLY (d1↔e8), not on the same
+// column. This is genuine Makruk tradition — easy to get wrong if
+// you mirror from chess. ffish.startingFen('makruk') and
+// new ffish.Board('makruk').fen() both confirm this layout.
 export const MAKRUK_START_FEN =
-  'rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSMKSNR w - - 0 1';
+  'rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR w - - 0 1';
 
 export type Square = string; // 'a1'..'h8'
 export type PieceMap = { [square: string]: string };

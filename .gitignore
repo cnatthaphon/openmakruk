@@ -34,3 +34,9 @@ pnpm-debug.log*
 .idea/
 *.swp
 *.swo
+
+# Playwright E2E artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
