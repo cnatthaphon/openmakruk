@@ -50,6 +50,40 @@ test.describe('skeleton features', () => {
     await expect(page.locator('.daily-card-button')).toBeVisible();
   });
 
+  test('Library page shows empty state when no positions saved', async ({ page }) => {
+    await page.goto('/#/library');
+    await waitForContentReady(page);
+    await expect(page.locator('body')).toContainText('คลังตำแหน่ง');
+    await expect(page.locator('.library-empty')).toBeVisible();
+    await expect(page.locator('body')).toContainText('ยังไม่มีตำแหน่งบันทึก');
+  });
+
+  test('Library page renders saved positions from localStorage', async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'openmakruk_library',
+        JSON.stringify([
+          {
+            id: 'pos_test',
+            fen: 'rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR w - - 0 1',
+            title: 'Test position',
+            note: 'A unit test position',
+            tags: ['test', 'opening'],
+            createdAt: Date.now(),
+            source: 'custom',
+          },
+        ]),
+      );
+    });
+    await page.goto('/#/library');
+    await page.reload();
+    await waitForContentReady(page);
+    await expect(page.locator('.library-card')).toHaveCount(1);
+    await expect(page.locator('.library-card-title')).toContainText('Test position');
+    await expect(page.locator('.library-source-tag')).toContainText('ออกแบบ');
+    await expect(page.locator('.library-tag').first()).toContainText('#test');
+  });
+
   test('Profile history shows PGN export button when there is history', async ({ page }) => {
     // Seed one game record
     await page.evaluate(() => {

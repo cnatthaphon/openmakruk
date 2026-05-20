@@ -10,6 +10,7 @@ const TABS = [
   { hash: 'learn',    label: /ฝึก/ },
   { hash: 'puzzles',  label: /ปริศนา/ },
   { hash: 'custom',   label: /ออกแบบ/ },
+  { hash: 'library',  label: /คลัง/ },
   { hash: 'profile',  label: /โปรไฟล์/ },
   { hash: 'settings', label: /ตั้งค่า/ },
   { hash: 'about',    label: /เกี่ยวกับ/ },

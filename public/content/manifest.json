@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "generatedAt": "2026-05-20",
   "lessons": {
     "version": 2,
@@ -10,5 +10,25 @@
     "version": 2,
     "url": "/content/puzzles/all.json",
     "count": 11
+  },
+  "openings": {
+    "version": 1,
+    "url": "/content/openings/all.json",
+    "count": 0
+  },
+  "endgames": {
+    "version": 1,
+    "url": "/content/endgames/all.json",
+    "count": 0
+  },
+  "tacticsThemes": {
+    "version": 1,
+    "url": "/content/tactics-themes/all.json",
+    "count": 0
+  },
+  "annotations": {
+    "version": 1,
+    "url": "/content/annotations/all.json",
+    "count": 0
   }
 }

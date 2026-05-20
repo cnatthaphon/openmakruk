@@ -1,0 +1,186 @@
+// 📚 Library tab — the user's saved positions.
+//
+// Lists positions sorted by createdAt (newest first). Each row has:
+//   - Mini-board thumbnail (HTML grid, same renderer LessonBoard uses)
+//   - Title + note + tags
+//   - "▶ Open" → loads into Play tab (via the existing custom-position
+//      onLoadPosition path)
+//   - "🗑 Delete"
+//
+// Source tag (custom / play / puzzle / analysis) shows where the
+// position came from so the user can mentally filter.
+
+import { useMemo, useState } from 'react';
+import { fenToPieceMap } from '../lib/makruk';
+import { letterToPiece, ROLE_TH } from '../lib/chessAttacks';
+import { loadLibrary, removePosition, type SavedPosition } from '../lib/library';
+
+type Props = {
+  onLoad: (fen: string) => void;
+};
+
+const SOURCE_LABEL: Record<SavedPosition['source'], string> = {
+  custom:   '🎨 ออกแบบ',
+  play:     '♔ เกมจริง',
+  puzzle:   '🧩 ปริศนา',
+  analysis: '🔍 วิเคราะห์',
+};
+
+export function LibraryPage({ onLoad }: Props) {
+  const [library, setLibrary] = useState<SavedPosition[]>(() => loadLibrary());
+  const [filter, setFilter] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!filter.trim()) return library;
+    const q = filter.toLowerCase();
+    return library.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.note.toLowerCase().includes(q) ||
+        p.tags.some((t) => t.toLowerCase().includes(q)),
+    );
+  }, [library, filter]);
+
+  const handleDelete = (id: string) => {
+    if (!confirm('ลบตำแหน่งนี้ออกจากคลัง? (กู้ไม่ได้)')) return;
+    removePosition(id);
+    setLibrary(loadLibrary());
+  };
+
+  return (
+    <div className="library-page">
+      <header className="library-header">
+        <h2>📚 คลังตำแหน่ง</h2>
+        <p>
+          ตำแหน่งที่บันทึกจาก Custom / Play / ปริศนา · เก็บใน browser เท่านั้น ·
+          ทั้งหมด: <strong>{library.length}</strong> / 200
+        </p>
+        {library.length > 0 && (
+          <input
+            type="search"
+            className="library-search"
+            placeholder="ค้นหาในชื่อ / โน้ต / tag..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
+        )}
+      </header>
+
+      {library.length === 0 && (
+        <div className="library-empty">
+          <p>ยังไม่มีตำแหน่งบันทึก</p>
+          <p className="label-aside">
+            ไปที่ 🎨 ออกแบบ → "💾 บันทึกในคลัง" เพื่อเริ่มสะสมตำแหน่ง
+          </p>
+        </div>
+      )}
+
+      <div className="library-grid">
+        {filtered.map((p) => (
+          <LibraryCard
+            key={p.id}
+            position={p}
+            onOpen={() => onLoad(p.fen)}
+            onDelete={() => handleDelete(p.id)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LibraryCard({
+  position,
+  onOpen,
+  onDelete,
+}: {
+  position: SavedPosition;
+  onOpen: () => void;
+  onDelete: () => void;
+}) {
+  const date = new Date(position.createdAt);
+  const dateStr = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear() % 100}`;
+
+  // Count pieces for a quick visual summary
+  const pieces = fenToPieceMap(position.fen);
+  const pieceCount = Object.keys(pieces).length;
+
+  return (
+    <div className="library-card">
+      <MiniBoard fen={position.fen} />
+      <div className="library-card-body">
+        <div className="library-card-title">{position.title || 'ไม่มีชื่อ'}</div>
+        <div className="library-card-meta">
+          <span className="library-source-tag">{SOURCE_LABEL[position.source]}</span>
+          <span className="label-aside">{pieceCount} ตัว · {dateStr}</span>
+        </div>
+        {position.note && (
+          <div className="library-card-note">{position.note}</div>
+        )}
+        {position.tags.length > 0 && (
+          <div className="library-card-tags">
+            {position.tags.map((t, i) => (
+              <span key={i} className="library-tag">#{t}</span>
+            ))}
+          </div>
+        )}
+        <div className="library-card-actions">
+          <button className="library-open-button" onClick={onOpen}>
+            ▶ เปิด
+          </button>
+          <button className="library-delete-button" onClick={onDelete} title="ลบ">
+            🗑
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
+const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
+
+function MiniBoard({ fen }: { fen: string }) {
+  const pieces = fenToPieceMap(fen);
+  return (
+    <div className="library-mini-board" aria-hidden="true">
+      {RANKS.map((rank, rankIdx) =>
+        FILES.map((file, fileIdx) => {
+          const sq = `${file}${rank}`;
+          const letter = pieces[sq];
+          const piece = letter ? letterToPiece(letter) : null;
+          const isDark = (rankIdx + fileIdx) % 2 === 1;
+          return (
+            <div
+              key={sq}
+              className={`library-mini-square ${isDark ? 'dark' : 'light'}`}
+              title={piece ? `${ROLE_TH[piece.role]} (${piece.color === 'white' ? 'ขาว' : 'ดำ'})` : sq}
+            >
+              {piece && (
+                <div
+                  className="library-mini-piece"
+                  style={{
+                    backgroundImage: `url(/pieces/makruk/${piece.color}_${roleToCg(piece.role)}.svg)`,
+                  }}
+                />
+              )}
+            </div>
+          );
+        }),
+      )}
+    </div>
+  );
+}
+
+function roleToCg(role: string): string {
+  return (
+    {
+      king: 'king',
+      met: 'queen',
+      khon: 'bishop',
+      knight: 'knight',
+      rook: 'rook',
+      bia: 'pawn',
+    }[role] ?? 'pawn'
+  );
+}

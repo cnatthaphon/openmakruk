@@ -14,12 +14,22 @@
 import { getCached, putCached } from './contentCache';
 import type { LessonContent } from './lessonSchema';
 import type { Puzzle } from './puzzleSchema';
+import type {
+  Annotation,
+  EndgameStudy,
+  Opening,
+  TacticTheme,
+} from './extraContentSchema';
 
 export type ContentManifest = {
   schemaVersion: number;
   generatedAt: string;
   lessons: ManifestEntry;
   puzzles: ManifestEntry;
+  openings?: ManifestEntry;
+  endgames?: ManifestEntry;
+  tacticsThemes?: ManifestEntry;
+  annotations?: ManifestEntry;
 };
 
 export type ManifestEntry = {
@@ -27,6 +37,14 @@ export type ManifestEntry = {
   url: string;
   count: number;
 };
+
+export type ContentKey =
+  | 'lessons'
+  | 'puzzles'
+  | 'openings'
+  | 'endgames'
+  | 'tacticsThemes'
+  | 'annotations';
 
 const MANIFEST_URL = '/content/manifest.json';
 
@@ -55,12 +73,33 @@ export function loadPuzzles(): Promise<Puzzle[]> {
   return fetchFromManifest<Puzzle[]>('puzzles');
 }
 
-function fetchFromManifest<T>(key: 'lessons' | 'puzzles'): Promise<T> {
+export function loadOpenings(): Promise<Opening[]> {
+  return fetchFromManifest<Opening[]>('openings');
+}
+
+export function loadEndgames(): Promise<EndgameStudy[]> {
+  return fetchFromManifest<EndgameStudy[]>('endgames');
+}
+
+export function loadTacticsThemes(): Promise<TacticTheme[]> {
+  return fetchFromManifest<TacticTheme[]>('tacticsThemes');
+}
+
+export function loadAnnotations(): Promise<Annotation[]> {
+  return fetchFromManifest<Annotation[]>('annotations');
+}
+
+function fetchFromManifest<T>(key: ContentKey): Promise<T> {
   const cached = memoryCache.get(key);
   if (cached) return cached as Promise<T>;
   const promise = (async (): Promise<T> => {
     const manifest = await loadManifest();
     const entry = manifest[key];
+    if (!entry) {
+      // Older manifest without this key — return an empty list rather
+      // than throwing so the UI can show a "no content yet" state.
+      return [] as unknown as T;
+    }
     // Tier 2: IDB cache by version
     const persisted = await getCached<T>(key);
     if (persisted && persisted.version === entry.version) {

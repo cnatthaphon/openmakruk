@@ -44,6 +44,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { CustomPage } from './pages/CustomPage';
 import { AboutPage } from './pages/AboutPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LibraryPage } from './pages/LibraryPage';
 import { loadSettings, type Settings } from './lib/settings';
 import {
   playCapture,
@@ -66,11 +67,11 @@ import { MultiPV } from './components/MultiPV';
 import type { EvalInfo, EvalScore } from './lib/evalParser';
 import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
 
-type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'settings' | 'about';
+type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'library' | 'profile' | 'settings' | 'about';
 
 function readTabFromHash(): Tab {
   if (typeof window === 'undefined') return 'play';
-  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|profile|settings|about)/);
+  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|library|profile|settings|about)/);
   return (m?.[1] as Tab | undefined) ?? 'play';
 }
 
@@ -79,6 +80,7 @@ const TAB_LABELS: Record<Tab, string> = {
   learn:    '🎓 ฝึก',
   puzzles:  '🧩 ปริศนา',
   custom:   '🎨 ออกแบบ',
+  library:  '📚 คลัง',
   profile:  '👤 โปรไฟล์',
   settings: '⚙️ ตั้งค่า',
   about:    'ℹ️ เกี่ยวกับ',
@@ -179,6 +181,12 @@ export default function App() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisLines, setAnalysisLines] = useState<EvalInfo[]>([]);
   const [liveEval, setLiveEval] = useState<EvalScore | null>(null);
+
+  // Auto-analyze trigger: Custom or Library may set the
+  // openmakruk_auto_analyze flag in localStorage before navigating
+  // to /#/play. When the Play board first becomes ready, we honour
+  // the flag (and clear it) by running handleAnalyze once.
+  const autoAnalyzeFiredRef = useRef(false);
 
   // Save & resume — when a game is in progress in a play mode, snapshot
   // the move history + game options to localStorage. On Play tab mount
@@ -503,6 +511,25 @@ export default function App() {
       setResumeAvailable(false);
     }
   }, [state?.isGameOver, forcedResult]);
+
+  // Auto-analyze on Play mount when Custom / Library set the flag.
+  // Fires at most once per session — re-arms only by setting the flag
+  // again (which Custom + Library do as part of their navigation).
+  useEffect(() => {
+    if (!board || !state || autoAnalyzeFiredRef.current) return;
+    if (currentTab !== 'play') return;
+    try {
+      const flag = localStorage.getItem('openmakruk_auto_analyze');
+      if (flag === '1') {
+        localStorage.removeItem('openmakruk_auto_analyze');
+        autoAnalyzeFiredRef.current = true;
+        void handleAnalyze();
+      }
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [board, state?.fen, currentTab]);
 
   if (loadError) {
     return (
@@ -967,6 +994,31 @@ export default function App() {
             } catch (err) {
               console.error('Load custom position failed:', err);
               alert('โหลด position ไม่สำเร็จ — FEN อาจไม่ถูกต้องตามกฎ Makruk');
+            }
+          }}
+        />
+      )}
+      {currentTab === 'library' && (
+        <LibraryPage
+          onLoad={(fen) => {
+            try {
+              loadFfish().then((ffish) => {
+                if (board) board.delete();
+                const fresh = new ffish.Board('makruk', fen);
+                setBoard(fresh);
+                setHistory([]);
+                setState(snapshot(fresh));
+                setForcedResult(null);
+                setDrawOfferRefused(null);
+                gameRecordedRef.current = false;
+                setSelfPlayPaused(false);
+                setSelfPlayStopReason(null);
+                setCurrentTab('play');
+                log('library.position.loaded', { fen });
+              });
+            } catch (err) {
+              console.error('Load library position failed:', err);
+              alert('โหลด position ไม่สำเร็จ');
             }
           }}
         />

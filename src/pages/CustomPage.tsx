@@ -18,6 +18,7 @@ import {
   type Grid,
   type Piece,
 } from '../lib/fen';
+import { savePosition } from '../lib/library';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
@@ -57,6 +58,47 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
   const handleLoad = () => {
     if (validationError) return;
     onLoadPosition(fen);
+  };
+
+  const handleSaveToLibrary = () => {
+    if (validationError) return;
+    const title = prompt('ชื่อตำแหน่ง:', `Custom ${new Date().toLocaleString('th-TH')}`);
+    if (title === null) return;
+    const note = prompt('โน้ต (ใส่หรือไม่ใส่ก็ได้):', '') ?? '';
+    const tagsRaw = prompt('Tags (คั่นด้วยจุลภาค เช่น "endgame,mate-in-2"):', '') ?? '';
+    const tags = tagsRaw
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean);
+    savePosition({
+      fen,
+      title: title.trim() || 'ไม่มีชื่อ',
+      note: note.trim(),
+      tags,
+      source: 'custom',
+    });
+    alert('✓ บันทึกตำแหน่งในคลังแล้ว');
+  };
+
+  const handleAnalyzeAtPlay = () => {
+    if (validationError) return;
+    // Set a flag so the Play page auto-runs Analyse on first mount
+    try {
+      window.localStorage.setItem('openmakruk_auto_analyze', '1');
+    } catch {
+      // ignore
+    }
+    onLoadPosition(fen);
+  };
+
+  const handleCopyFen = async () => {
+    if (validationError) return;
+    try {
+      await navigator.clipboard.writeText(fen);
+      alert('คัดลอก FEN แล้ว');
+    } catch {
+      alert('Browser ไม่อนุญาต clipboard — กดเลือก FEN ในกล่องด้านล่างแทน');
+    }
   };
 
   return (
@@ -171,6 +213,31 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
             >
               ▶ เล่นจาก position นี้
             </button>
+            <div className="custom-hub-actions">
+              <button
+                className="custom-hub-button"
+                onClick={handleAnalyzeAtPlay}
+                disabled={validationError !== null}
+                title="โหลดไปที่หน้า Play แล้วเรียก engine วิเคราะห์ top 3 ตาเดิน"
+              >
+                🔍 วิเคราะห์ตำแหน่ง
+              </button>
+              <button
+                className="custom-hub-button"
+                onClick={handleSaveToLibrary}
+                disabled={validationError !== null}
+                title="บันทึกตำแหน่งในคลังของคุณเพื่อกลับมาเปิดทีหลัง"
+              >
+                💾 บันทึกในคลัง
+              </button>
+              <button
+                className="custom-hub-button"
+                onClick={handleCopyFen}
+                disabled={validationError !== null}
+              >
+                📋 คัดลอก FEN
+              </button>
+            </div>
             {validationError && (
               <div className="custom-error">⚠ {validationError}</div>
             )}
