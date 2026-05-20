@@ -11,6 +11,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadPuzzles } from '../lib/content';
 import { isPuzzleSolved, loadPuzzleProgress, type PuzzleProgress } from '../lib/puzzleProgress';
+import { formatRating, loadPuzzleRating, type PuzzleRatingState } from '../lib/puzzleRating';
+import { loadSchedule, dueNow } from '../lib/spacedRepetition';
+import { DailyPuzzleCard } from '../components/DailyPuzzleCard';
 import {
   PUZZLE_CATEGORY_META,
   PUZZLE_CATEGORY_ORDER,
@@ -23,6 +26,8 @@ export function PuzzlesPage() {
   const [puzzles, setPuzzles] = useState<Puzzle[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<PuzzleProgress>(() => loadPuzzleProgress());
+  const [rating] = useState<PuzzleRatingState>(() => loadPuzzleRating());
+  const reviewQueueSize = useMemo(() => dueNow(loadSchedule()).length, []);
   const [activePuzzleId, setActivePuzzleId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -96,11 +101,36 @@ export function PuzzlesPage() {
         <p>
           ฝึกสายตาด้วยตำแหน่งจริงที่คัดมา · ตรวจคำตอบกับ Fairy-Stockfish
         </p>
+        <div className="puzzles-stats-bar">
+          <div className="puzzles-stat">
+            <span className="puzzles-stat-label">Puzzle Rating</span>
+            <span className="puzzles-stat-value">{formatRating(rating.rating)}</span>
+          </div>
+          <div className="puzzles-stat">
+            <span className="puzzles-stat-label">ทำสำเร็จ</span>
+            <span className="puzzles-stat-value">{rating.solved}</span>
+          </div>
+          <div className="puzzles-stat">
+            <span className="puzzles-stat-label">ทดลอง</span>
+            <span className="puzzles-stat-value">{rating.attempts}</span>
+          </div>
+          <div className="puzzles-stat">
+            <span className="puzzles-stat-label">รอทบทวน</span>
+            <span className="puzzles-stat-value">{reviewQueueSize}</span>
+          </div>
+        </div>
         {loadError && (
           <p className="puzzles-error">⚠ โหลด content ไม่สำเร็จ: {loadError}</p>
         )}
         {!puzzles && !loadError && <p className="label-aside">กำลังโหลด ...</p>}
       </header>
+
+      {puzzles && (
+        <DailyPuzzleCard
+          puzzles={puzzles}
+          onOpen={(p) => setActivePuzzleId(p.id)}
+        />
+      )}
 
       <div className="puzzles-categories">
         {PUZZLE_CATEGORY_ORDER.map((cat) => {

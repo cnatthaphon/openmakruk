@@ -2613,3 +2613,369 @@ footer a:hover {
   font-size: 11px;
 }
 
+/* ============ Settings page ============ */
+
+.settings-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  line-height: 1.6;
+}
+
+.settings-header {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-header h2 { margin: 0 0 6px; font-size: 24px; }
+.settings-header p { color: var(--fg-dim); font-size: 13px; margin: 0; }
+
+.settings-section { margin-bottom: 24px; }
+
+.settings-section h3 {
+  font-size: 16px;
+  margin: 0 0 12px;
+  color: var(--accent);
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  gap: 14px;
+}
+
+.setting-row + .setting-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.setting-row-label {
+  flex: 1;
+  font-size: 13px;
+}
+
+.setting-row-hint {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.setting-row-control select,
+.setting-row-control input[type='range'] {
+  font: inherit;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.setting-row-control select { min-width: 180px; }
+
+.settings-toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  transition: background 0.18s;
+  position: relative;
+}
+
+.settings-toggle.on  { background: var(--accent); }
+.settings-toggle.off { background: rgba(255, 255, 255, 0.1); }
+
+.settings-toggle-thumb {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s;
+  transform: translateX(0);
+}
+
+.settings-toggle.on .settings-toggle-thumb {
+  transform: translateX(20px);
+}
+
+.settings-test-button {
+  padding: 6px 14px;
+  background: rgba(212, 162, 60, 0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-test-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-reset-button {
+  padding: 10px 20px;
+  background: rgba(232, 92, 92, 0.15);
+  border: 1px solid #e87a7a;
+  color: #e87a7a;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* ============ Eval bar ============ */
+
+.eval-bar {
+  width: 24px;
+  height: 100%;
+  min-height: 200px;
+  position: relative;
+  background: #2c241c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.eval-bar-black { background: #1a1816; transition: height 0.25s; }
+.eval-bar-white { background: #f0e4c8; transition: height 0.25s; }
+
+.eval-bar-label {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 4px;
+}
+
+.eval-bar-label.top    { top: 2px; }
+.eval-bar-label.bottom { bottom: 2px; }
+.eval-bar-label.for-white { color: #1a1816; background: #f0e4c8; }
+.eval-bar-label.for-black { color: #f0e4c8; background: #1a1816; }
+
+.eval-bar-depth {
+  font-size: 8px;
+  opacity: 0.7;
+  text-align: center;
+  margin-top: 1px;
+}
+
+/* ============ Clock ============ */
+
+.clock-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.clock-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.clock-row.active {
+  background: rgba(212, 162, 60, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(212, 162, 60, 0.3);
+}
+
+.clock-row.low.active {
+  background: rgba(232, 92, 92, 0.18);
+  border-color: #e87a7a;
+}
+
+.clock-row.flagged { opacity: 0.5; }
+
+.clock-row-label { font-size: 11px; color: var(--fg-dim); }
+.clock-row-side  { font-size: 10px; opacity: 0.6; }
+.clock-row-time  { font-size: 18px; font-weight: 700; }
+
+.clock-row.active .clock-row-time  { color: var(--accent); }
+.clock-row.low.active .clock-row-time { color: #e87a7a; }
+
+/* ============ Multi-PV ============ */
+
+.multipv-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.multipv-empty { padding: 14px; text-align: center; }
+
+.multipv-header { padding: 4px 8px; }
+
+.multipv-row {
+  display: grid;
+  grid-template-columns: 36px 60px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+}
+
+.multipv-row:hover { background: rgba(212, 162, 60, 0.1); border-color: var(--accent); }
+
+.multipv-rank { color: var(--fg-dim); font-weight: 700; }
+.multipv-score { font-weight: 700; }
+.multipv-score.positive { color: #79b87f; }
+.multipv-score.negative { color: #e57a7a; }
+.multipv-pv { color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
+
+/* ============ Daily puzzle card ============ */
+
+.daily-card {
+  background: linear-gradient(135deg, rgba(212, 162, 60, 0.15), rgba(212, 162, 60, 0.05));
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.daily-card.solved {
+  background: rgba(82, 145, 90, 0.12);
+  border-color: rgba(82, 145, 90, 0.6);
+}
+
+.daily-card-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.daily-card.solved .daily-card-tag { color: #79b87f; }
+
+.daily-card-title { margin: 6px 0; font-size: 18px; }
+
+.daily-card-meta { font-size: 12px; color: var(--fg-dim); margin: 4px 0; }
+.daily-card-meta strong { color: var(--accent); }
+
+.daily-card-prompt {
+  margin: 8px 0 12px;
+  font-size: 13px;
+}
+
+.daily-card-button {
+  padding: 8px 20px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.daily-card-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============ Puzzles stats bar ============ */
+
+.puzzles-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.puzzles-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.puzzles-stat-label {
+  font-size: 10px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.puzzles-stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* ============ PGN export in Profile ============ */
+
+.profile-history-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 6px 0 10px;
+}
+
+.profile-history-actions button {
+  padding: 6px 14px;
+  background: rgba(212, 162, 60, 0.15);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.history-pgn-button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--fg);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.history-pgn-button:hover {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+

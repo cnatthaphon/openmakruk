@@ -43,22 +43,24 @@ import { PuzzlesPage } from './pages/PuzzlesPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CustomPage } from './pages/CustomPage';
 import { AboutPage } from './pages/AboutPage';
+import { SettingsPage } from './pages/SettingsPage';
 
-type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'about';
+type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'settings' | 'about';
 
 function readTabFromHash(): Tab {
   if (typeof window === 'undefined') return 'play';
-  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|profile|about)/);
+  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|profile|settings|about)/);
   return (m?.[1] as Tab | undefined) ?? 'play';
 }
 
 const TAB_LABELS: Record<Tab, string> = {
-  play:    '♔ เล่น',
-  learn:   '🎓 ฝึก',
-  puzzles: '🧩 ปริศนา',
-  custom:  '🎨 ออกแบบ',
-  profile: '👤 โปรไฟล์',
-  about:   'ℹ️ เกี่ยวกับ',
+  play:     '♔ เล่น',
+  learn:    '🎓 ฝึก',
+  puzzles:  '🧩 ปริศนา',
+  custom:   '🎨 ออกแบบ',
+  profile:  '👤 โปรไฟล์',
+  settings: '⚙️ ตั้งค่า',
+  about:    'ℹ️ เกี่ยวกับ',
 };
 
 type BoardState = {
@@ -754,6 +756,7 @@ export default function App() {
           onResetAll={handleResetAll}
         />
       )}
+      {currentTab === 'settings' && <SettingsPage />}
       {currentTab === 'about' && <AboutPage />}
       {currentTab === 'play' && (
       <main>

@@ -13,6 +13,7 @@ import {
   type UserStats,
 } from '../lib/stats';
 import { DIFFICULTY_LABELS, type Difficulty } from '../lib/engine';
+import { downloadPgn, gameToPgn, gamesToPgn } from '../lib/pgn';
 
 type Props = {
   stats: UserStats;
@@ -171,11 +172,30 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
         {stats.history.length === 0 ? (
           <p className="label-aside">ยังไม่มีเกมที่บันทึก — เล่นโหมด Rated ก่อน</p>
         ) : (
-          <div className="profile-history">
-            {stats.history.map((g, i) => (
-              <ProfileHistoryRow key={i} record={g} />
-            ))}
-          </div>
+          <>
+            <div className="profile-history-actions">
+              <button
+                onClick={() => {
+                  const pgn = gamesToPgn(stats.history, { whiteName: stats.displayName });
+                  downloadPgn(pgn, `openmakruk-${stats.displayName}-history.pgn`);
+                }}
+              >
+                📥 Download ทั้งหมด (.pgn)
+              </button>
+              <span className="label-aside">
+                Tip: เปิดด้วย lichess.org analysis board หรือ ChessTempo
+              </span>
+            </div>
+            <div className="profile-history">
+              {stats.history.map((g, i) => (
+                <ProfileHistoryRow
+                  key={g.id ?? i}
+                  record={g}
+                  userName={stats.displayName}
+                />
+              ))}
+            </div>
+          </>
         )}
       </section>
 
@@ -210,12 +230,26 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
   );
 }
 
-function ProfileHistoryRow({ record }: { record: GameRecord }) {
+function ProfileHistoryRow({
+  record,
+  userName,
+}: {
+  record: GameRecord;
+  userName: string;
+}) {
   const date = new Date(record.date);
   const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date
     .getHours()
     .toString()
     .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  const handleExport = () => {
+    const pgn = gameToPgn(record, { whiteName: userName });
+    const tsName = date
+      .toISOString()
+      .slice(0, 16)
+      .replace(/[:T]/g, '-');
+    downloadPgn(pgn, `openmakruk-${tsName}.pgn`);
+  };
   return (
     <div className="profile-history-row">
       <span className={`history-outcome ${record.outcome}`}>
@@ -234,6 +268,13 @@ function ProfileHistoryRow({ record }: { record: GameRecord }) {
       </span>
       <span className="history-rating">→ {record.ratingAfter}</span>
       <span className="history-date">{dateStr}</span>
+      <button
+        className="history-pgn-button"
+        onClick={handleExport}
+        title="Export this game to PGN"
+      >
+        📋 PGN
+      </button>
     </div>
   );
 }

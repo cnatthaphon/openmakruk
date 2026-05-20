@@ -6,12 +6,13 @@ import { test, expect } from '@playwright/test';
 import { waitForContentReady } from './helpers';
 
 const TABS = [
-  { hash: 'play',    label: /เล่น/ },
-  { hash: 'learn',   label: /ฝึก/ },
-  { hash: 'puzzles', label: /ปริศนา/ },
-  { hash: 'custom',  label: /ออกแบบ/ },
-  { hash: 'profile', label: /โปรไฟล์/ },
-  { hash: 'about',   label: /เกี่ยวกับ/ },
+  { hash: 'play',     label: /เล่น/ },
+  { hash: 'learn',    label: /ฝึก/ },
+  { hash: 'puzzles',  label: /ปริศนา/ },
+  { hash: 'custom',   label: /ออกแบบ/ },
+  { hash: 'profile',  label: /โปรไฟล์/ },
+  { hash: 'settings', label: /ตั้งค่า/ },
+  { hash: 'about',    label: /เกี่ยวกับ/ },
 ];
 
 test.describe('smoke: all tabs load', () => {
