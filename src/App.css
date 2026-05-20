@@ -2695,6 +2695,63 @@ footer a:hover {
   .eval-bar { min-height: 160px; }
 }
 
+/* ============ Hint Coach panel ============ */
+
+.hint-info {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: rgba(82, 145, 90, 0.08);
+  border-left: 3px solid #79b87f;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.hint-info.coach-great {
+  background: rgba(212, 162, 60, 0.12);
+  border-left-color: var(--accent);
+}
+
+.hint-info.coach-neutral {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: rgba(255, 255, 255, 0.2);
+}
+
+.hint-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hint-info-eval {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+.hint-info-headline {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 4px 0;
+}
+
+.hint-info-details {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.hint-info-details li {
+  margin: 2px 0;
+}
+
 /* ============ Analyze panel ============ */
 
 .analyze-panel {

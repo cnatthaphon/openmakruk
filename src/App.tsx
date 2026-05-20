@@ -64,6 +64,7 @@ import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { MultiPV } from './components/MultiPV';
 import type { EvalInfo, EvalScore } from './lib/evalParser';
+import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
 
 type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile' | 'settings' | 'about';
 
@@ -135,6 +136,7 @@ export default function App() {
   const [hint, setHint] = useState<{ from: Square; to: Square } | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [hintInfo, setHintInfo] = useState<string | null>(null);
+  const [hintCoach, setHintCoach] = useState<CoachOutput | null>(null);
   const [stats, setStats] = useState<UserStats>(() => loadStats());
   const gameRecordedRef = useRef(false);
   const [nnueState, setNnueState] = useState<'off' | 'loading' | 'on'>('off');
@@ -342,6 +344,7 @@ export default function App() {
   useEffect(() => {
     setHint(null);
     setHintInfo(null);
+    setHintCoach(null);
     // Analysis is also position-specific — drop it on any move so the
     // user re-runs analyze for the new position.
     setAnalysisLines([]);
@@ -739,7 +742,33 @@ export default function App() {
       if (result.bestMove && result.bestMove !== '(none)' && result.bestMove !== '0000') {
         const { from, to } = parseUci(result.bestMove);
         setHint({ from: from as Square, to: to as Square });
-        // Build a short info line — eval from side-to-move POV.
+        // Build the Chess Coach explanation: simulate the recommended
+        // move on a throwaway ffish board to get the resulting FEN,
+        // then feed before/after + engine eval into the rule-based
+        // explainer. This is what produces the natural-language
+        // "💰 จับเรือฟรี" / "🪤 ม้า fork ขุน+เรือ" etc. messages.
+        try {
+          const ffish = await loadFfish();
+          const tmpBoard = new ffish.Board('makruk', state.fen);
+          try {
+            tmpBoard.push(result.bestMove);
+            const coach = coachExplain({
+              fenBefore: state.fen,
+              fenAfter: tmpBoard.fen(),
+              moveUci: result.bestMove,
+              scoreCpAfter: result.scoreCp,
+              mateInAfter: result.mateIn,
+              depth: result.depth,
+            });
+            setHintCoach(coach);
+          } finally {
+            tmpBoard.delete();
+          }
+        } catch (err) {
+          log('hint.coachFailed', { error: String(err) });
+          setHintCoach(null);
+        }
+        // Keep the compact eval label as a fallback string.
         let info = '';
         if (typeof result.mateIn === 'number') {
           info = `รุกจน ${Math.abs(result.mateIn)} ตา`;
@@ -1291,11 +1320,28 @@ export default function App() {
           {drawOfferRefused && (
             <div className="draw-refused-banner">{drawOfferRefused}</div>
           )}
-          {hint && hintInfo && (
-            <div className="hint-info">
-              💡 แนะนำ <strong>{hint.from} → {hint.to}</strong>
-              {' · '}
-              <span className="label-aside">{hintInfo}</span>
+          {hint && (
+            <div className={`hint-info coach-${hintCoach?.strength ?? 'neutral'}`}>
+              <div className="hint-info-header">
+                💡 แนะนำ <strong>{hint.from} → {hint.to}</strong>
+                {hintCoach?.evalLabel && (
+                  <span className="hint-info-eval">{hintCoach.evalLabel}</span>
+                )}
+              </div>
+              {hintCoach ? (
+                <>
+                  <div className="hint-info-headline">{hintCoach.headline}</div>
+                  {hintCoach.details.length > 0 && (
+                    <ul className="hint-info-details">
+                      {hintCoach.details.map((d, i) => (
+                        <li key={i}>{d}</li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                hintInfo && <span className="label-aside">{hintInfo}</span>
+              )}
             </div>
           )}
 
