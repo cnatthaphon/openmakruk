@@ -41,12 +41,13 @@ import {
 import { LearnPage } from './pages/LearnPage';
 import { PuzzlesPage } from './pages/PuzzlesPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { CustomPage } from './pages/CustomPage';
 
-type Tab = 'play' | 'learn' | 'puzzles' | 'profile';
+type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'profile';
 
 function readTabFromHash(): Tab {
   if (typeof window === 'undefined') return 'play';
-  const m = window.location.hash.match(/^#\/(play|learn|puzzles|profile)/);
+  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|profile)/);
   return (m?.[1] as Tab | undefined) ?? 'play';
 }
 
@@ -54,6 +55,7 @@ const TAB_LABELS: Record<Tab, string> = {
   play:    '♔ เล่น',
   learn:   '🎓 ฝึก',
   puzzles: '🧩 ปริศนา',
+  custom:  '🎨 ออกแบบ',
   profile: '👤 โปรไฟล์',
 };
 
@@ -717,6 +719,32 @@ export default function App() {
       </header>
       {currentTab === 'learn' && <LearnPage />}
       {currentTab === 'puzzles' && <PuzzlesPage />}
+      {currentTab === 'custom' && (
+        <CustomPage
+          initialFen={state.fen}
+          onLoadPosition={(fen: string) => {
+            try {
+              loadFfish().then((ffish) => {
+                if (board) board.delete();
+                const fresh = new ffish.Board('makruk', fen);
+                setBoard(fresh);
+                setHistory([]);
+                setState(snapshot(fresh));
+                setForcedResult(null);
+                setDrawOfferRefused(null);
+                gameRecordedRef.current = false;
+                setSelfPlayPaused(false);
+                setSelfPlayStopReason(null);
+                setCurrentTab('play');
+                log('custom.position.loaded', { fen });
+              });
+            } catch (err) {
+              console.error('Load custom position failed:', err);
+              alert('โหลด position ไม่สำเร็จ — FEN อาจไม่ถูกต้องตามกฎ Makruk');
+            }
+          }}
+        />
+      )}
       {currentTab === 'profile' && (
         <ProfilePage
           stats={stats}
