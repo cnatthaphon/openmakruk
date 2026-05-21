@@ -20,6 +20,14 @@ export type Puzzle = {
   hint?: string;                // shown after 2 wrong attempts
   themes: string[];             // ["back-rank", "fork"] etc.
   source?: string;              // attribution if applicable
+  /** Explicit user-facing goal in Thai for puzzles where the solution
+   * length isn't self-explanatory. e.g. "ชนะตัวภายใน 3 ตา",
+   * "ไล่นับให้ทันก่อน count 8". Rendered prominently above the board
+   * when set. Falls back to category meta otherwise. */
+  goal?: string;
+  /** Detailed post-solve explanation — the WHY behind the solution.
+   * Shown after the user wins so they walk away with a lesson. */
+  explanation?: string;
 };
 
 export const PUZZLE_CATEGORY_META: Record<

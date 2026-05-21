@@ -16,6 +16,9 @@ export type PuzzleRatingState = {
   attempts: number;     // total puzzles attempted (solved + failed)
   solved: number;       // solved on first try (no hint, no retry)
   failed: number;       // failed (gave up or used reveal)
+  /** Solved but with a hint or after wrong attempts — counted as wins
+   * (no rating penalty) but tracked separately for self-awareness. */
+  solvedWithHint?: number;
   startedAt: number;    // when the user first attempted a puzzle (ms)
 };
 
@@ -55,11 +58,20 @@ export function savePuzzleRating(state: PuzzleRatingState): void {
 /**
  * Update the personal rating after attempting a puzzle.
  * `outcome` is:
- *   'solved'   — first-try solve, full credit
- *   'partial'  — solved with hint or after retry, half credit
- *   'failed'   — gave up or revealed the answer
+ *   'solved'   — clean solve (no hint, no wrong tries) → full +Elo gain
+ *   'partial'  — solved with hint or after retries → reduced gain (75%
+ *                of what a clean solve would have earned), but never a
+ *                rating loss. Stats tracked separately so the user can
+ *                see "with hint" usage trend without being punished at
+ *                the rating layer.
+ *   'failed'   — gave up / revealed solution → full -Elo loss
  *
  * The opponent-equivalent rating is the puzzle's own rating field.
+ *
+ * Why this scheme: lichess.org doesn't penalise hints at the rating
+ * layer at all; chess.com is stricter. Splitting the difference at 75%
+ * keeps the hint button non-punitive (users use it to LEARN) while
+ * still rewarding clean solves more.
  */
 export function recordAttempt(
   state: PuzzleRatingState,
@@ -67,12 +79,15 @@ export function recordAttempt(
   outcome: 'solved' | 'partial' | 'failed',
 ): PuzzleRatingState {
   const expected = 1 / (1 + Math.pow(10, (puzzleRating - state.rating) / 400));
-  const actual = outcome === 'solved' ? 1 : outcome === 'partial' ? 0.5 : 0;
-  const delta = K_FACTOR * (actual - expected);
+  const win = outcome !== 'failed';
+  let delta = K_FACTOR * ((win ? 1 : 0) - expected);
+  // 25% haircut on positive gains for hint-assisted solves; losses unchanged
+  if (outcome === 'partial' && delta > 0) delta *= 0.75;
   return {
     rating: Math.round(state.rating + delta),
     attempts: state.attempts + 1,
     solved: state.solved + (outcome === 'solved' ? 1 : 0),
+    solvedWithHint: (state.solvedWithHint ?? 0) + (outcome === 'partial' ? 1 : 0),
     failed: state.failed + (outcome === 'failed' ? 1 : 0),
     startedAt: state.startedAt || Date.now(),
   };

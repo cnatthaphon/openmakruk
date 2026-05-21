@@ -60,12 +60,31 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
   const ffishRef = useRef<Awaited<ReturnType<typeof loadFfish>> | null>(null);
   const boardRef = useRef<any | null>(null);
   const [showHint, setShowHint] = useState(false);
+  /** ms epoch when the puzzle first rendered — used to compute the
+   * timeToSolveMs metric saved with the solve record. */
+  const startedAtRef = useRef<number>(Date.now());
+  /** UCI moves the user has tried but were wrong. Capped to last 5
+   * before persisting — enough to surface a pattern, bounded size. */
+  const wrongMovesRef = useRef<string[]>([]);
 
   const userSide = puzzle.toMove;
+  /** User-facing goal text — prefer puzzle.goal, fall back to a
+   * sensible default derived from category + solution length. */
+  const goalText =
+    puzzle.goal ??
+    (puzzle.category === 'mate-1'
+      ? 'รุกจน 1 ตา'
+      : puzzle.category === 'mate-2'
+        ? 'รุกจน 2 ตา'
+        : puzzle.category === 'tactic'
+          ? 'หาตาดีที่สุด'
+          : 'แก้ปริศนา');
 
   // Mount: load ffish, create internal board, sync initial state.
   useEffect(() => {
     let cancelled = false;
+    startedAtRef.current = Date.now();
+    wrongMovesRef.current = [];
     loadFfish().then((ffish) => {
       if (cancelled) return;
       ffishRef.current = ffish;
@@ -105,7 +124,11 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
       const isCorrect = expectedUci.startsWith(userUci);
 
       if (!isCorrect) {
-        // Wrong: don't advance the ffish board, just flash feedback
+        // Wrong: don't advance the ffish board, just flash feedback.
+        // Also record the wrong move (capped to last 5) so we can
+        // show the user their own pattern.
+        if (wrongMovesRef.current.length >= 5) wrongMovesRef.current.shift();
+        wrongMovesRef.current.push(userUci);
         setState((s) =>
           !s
             ? s
@@ -141,7 +164,8 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
       if (finishedAll) {
         const totalAttempts = state.attempts + 1;
         const usedHint = state.wrongStreak > 0 || showHint;
-        recordSolve(puzzle.id, totalAttempts, usedHint);
+        const timeToSolveMs = Date.now() - startedAtRef.current;
+        recordSolve(puzzle.id, totalAttempts, usedHint, timeToSolveMs, wrongMovesRef.current);
         // Personal rating: first-try solve without hint = full credit;
         // anything else = half credit. Failure path goes through the
         // reveal-solution handler so we never double-count.
@@ -250,11 +274,15 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
           {puzzle.prompt}{' '}
           <span className="puzzle-rating-badge">{puzzle.rating}</span>
         </h2>
+        <div className="puzzle-goal">
+          🎯 <strong>{goalText}</strong>
+        </div>
         <div className="puzzle-meta">
           <span className="label-aside">
             หมวด: {puzzle.category} · #{puzzle.id}
             {solvedBefore && ' · ✓ เคยทำเสร็จแล้ว'}
           </span>
+          <PuzzleTimer running={state.status === 'playing'} startedAt={startedAtRef.current} />
         </div>
       </header>
 
@@ -298,6 +326,23 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
         </div>
       )}
 
+      {state.status === 'won' && puzzle.explanation && (
+        <div className="puzzle-explanation">
+          <strong>📖 เหตุผล:</strong> {puzzle.explanation}
+        </div>
+      )}
+
+      {state.status === 'won' && (() => {
+        const best = loadPuzzleProgress().solved[puzzle.id];
+        if (!best || !best.timeToSolveMs) return null;
+        return (
+          <div className="puzzle-best-stats label-aside">
+            🏆 สถิติ: {best.attempts} ครั้ง · {(best.timeToSolveMs / 1000).toFixed(1)} วินาที
+            {best.usedHint && ' · ใช้ hint'}
+          </div>
+        );
+      })()}
+
       <div className="puzzle-controls">
         {state.status === 'playing' && (
           <>
@@ -327,17 +372,54 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
   );
 }
 
+/** Live MM:SS timer driven by rAF — freezes when not running. */
+function PuzzleTimer({
+  running,
+  startedAt,
+}: {
+  running: boolean;
+  startedAt: number;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!running) return;
+    let id: number;
+    const tick = () => {
+      setNow(Date.now());
+      id = window.setTimeout(tick, 250);
+    };
+    tick();
+    return () => window.clearTimeout(id);
+  }, [running]);
+  const elapsedSec = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const min = Math.floor(elapsedSec / 60);
+  const sec = elapsedSec % 60;
+  return (
+    <span className="puzzle-timer label-aside" title="เวลาที่ใช้ทำปริศนานี้">
+      ⏱ {min}:{sec.toString().padStart(2, '0')}
+    </span>
+  );
+}
+
 function parseUciToLastMove(uci: string): { from: Square; to: Square } {
   const { from, to } = parseUci(uci);
   return { from, to };
 }
 
-function recordSolve(puzzleId: string, attempts: number, usedHint: boolean): void {
+function recordSolve(
+  puzzleId: string,
+  attempts: number,
+  usedHint: boolean,
+  timeToSolveMs?: number,
+  wrongMoves?: string[],
+): void {
   const progress = loadPuzzleProgress();
   const updated = recordPuzzleSolve(progress, puzzleId, {
     solvedAt: Date.now(),
     attempts,
     usedHint,
+    timeToSolveMs,
+    wrongMoves: wrongMoves && wrongMoves.length > 0 ? [...wrongMoves] : undefined,
   });
   savePuzzleProgress(updated);
 }

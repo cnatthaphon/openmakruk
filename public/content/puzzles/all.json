@@ -79,7 +79,9 @@
     "toMove": "white",
     "solution": ["h5h7", "a8b8", "h7h8"],
     "prompt": "ขาวเดิน · รุกจนใน 2 ตา (K+R vs K ladder)",
+    "goal": "รุกจน ภายใน 2 ตา",
     "hint": "ตาแรกใช้เรือ 'ตัดทาง' rank 7 บีบขุนดำ → ขุนดำมีตาเดียวที่หนีได้ → ตาที่สองรุกจน",
+    "explanation": "เทคนิค 'ladder mate' ของ K+R vs K — ใช้เรือผลักขุนเปลือยเข้าแถวข้างทีละ rank พร้อมขุนของเราเดินขนาน. ที่นี่: 1.Rh7 ตัดทาง r7 (ขุนดำเหลือแค่ b8), 1...Kb8 บังคับ, 2.Rh8# คุมแถว 8 = ปิดเกม. กฎ count limit K+R vs K = 8 ตา ดังนั้นต้องเร็ว",
     "themes": ["k-and-rook", "ladder-mate", "endgame-technique"],
     "source": "OpenMakruk starter set — classic K+R vs K technique"
   },
@@ -115,7 +117,9 @@
     "toMove": "white",
     "solution": ["d4c5"],
     "prompt": "ขาวเดิน · เลือกจับให้ฉลาด — มี 2 ทาง แต่ตัวไหนค่ามากกว่า?",
+    "goal": "จับตัวที่มีค่ามากที่สุดด้วยเบี้ย",
     "hint": "เบี้ยจับเฉียง — c5 มีโคน (Khon), e5 มีเม็ด (Met). ในหมากรุกไทย Khon ค่าสูงกว่า Met เพราะมี mobility 5 ช่อง (เม็ด 4 ช่อง) + Khon ไม่มี promotion มาทดแทน · จับ Khon ดีกว่า",
+    "explanation": "ในหมากรุกไทย โคน (Khon, ~2.5) มีค่าสูงกว่า เม็ด (Met, ~1.5) เพราะ: (1) Khon เดินได้ 5 ช่อง (ตรง 1 + เฉียง 4) ขณะที่ Met เดินได้แค่ 4 ช่อง (เฉียงเท่านั้น), (2) Met สามารถ 'manufacture' ได้จากการที่เบี้ยโปรโมต — Khon มีแค่ 2 ตัวต่อฝ่ายตลอดเกม. สรุป: ตัดสินใจเลือกจับ ให้ดูที่ทั้ง mobility และความหายาก",
     "themes": ["pawn-capture", "best-capture", "material-value"],
     "source": "OpenMakruk starter set"
   },

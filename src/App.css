@@ -2354,6 +2354,48 @@ footer a:hover {
   border-radius: 10px;
 }
 
+.puzzle-goal {
+  margin: 6px 0;
+  padding: 8px 12px;
+  background: rgba(212, 162, 60, 0.1);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.puzzle-goal strong {
+  color: var(--accent);
+}
+
+.puzzle-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.puzzle-timer {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+
+.puzzle-explanation {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(82, 145, 90, 0.1);
+  border-left: 3px solid #79b87f;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.puzzle-best-stats {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 12px;
+}
+
 .puzzle-meta {
   font-size: 12px;
   color: var(--fg-dim);

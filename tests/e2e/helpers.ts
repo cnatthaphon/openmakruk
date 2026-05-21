@@ -68,6 +68,12 @@ export async function dragMove(
   to: string,
   flipped = false,
 ) {
+  // Scroll the board into the viewport first. Layouts above the board
+  // (resume banner, puzzle goal, timer, etc.) can push it past the
+  // bottom of a 900px-tall viewport, and `page.mouse.click(x, y)`
+  // works in viewport (not page) coordinates — clicks would miss.
+  await page.locator('.cg-wrap').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(80);
   const a = await squareCoords(page, from, flipped);
   const b = await squareCoords(page, to, flipped);
   const dx = Math.abs(b.x - a.x);
