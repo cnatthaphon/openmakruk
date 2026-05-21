@@ -40,3 +40,8 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# E2E visual debug artifacts (not tests)
+play-page-now.png
+sidebar-now.png
+*.debug.png
