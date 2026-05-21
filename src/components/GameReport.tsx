@@ -107,8 +107,8 @@ export function GameReport({ moves, userSide, result, onJumpToPly, subView = 'al
             <div className="report-verdict">
               📌 ตาที่พลาดมากสุด: <strong>ตาที่ {moments[0].ply}</strong> ·
               เล่น <code>{thaiUci(moments[0].uci)}</code> แทน{' '}
-              <code>{thaiUci(moments[0].bestMove)}</code> · เสียค่าตัวประมาณ{' '}
-              <strong>{(moments[0].delta / 100).toFixed(1)} เบี้ย</strong>
+              <code>{thaiUci(moments[0].bestMove)}</code> · ตำแหน่งแย่ลง{' '}
+              <strong>{(moments[0].delta / 100).toFixed(1)} คะแนน</strong>
             </div>
           )}
         </>
@@ -192,8 +192,8 @@ function KeyMomentCard({ move, onJump }: { move: AnnotatedMove; onJump: () => vo
           <span className="key-moment-arrow-key bad">↗</span>
           <span className="label">ที่เล่น:</span>{' '}
           <code className="bad">{thaiUci(move.uci)}</code>{' '}
-          <span className="label-aside">
-            (เสีย {(move.delta / 100).toFixed(1)} เบี้ย)
+          <span className="label-aside" title="หน่วยวัดของ engine: 1 คะแนน ≈ มูลค่าของเบี้ย 1 ตัว · ใช้บอกว่าตำแหน่งแย่ลงเท่าไหร่">
+            (เสียคะแนน {(move.delta / 100).toFixed(1)})
           </span>
         </div>
         <div className="key-moment-line">
