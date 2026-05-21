@@ -1,9 +1,30 @@
 {
   "name": "openmakruk",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Open-source Thai chess (Makruk) training platform",
+  "description": "Open-source Thai chess (Makruk) training platform — Thai-first, no backend, MIT-licensed",
+  "license": "MIT",
+  "author": "Natthaphon Chaiyaphat",
+  "homepage": "https://openmakruk.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cnatthaphon/openmakruk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cnatthaphon/openmakruk/issues"
+  },
+  "keywords": [
+    "makruk",
+    "thai-chess",
+    "chess",
+    "fairy-stockfish",
+    "react",
+    "vite",
+    "typescript",
+    "education",
+    "training-platform"
+  ],
   "scripts": {
     "dev": "node node_modules/vite/bin/vite.js",
     "build": "node node_modules/typescript/bin/tsc -b && node node_modules/vite/bin/vite.js build",
