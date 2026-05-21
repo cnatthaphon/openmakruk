@@ -191,6 +191,12 @@ export default function App() {
   const [analysisLines, setAnalysisLines] = useState<EvalInfo[]>([]);
   const [liveEval, setLiveEval] = useState<EvalScore | null>(null);
 
+  /** Sub-tab for the Play-page sidebar so the whole UI fits in one
+   * viewport without scrolling. Three orthogonal slices of the
+   * normally-stacked sidebar content. */
+  type SidebarTab = 'game' | 'help' | 'moves';
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>('game');
+
   // Auto-analyze trigger: Custom or Library may set the
   // openmakruk_auto_analyze flag in localStorage before navigating
   // to /#/play. When the Play board first becomes ready, we honour
@@ -764,6 +770,7 @@ export default function App() {
 
   const handleAnalyze = async () => {
     if (!state || analyzing) return;
+    setSidebarTab('help'); // surface the output where it'll appear
     setAnalyzing(true);
     log('analyze.request', { fen: state.fen });
     try {
@@ -791,6 +798,7 @@ export default function App() {
   const handleHint = async () => {
     if (!state || hintLoading || thinking || state.isGameOver) return;
     if (userSide !== 'both' && userSide !== state.turn) return;
+    setSidebarTab('help'); // surface the Coach panel where the result lands
     setHintLoading(true);
     log('hint.request', { fen: state.fen });
     try {
@@ -998,9 +1006,11 @@ export default function App() {
 
   return (
     <div className={`app ${state.isCheck && currentTab === 'play' ? 'is-check' : ''}`}>
-      <header>
-        <h1>OpenMakruk</h1>
-        <p className="tagline">หมากรุกไทย · v0.1 · {stats.displayName}</p>
+      <header className="app-header">
+        <div className="app-header-brand">
+          <h1>OpenMakruk</h1>
+          <span className="app-header-version">v0.1</span>
+        </div>
         <nav className="tabs" role="tablist">
           {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
             <button
@@ -1014,6 +1024,14 @@ export default function App() {
             </button>
           ))}
         </nav>
+        <button
+          className="app-profile-widget"
+          onClick={() => setCurrentTab('profile')}
+          title="ดูโปรไฟล์ + ประวัติเกม"
+        >
+          <span className="app-profile-name">{stats.displayName}</span>
+          <span className="app-profile-rating">{stats.rating}</span>
+        </button>
       </header>
       {currentTab === 'learn' && <LearnPage />}
       {currentTab === 'puzzles' && <PuzzlesPage />}
@@ -1179,6 +1197,31 @@ export default function App() {
                 : '🔍 ดูรีวิวเกม'}
             </button>
           )}
+
+          {!reviewActive && (
+            <div className="sidebar-tabs" role="tablist">
+              {(
+                [
+                  ['game', '🎮 เกม'],
+                  ['help', '🧠 ผู้ช่วย'],
+                  ['moves', '📜 ตาเดิน'],
+                ] as [SidebarTab, string][]
+              ).map(([t, label]) => (
+                <button
+                  key={t}
+                  role="tab"
+                  className={`sidebar-tab ${sidebarTab === t ? 'is-active' : ''}`}
+                  onClick={() => setSidebarTab(t)}
+                  aria-selected={sidebarTab === t}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className={`sidebar-tab-content sidebar-tab-${sidebarTab}`}>
+          {!reviewActive && sidebarTab === 'game' && <>
           <div className="mode-picker">
             <span className="label">โหมด</span>
             <select
@@ -1284,7 +1327,9 @@ export default function App() {
           </div>
           </details>
 
+          </>}{/* end of sidebarTab === 'game' (config block) */}
 
+          {!reviewActive && sidebarTab === 'game' && <>
           <div className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''} ${state.isCheck ? 'is-check' : ''}`}>
             {thinking ? (
               <>
@@ -1365,6 +1410,9 @@ export default function App() {
             </div>
           )}
 
+          </>}{/* end of sidebarTab === 'game' (state block) */}
+
+          {!reviewActive && sidebarTab === 'moves' && <>
           <div className="controls">
             <button
               className="hint-button"
@@ -1483,6 +1531,9 @@ export default function App() {
               </div>
             </div>
           )}
+          </>}{/* end of sidebarTab === 'moves' */}
+
+          {!reviewActive && sidebarTab === 'help' && <>
           {hint && (
             <div className={`hint-info coach-${hintCoach?.strength ?? 'neutral'}`}>
               <div className="hint-info-header">
@@ -1544,17 +1595,9 @@ export default function App() {
               </button>
             )}
           </div>
+          </>}{/* end of sidebarTab === 'help' */}
 
-          <div className="note">
-            <strong>v0.1:</strong> ใช้ Fairy-Stockfish engine จริงแล้ว
-            (classical eval, ยังไม่ได้โหลด NNUE network ของหมากรุกไทย).
-            ปรับระดับด้านบนเพื่อให้คอมเล่นง่ายขึ้น/ยากขึ้น.
-          </div>
-
-          <div className="fen">
-            <span className="label">FEN:</span>
-            <code>{state.fen}</code>
-          </div>
+          </div>{/* end of .sidebar-tab-content */}
         </aside>
       </main>
       )}

@@ -69,19 +69,95 @@ main {
   flex-wrap: wrap;
   justify-content: center;
   max-width: 100%;
+  /* Cap the Play page to one viewport height so the user never needs
+   * to scroll while playing. Board + sidebar share the same height. */
+  max-height: calc(100vh - 110px);
+  min-height: 540px;
+}
+
+/* When the cap kicks in, the board scales to fit AND the sidebar
+ * gets a scrollable interior (per-tab content scrolls, not the
+ * whole page). */
+.board-container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  height: 100%;
+  max-height: 100%;
+}
+
+.cg-wrap {
+  max-height: calc(100vh - 130px) !important;
+  max-width: calc(100vh - 130px) !important;
 }
 
 /* Sidebar is wider on desktop so it uses the screen instead of
  * leaving a big empty strip next to the board. Cards inside flow
- * tighter (gap 12px) so distinct sections don't drift apart. */
+ * tighter (gap 8px) so distinct sections don't drift apart. */
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  min-width: 280px;
-  max-width: 380px;
-  flex: 1 1 320px;
+  gap: 8px;
+  min-width: 300px;
+  max-width: 420px;
+  flex: 1 1 360px;
   font-size: 14px;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Sidebar sub-tabs — pick which slice of state/controls is visible.
+ * Three tabs each fit in one viewport: settings, helpers, move log.
+ * Auto-switch hooks in handleHint() + handleAnalyze() bring the user
+ * to "ผู้ช่วย" the moment they ask for help. */
+.sidebar-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sidebar-tab {
+  padding: 8px 6px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--fg-dim);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.sidebar-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+}
+
+.sidebar-tab.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.sidebar-tab-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* Subtle scrollbar so it doesn't visually compete with content. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
+.sidebar-tab-content::-webkit-scrollbar { width: 6px; }
+.sidebar-tab-content::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
 }
 
 /* Sidebar cards — give every visually-discrete block the same shape
@@ -3169,6 +3245,97 @@ footer a:hover {
 
 .library-delete-button:hover {
   background: rgba(232, 92, 92, 0.3);
+}
+
+/* ============ App-header profile widget ============ */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.app-header-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.app-header-brand h1 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.app-header-version {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.app-header .tabs {
+  flex: 1 1 auto;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.app-profile-widget {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(212, 162, 60, 0.1);
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 18px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s;
+}
+
+.app-profile-widget:hover {
+  background: rgba(212, 162, 60, 0.2);
+}
+
+.app-profile-name {
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-profile-rating {
+  padding: 1px 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-radius: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+/* On narrow mobile, the header stack: brand + tabs + profile in
+ * separate rows. Profile pill stays right-aligned on its row. */
+@media (max-width: 720px) {
+  .app-header {
+    gap: 8px;
+    padding: 6px 8px;
+  }
+  .app-header-brand h1 { font-size: 16px; }
+  .app-profile-widget { font-size: 12px; padding: 4px 10px; }
+  /* Viewport-fit cap is too aggressive on tall narrow phones — let
+   * the Play tab scroll like before. */
+  main { max-height: none; min-height: 0; }
+  .cg-wrap { max-height: 100% !important; max-width: 100% !important; }
 }
 
 /* ============ Review tabbed wrapper ============ */
