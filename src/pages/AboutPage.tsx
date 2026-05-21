@@ -242,7 +242,7 @@ export function AboutPage() {
           {' '}— PR, issue, feature request ยินดีต้อนรับ.
         </p>
         <p className="about-bullets-prose label-aside">
-          ผู้เขียน: Natthaphon Chaiyaphat. โปรเจกต์นี้สร้างเป็น portfolio
+          ผู้เขียน: Natthaphon C. โปรเจกต์นี้สร้างเป็น portfolio
           piece + ของขวัญให้คอมมูนิตี้หมากรุกไทย — ไม่มีวัตถุประสงค์
           เชิงพาณิชย์.
         </p>

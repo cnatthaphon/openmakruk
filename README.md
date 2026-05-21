@@ -255,7 +255,7 @@ Bundled third-party components keep their own licenses — full list in [`NOTICE
 
 ## Credits
 
-Author: **Natthaphon Chaiyaphat** — PhD Physics, self-taught dev, building this as both a portfolio piece and a tool for the Thai chess community.
+Author: **Natthaphon C.** — PhD Physics, self-taught dev, building this as both a portfolio piece and a tool for the Thai chess community.
 
 Built standing on the shoulders of:
 - **Fairy-Stockfish** team (Fabian Fichter and contributors) — the chess-variant engine that handles Makruk rules + search.
