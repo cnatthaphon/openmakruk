@@ -128,6 +128,9 @@ test.describe('comprehensive integration', () => {
     await page.goto('/#/play');
     await waitForContentReady(page);
     await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    // The analyze panel (button + output) lives entirely in the
+    // "🧠 ผู้ช่วย" sub-tab. Click that tab first.
+    await page.locator('.sidebar-tab', { hasText: 'ผู้ช่วย' }).click();
     await page.waitForSelector('.analyze-button', { timeout: 15_000 });
 
     await page.locator('.analyze-button').click();
@@ -203,6 +206,9 @@ test.describe('comprehensive integration', () => {
     await waitForContentReady(page);
     await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
     await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
+
+    // Switch to the "📜 ตาเดิน" sub-tab where the move log lives.
+    await page.locator('.sidebar-tab', { hasText: 'ตาเดิน' }).click();
 
     // Move log is hidden when there are no moves
     await expect(page.locator('.move-log')).toHaveCount(0);

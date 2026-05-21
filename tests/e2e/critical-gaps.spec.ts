@@ -60,6 +60,10 @@ test.describe('critical gap coverage', () => {
     await page.goto('/#/play');
     await waitForContentReady(page);
     await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    // The hint button now lives inside the "📜 ตาเดิน" sub-tab. Switch
+    // there before clicking. Clicking the hint button auto-switches the
+    // sidebar to "🧠 ผู้ช่วย" so the Coach output lands in view.
+    await page.locator('.sidebar-tab', { hasText: 'ตาเดิน' }).click();
     await page.waitForSelector('.hint-button', { timeout: 15_000 });
 
     await page.locator('.hint-button').click();
