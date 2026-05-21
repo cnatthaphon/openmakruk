@@ -3125,17 +3125,63 @@ footer a:hover {
   background: rgba(232, 92, 92, 0.3);
 }
 
+/* ============ Review tabbed wrapper ============ */
+
+.review-tabbed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-tabbed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 4px 0;
+}
+
+.review-subtabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.review-subtab {
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--fg-dim);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.review-subtab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+}
+
+.review-subtab.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
 /* ============ Game Report (post-game) ============ */
 
 .game-report {
-  margin-bottom: 14px;
-  padding: 12px 14px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .report-header {
@@ -3170,7 +3216,7 @@ footer a:hover {
   background: rgba(0,0,0,0.2);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 6px;
-  padding: 8px 10px;
+  padding: 6px 8px;
   text-align: center;
 }
 
@@ -3187,7 +3233,7 @@ footer a:hover {
 
 .accuracy-card-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1.1;
 }
@@ -3213,7 +3259,7 @@ footer a:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 4px;
+  padding: 4px 2px;
   background: rgba(0,0,0,0.15);
   border-left: 3px solid;
   border-radius: 3px;
@@ -3221,7 +3267,7 @@ footer a:hover {
 
 .report-count-num {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1;
 }
@@ -3295,6 +3341,7 @@ footer a:hover {
 }
 
 .key-moment-board {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
@@ -3305,6 +3352,26 @@ footer a:hover {
   background: repeating-conic-gradient(#e3c187 0% 25%, #885e35 0% 50%);
   background-size: 25% 25%;
 }
+
+.key-moment-arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.key-moment-arrow-key {
+  display: inline-block;
+  width: 14px;
+  font-weight: 700;
+  text-align: center;
+  border-radius: 2px;
+  font-size: 11px;
+}
+
+.key-moment-arrow-key.bad  { color: #e87a7a; background: rgba(232,92,92,0.15); }
+.key-moment-arrow-key.good { color: #79b87f; background: rgba(82,145,90,0.15); }
 
 .key-moment-square {
   position: relative;

@@ -1155,24 +1155,18 @@ export default function App() {
         </div>
         <aside className="sidebar">
           {reviewActive && (
-            <>
-              <GameReport
-                moves={reviewMoves}
-                userSide={
-                  mode === 'play-white' ? 'white' :
-                  mode === 'play-black' ? 'black' : null
-                }
-                result={forcedResult ?? state.result ?? '*'}
-                onJumpToPly={setReviewPly}
-              />
-              <ReviewPanel
-                moves={reviewMoves}
-                currentPly={reviewPly}
-                currentMove={reviewCurrent}
-                onPlySelect={setReviewPly}
-                onExit={handleExitReview}
-              />
-            </>
+            <ReviewTabbedPanel
+              moves={reviewMoves}
+              currentPly={reviewPly}
+              currentMove={reviewCurrent}
+              userSide={
+                mode === 'play-white' ? 'white' :
+                mode === 'play-black' ? 'black' : null
+              }
+              result={forcedResult ?? state.result ?? '*'}
+              onPlySelect={setReviewPly}
+              onExit={handleExitReview}
+            />
           )}
           {!reviewActive && (state.isGameOver || forcedResult) && history.length > 0 && (
             <button
@@ -1677,6 +1671,80 @@ function formatDateShort(timestamp: number): string {
 
 type ReviewSideFilter = 'both' | 'white' | 'black';
 type ReviewSeverityFilter = 'all' | 'mistakes' | 'blunders-only';
+type ReviewSubTab = 'summary' | 'moments' | 'details';
+
+/**
+ * Tabbed wrapper that fits a full post-game review into a single
+ * viewport-height panel — instead of one long scrollable column.
+ *   📊 สรุป — accuracy + counts + verdict
+ *   🎯 ตาสำคัญ — key-moment cards with arrows on mini-boards
+ *   📋 รายละเอียด — position nav + filterable move list (legacy)
+ */
+function ReviewTabbedPanel({
+  moves,
+  currentPly,
+  currentMove,
+  userSide,
+  result,
+  onPlySelect,
+  onExit,
+}: {
+  moves: AnnotatedMove[];
+  currentPly: number;
+  currentMove: AnnotatedMove | null;
+  userSide: 'white' | 'black' | null;
+  result: string;
+  onPlySelect: (ply: number) => void;
+  onExit: () => void;
+}) {
+  const [tab, setTab] = useState<ReviewSubTab>('summary');
+  return (
+    <div className="review-tabbed">
+      <div className="review-tabbed-header">
+        <strong>🔍 รีวิวเกม</strong>
+        <button className="review-exit" onClick={onExit} aria-label="ออก">✕</button>
+      </div>
+      <div className="review-subtabs">
+        {([
+          ['summary', '📊 สรุป'],
+          ['moments', '🎯 ตาสำคัญ'],
+          ['details', '📋 รายละเอียด'],
+        ] as [ReviewSubTab, string][]).map(([t, label]) => (
+          <button
+            key={t}
+            className={`review-subtab ${tab === t ? 'is-active' : ''}`}
+            onClick={() => setTab(t)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {(tab === 'summary' || tab === 'moments') && (
+        <GameReport
+          moves={moves}
+          userSide={userSide}
+          result={result}
+          onJumpToPly={(ply) => {
+            onPlySelect(ply);
+            setTab('details');
+          }}
+          subView={tab}
+        />
+      )}
+      {tab === 'details' && (
+        <ReviewPanel
+          moves={moves}
+          currentPly={currentPly}
+          currentMove={currentMove}
+          onPlySelect={onPlySelect}
+          onExit={onExit}
+          hideHeader
+        />
+      )}
+    </div>
+  );
+}
 
 function ReviewPanel({
   moves,
@@ -1684,12 +1752,16 @@ function ReviewPanel({
   currentMove,
   onPlySelect,
   onExit,
+  hideHeader,
 }: {
   moves: AnnotatedMove[];
   currentPly: number;
   currentMove: AnnotatedMove | null;
   onPlySelect: (ply: number) => void;
   onExit: () => void;
+  /** When inside the tabbed wrapper, the parent already shows the
+   * "🔍 รีวิวเกม" title + close button. Hide ours to avoid duplicating. */
+  hideHeader?: boolean;
 }) {
   const summary = useMemo(() => summarize(moves), [moves]);
   const total = moves.length;
@@ -1713,12 +1785,14 @@ function ReviewPanel({
   }, [moves, sideFilter, severityFilter]);
   return (
     <div className="review-panel">
-      <div className="review-header">
-        <strong>🔍 รีวิวเกม</strong>
-        <button className="review-exit" onClick={onExit} aria-label="ออกจากรีวิว">
-          ✕
-        </button>
-      </div>
+      {!hideHeader && (
+        <div className="review-header">
+          <strong>🔍 รีวิวเกม</strong>
+          <button className="review-exit" onClick={onExit} aria-label="ออกจากรีวิว">
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="review-summary">
         {(Object.keys(CLASSIFICATION_LABELS) as Classification[]).map((c) => (
