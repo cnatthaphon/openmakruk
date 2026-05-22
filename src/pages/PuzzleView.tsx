@@ -286,64 +286,68 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
         </div>
       </header>
 
-      <Board
-        fen={state.fen}
-        legalMoves={state.legalMoves}
-        flipped={flipped}
-        disabled={state.status !== 'playing'}
-        turn={turn}
-        isCheck={state.isCheck}
-        lastMove={state.lastMove}
-        hint={null}
-        onMove={handleUserMove}
-      />
+      <div className="puzzle-main">
+        <div className="puzzle-board-wrap">
+          <Board
+            fen={state.fen}
+            legalMoves={state.legalMoves}
+            flipped={flipped}
+            disabled={state.status !== 'playing'}
+            turn={turn}
+            isCheck={state.isCheck}
+            lastMove={state.lastMove}
+            hint={null}
+            onMove={handleUserMove}
+          />
+        </div>
 
-      <div className="puzzle-feedback">
-        {state.feedback && (
-          <div
-            className={`puzzle-feedback-text ${
-              state.status === 'won'
-                ? 'good'
-                : state.status === 'failed'
-                  ? 'reveal'
-                  : state.feedback.includes('✓')
+        <aside className="puzzle-sidebar">
+          <div className="puzzle-feedback">
+            {state.feedback && (
+              <div
+                className={`puzzle-feedback-text ${
+                  state.status === 'won'
                     ? 'good'
-                    : 'bad'
-            }`}
-          >
-            {state.feedback}
+                    : state.status === 'failed'
+                      ? 'reveal'
+                      : state.feedback.includes('✓')
+                        ? 'good'
+                        : 'bad'
+                }`}
+              >
+                {state.feedback}
+              </div>
+            )}
+            <div className="puzzle-stats">
+              พยายาม: {state.attempts}{' '}
+              {state.wrongStreak > 0 && `· ผิดต่อเนื่อง ${state.wrongStreak}`}
+            </div>
           </div>
-        )}
-        <div className="puzzle-stats">
-          พยายาม: {state.attempts}{' '}
-          {state.wrongStreak > 0 && `· ผิดต่อเนื่อง ${state.wrongStreak}`}
-        </div>
-      </div>
 
-      {showHint && puzzle.hint && (
-        <div className="puzzle-hint-box">
-          💡 ใบ้: {puzzle.hint}
-        </div>
-      )}
+          {showHint && puzzle.hint && (
+            <div className="puzzle-hint-box">
+              💡 ใบ้: {puzzle.hint}
+            </div>
+          )}
 
-      {state.status === 'won' && puzzle.explanation && (
-        <div className="puzzle-explanation">
-          <strong>📖 เหตุผล:</strong> {puzzle.explanation}
-        </div>
-      )}
+          {state.status === 'won' && puzzle.explanation && (
+            <div className="puzzle-explanation">
+              <strong>📖 เหตุผล:</strong> {puzzle.explanation}
+            </div>
+          )}
 
-      {state.status === 'won' && (() => {
-        const best = loadPuzzleProgress().solved[puzzle.id];
-        if (!best || !best.timeToSolveMs) return null;
-        return (
-          <div className="puzzle-best-stats label-aside">
-            🏆 สถิติ: {best.attempts} ครั้ง · {(best.timeToSolveMs / 1000).toFixed(1)} วินาที
-            {best.usedHint && ' · ใช้ hint'}
-          </div>
-        );
-      })()}
+          {state.status === 'won' && (() => {
+            const best = loadPuzzleProgress().solved[puzzle.id];
+            if (!best || !best.timeToSolveMs) return null;
+            return (
+              <div className="puzzle-best-stats label-aside">
+                🏆 สถิติ: {best.attempts} ครั้ง · {(best.timeToSolveMs / 1000).toFixed(1)} วินาที
+                {best.usedHint && ' · ใช้ hint'}
+              </div>
+            );
+          })()}
 
-      <div className="puzzle-controls">
+          <div className="puzzle-controls">
         {state.status === 'playing' && (
           <>
             {puzzle.hint && !showHint && (
@@ -367,6 +371,8 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
             )}
           </>
         )}
+          </div>
+        </aside>
       </div>
     </div>
   );
