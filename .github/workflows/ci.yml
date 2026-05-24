@@ -45,14 +45,27 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install dependencies (root)
         run: npm ci
 
-      - name: Typecheck
+      - name: Install dependencies (worker)
+        # Worker has its own package.json; integration tests + the
+        # e2e webServer rely on the wrangler binary inside worker/.
+        run: cd worker && npm install --no-save
+
+      - name: Typecheck (root)
         run: npm run typecheck
 
-      - name: Build
+      - name: Typecheck (worker)
+        run: cd worker && npm run typecheck
+
+      - name: Build (root)
         run: npm run build
+
+      - name: Worker integration tests
+        # Apply the local D1 schema and run the vitest suite against a
+        # wrangler dev spawned by the test's globalSetup.
+        run: cd worker && npm run db:reset:local && npm run test
 
       # Cache Playwright browser binaries by version so subsequent runs
       # skip the ~150 MB download. The key embeds the @playwright/test

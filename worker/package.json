@@ -1,0 +1,28 @@
+{
+  "name": "openmakruk-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker backend for OpenMakruk (D1-backed, anonymous-auth, engine-verified writes)",
+  "type": "module",
+  "scripts": {
+    "dev": "node node_modules/wrangler/bin/wrangler.js dev",
+    "deploy": "node node_modules/wrangler/bin/wrangler.js deploy",
+    "tail": "node node_modules/wrangler/bin/wrangler.js tail",
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "db:create": "node node_modules/wrangler/bin/wrangler.js d1 create openmakruk-db",
+    "db:apply": "node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --file=./schema.sql",
+    "db:apply:remote": "node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --remote --file=./schema.sql",
+    "db:reset:local": "rm -rf .wrangler/state/v3/d1 && node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --local --file=./schema.sql",
+    "test": "node node_modules/vitest/dist/cli.js run",
+    "test:watch": "node node_modules/vitest/dist/cli.js"
+  },
+  "dependencies": {
+    "hono": "^4.6.14"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0",
+    "wrangler": "^4.0.0"
+  }
+}

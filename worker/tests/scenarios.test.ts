@@ -1,0 +1,303 @@
+// Full user-journey scenarios.
+//
+// These tests assert the contract the client adapter will rely on:
+//   1. New visitor can register with no input
+//   2. Subsequent calls with the returned token resolve to the same user
+//   3. Recording games updates the user's server-side rating via Elo
+//   4. Match leaderboard surfaces multiple users in the right order
+//   5. Casual games don't move the rating but still appear in history
+//
+// What we deliberately do NOT test here:
+//   - Engine verification of move logs (deferred to Phase 9B cron)
+//   - Multi-region D1 replication (out of scope for local miniflare)
+
+import { describe, expect, test } from 'vitest';
+import {
+  baseUrl,
+  createAnonUser,
+  getGameHistory,
+  getMatchLeaderboard,
+  getProfile,
+  recordGame,
+} from './helpers';
+
+describe('infrastructure', () => {
+  test('health endpoint reports the service is up', async () => {
+    const res = await fetch(`${baseUrl()}/api/health`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as { ok: boolean; name: string };
+    expect(body.ok).toBe(true);
+    expect(body.name).toBe('openmakruk-api');
+  });
+
+  test('D1 ping succeeds', async () => {
+    const res = await fetch(`${baseUrl()}/api/db/ping`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as { ok: boolean };
+    expect(body.ok).toBe(true);
+  });
+
+  test('unknown route returns structured 404', async () => {
+    const res = await fetch(`${baseUrl()}/api/nope`);
+    expect(res.status).toBe(404);
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe('not_found');
+  });
+});
+
+describe('anonymous registration', () => {
+  test('POST /users/anon mints a unique id + bearer token', async () => {
+    const a = await createAnonUser('AlphaUser');
+    expect(a.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(a.token.length).toBeGreaterThanOrEqual(32);
+    expect(a.displayName).toBe('AlphaUser');
+    expect(a.rating).toBe(1000);
+
+    const b = await createAnonUser('BetaUser');
+    expect(b.id).not.toBe(a.id);
+    expect(b.token).not.toBe(a.token);
+  });
+
+  test('the returned token authenticates GET /users/me', async () => {
+    const u = await createAnonUser('AuthCheck');
+    const me = await getProfile(u.token);
+    expect(me.id).toBe(u.id);
+    expect(me.displayName).toBe('AuthCheck');
+    expect(me.rating).toBe(1000);
+  });
+
+  test('GET /users/me without bearer returns 401', async () => {
+    const res = await fetch(`${baseUrl()}/api/users/me`);
+    expect(res.status).toBe(401);
+    const body = await res.json() as { error: string; reason: string };
+    expect(body.error).toBe('unauthorized');
+    expect(body.reason).toBe('missing_bearer');
+  });
+
+  test('a bogus bearer returns 401 unknown_token', async () => {
+    const res = await fetch(`${baseUrl()}/api/users/me`, {
+      headers: { Authorization: 'Bearer 0123456789abcdef0123456789abcdef' },
+    });
+    expect(res.status).toBe(401);
+    const body = await res.json() as { error: string; reason: string };
+    expect(body.reason).toBe('unknown_token');
+  });
+});
+
+describe('play a game vs bot → record outcome', () => {
+  test('a win against medium CPU raises rating', async () => {
+    const u = await createAnonUser('Winner');
+    const res = await recordGame(u.token, {
+      opponent: 'medium',
+      outcome: 'win',
+      plyCount: 40,
+    });
+    expect(res.ratingBefore).toBe(1000);
+    expect(res.ratingDelta).toBeGreaterThan(0);
+    expect(res.ratingAfter).toBe(res.ratingBefore + res.ratingDelta);
+
+    const me = await getProfile(u.token);
+    expect(me.rating).toBe(res.ratingAfter);
+  });
+
+  test('a loss against easy CPU drops rating', async () => {
+    const u = await createAnonUser('Loser');
+    const res = await recordGame(u.token, {
+      opponent: 'easy',
+      outcome: 'loss',
+      plyCount: 35,
+    });
+    expect(res.ratingDelta).toBeLessThan(0);
+    expect(res.ratingAfter).toBe(res.ratingBefore + res.ratingDelta);
+  });
+
+  test('a draw vs hard CPU still nudges rating (we are weaker)', async () => {
+    const u = await createAnonUser('Drawer');
+    const res = await recordGame(u.token, {
+      opponent: 'hard',
+      outcome: 'draw',
+      plyCount: 80,
+    });
+    // We're rated 1000 and hard is 1900 — a draw is a strong result,
+    // so rating should rise.
+    expect(res.ratingDelta).toBeGreaterThan(0);
+  });
+
+  test('casual mode leaves rating unchanged but persists the game', async () => {
+    const u = await createAnonUser('CasualPlayer');
+    const before = (await getProfile(u.token)).rating;
+
+    const res = await recordGame(u.token, {
+      opponent: 'master',
+      outcome: 'win',
+      plyCount: 60,
+      mode: 'casual',
+    });
+    expect(res.ratingDelta).toBe(0);
+    expect(res.ratingAfter).toBe(res.ratingBefore);
+
+    const after = (await getProfile(u.token)).rating;
+    expect(after).toBe(before);
+
+    const history = await getGameHistory(u.token);
+    expect(history.games.find((g) => g.id === res.id)).toBeDefined();
+  });
+});
+
+describe('accumulate score over a session', () => {
+  test('5 wins vs medium grow rating roughly monotonically', async () => {
+    const u = await createAnonUser('SessionUser');
+    const trajectory: number[] = [];
+
+    for (let i = 0; i < 5; i++) {
+      const res = await recordGame(u.token, {
+        opponent: 'medium',
+        outcome: 'win',
+        plyCount: 40,
+      });
+      trajectory.push(res.ratingAfter);
+    }
+
+    expect(trajectory.length).toBe(5);
+    // Each next entry should be ≥ the previous (Elo gain per win
+    // diminishes as you climb past the opponent's rating but stays
+    // non-negative against an equal-or-stronger opponent).
+    for (let i = 1; i < trajectory.length; i++) {
+      expect(trajectory[i]).toBeGreaterThanOrEqual(trajectory[i - 1] - 1);
+    }
+    // Final rating is meaningfully higher than the starting 1000.
+    expect(trajectory[4]).toBeGreaterThan(1000);
+  });
+
+  test('history reflects all submitted games newest-first', async () => {
+    const u = await createAnonUser('HistoryUser');
+    const outcomes: Array<'win' | 'loss' | 'draw'> = ['win', 'loss', 'draw', 'win'];
+    for (const o of outcomes) {
+      await recordGame(u.token, { opponent: 'easy', outcome: o, plyCount: 20 });
+    }
+    const history = await getGameHistory(u.token);
+    expect(history.games.length).toBe(4);
+    // newest-first: last submitted ('win') should be at index 0
+    expect(history.games[0].outcome).toBe('win');
+    expect(history.games[3].outcome).toBe('win');
+  });
+});
+
+describe('global match leaderboard', () => {
+  test('three users with different scores rank in score order', async () => {
+    // Distinct names so we can find ourselves in the response.
+    const top = await createAnonUser('LB_Top');
+    const mid = await createAnonUser('LB_Mid');
+    const low = await createAnonUser('LB_Low');
+
+    // top: 3 wins vs hard (weight 8 each = 24)
+    for (let i = 0; i < 3; i++) {
+      await recordGame(top.token, { opponent: 'hard', outcome: 'win', plyCount: 50 });
+    }
+    // mid: 2 wins vs medium (weight 3 each = 6)
+    for (let i = 0; i < 2; i++) {
+      await recordGame(mid.token, { opponent: 'medium', outcome: 'win', plyCount: 30 });
+    }
+    // low: 5 wins vs easy (weight 1 each = 5)
+    for (let i = 0; i < 5; i++) {
+      await recordGame(low.token, { opponent: 'easy', outcome: 'win', plyCount: 20 });
+    }
+
+    const lb = await getMatchLeaderboard(10);
+    const topRow = lb.entries.find((e) => e.userId === top.id);
+    const midRow = lb.entries.find((e) => e.userId === mid.id);
+    const lowRow = lb.entries.find((e) => e.userId === low.id);
+
+    expect(topRow).toBeDefined();
+    expect(midRow).toBeDefined();
+    expect(lowRow).toBeDefined();
+    expect(topRow!.score).toBeGreaterThan(midRow!.score);
+    expect(midRow!.score).toBeGreaterThan(lowRow!.score);
+    expect(topRow!.rank).toBeLessThan(midRow!.rank);
+    expect(midRow!.rank).toBeLessThan(lowRow!.rank);
+  });
+
+  test('losses + draws affect the score in the right direction', async () => {
+    const u = await createAnonUser('LBMixed');
+    // 1 win vs master (20) + 1 draw vs master (10) + 2 losses (0) = 30
+    await recordGame(u.token, { opponent: 'master', outcome: 'win',  plyCount: 60 });
+    await recordGame(u.token, { opponent: 'master', outcome: 'draw', plyCount: 80 });
+    await recordGame(u.token, { opponent: 'master', outcome: 'loss', plyCount: 40 });
+    await recordGame(u.token, { opponent: 'master', outcome: 'loss', plyCount: 35 });
+
+    const lb = await getMatchLeaderboard(100);
+    const row = lb.entries.find((e) => e.userId === u.id);
+    expect(row).toBeDefined();
+    expect(row!.wins).toBe(1);
+    expect(row!.draws).toBe(1);
+    expect(row!.losses).toBe(2);
+    expect(row!.score).toBeCloseTo(30, 1);
+  });
+
+  test('personality bots do NOT count toward match leaderboard', async () => {
+    const u = await createAnonUser('PersonalityFarmer');
+    // Wins vs personality should add no leaderboard score even though
+    // the game is recorded (and rating is touched).
+    for (let i = 0; i < 5; i++) {
+      await recordGame(u.token, {
+        opponent: 'personality:hunter',
+        outcome: 'win',
+        plyCount: 30,
+      });
+    }
+    const lb = await getMatchLeaderboard(100);
+    const row = lb.entries.find((e) => e.userId === u.id);
+    // Match LB SQL filters by the 4 weighted opponents only, so this
+    // user has nothing to aggregate and must be absent.
+    expect(row).toBeUndefined();
+  });
+});
+
+describe('input validation', () => {
+  test('missing opponent → 400 opponent_required', async () => {
+    const u = await createAnonUser('Validator');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({ outcome: 'win', plyCount: 10 }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { reason: string };
+    expect(body.reason).toBe('opponent_required');
+  });
+
+  test('absurd plyCount → 400 plyCount_range', async () => {
+    const u = await createAnonUser('PlyCheater');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({
+        opponent: 'master',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 99999,
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test('moves array length must match plyCount', async () => {
+    const u = await createAnonUser('LengthCheater');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({
+        opponent: 'medium',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 5,
+        moves: ['e2e4'], // only 1 move, claims 5 ply
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { reason: string };
+    expect(body.reason).toBe('moves_length_mismatch');
+  });
+});

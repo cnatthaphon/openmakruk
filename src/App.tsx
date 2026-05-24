@@ -85,6 +85,8 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { toast } from './components/Toast';
 import { OnboardingModal } from './components/OnboardingModal';
 import { hasOnboarded } from './lib/onboarding';
+import { enableCloud, hasStoredSession, loadSession } from './lib/backend/cloudSession';
+import { getBackend } from './lib/backend';
 import { useRoute, navigate, type Tab } from './lib/router';
 import { thaiSquare, thaiUci } from './lib/thaiUci';
 import {
@@ -288,6 +290,20 @@ export default function App() {
   // in the modal's onClose. Defer initial value to a lazy initializer
   // so localStorage isn't touched during render.
   const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
+
+  // Cloud session restore: if a previous visit enabled cloud sync, the
+  // bearer token is in localStorage. Re-attach to the active backend
+  // registry asynchronously; UI doesn't block on it. Failure leaves
+  // the app in offline mode silently — the Settings page exposes a
+  // "re-enable" button if the user notices.
+  useEffect(() => {
+    if (!hasStoredSession()) return;
+    enableCloud().catch(() => {
+      // Server unreachable or token rejected. We don't toast here
+      // because boot-time errors should be quiet; the user can
+      // re-enable explicitly from Settings.
+    });
+  }, []);
 
   // Daily streak — pulse on every app boot. recordActivity is
   // idempotent within a day, so multiple visits don't double-count.
@@ -554,8 +570,49 @@ export default function App() {
         toast.info(`🎯 ${activeEvent.name}: +${activeEvent.pointsPerWin} pt`);
       }
     }
+    // Cloud sync — fire-and-forget. Falls through quietly if backend is
+    // NoOp or recordGame is not supported. We compute the outcome from
+    // the same state above; duplicating the small switch here is cheaper
+    // than restructuring the entire effect to share locals.
+    const backend = getBackend();
+    if (backend.isOnline() && backend.recordGame) {
+      const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+      const result = forcedResult ?? state.result;
+      let outcome: 'win' | 'loss' | 'draw' | null = null;
+      if (result === '1/2-1/2') outcome = 'draw';
+      else if (result === '1-0') outcome = userColor === 'white' ? 'win' : 'loss';
+      else if (result === '0-1') outcome = userColor === 'black' ? 'win' : 'loss';
+      if (outcome) {
+        const session = loadSession();
+        if (session.token) {
+          backend
+            .recordGame(session.token, {
+              opponent: settings.engineId === 'fairy-stockfish' ? difficulty : settings.engineId,
+              userSide: userColor,
+              outcome,
+              plyCount: history.length,
+              moves: history,
+              finalFen: state.fen,
+              timeControlId: timeControlId === 'unlimited' ? null : timeControlId,
+              mode: rated ? 'rated' : 'casual',
+            })
+            .then((res) => {
+              log('cloud.gameRecorded', {
+                id: res.id,
+                ratingDelta: res.ratingDelta,
+                ratingAfter: res.ratingAfter,
+              });
+            })
+            .catch((err) => {
+              log('cloud.gameRecord.failed', { error: String(err) });
+              // Don't toast — server error shouldn't block the game-end
+              // UX. The local stats already saved successfully.
+            });
+        }
+      }
+    }
     gameRecordedRef.current = true;
-  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length, rated, settings.engineId]);
+  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length, rated, settings.engineId, timeControlId, history, state?.fen]);
 
   // Auto-enable NNUE on next visit if it was enabled before — the
   // IndexedDB cache makes this near-instant. Effects must live above the

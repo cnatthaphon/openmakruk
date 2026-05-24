@@ -17,6 +17,13 @@ import {
 import { playMove } from '../lib/audio';
 import { toast } from '../components/Toast';
 import { listEngines } from '../lib/engine';
+import {
+  disableCloud,
+  enableCloud,
+  hasStoredSession,
+  loadSession,
+} from '../lib/backend/cloudSession';
+import { getBackend } from '../lib/backend';
 
 type Props = {
   onSettingsChange?: (s: Settings) => void;
@@ -189,6 +196,8 @@ export function SettingsPage({ onSettingsChange }: Props) {
         </SettingRow>
       </section>
 
+      <CloudSyncSection />
+
       <section className="settings-section">
         <h3>🔄 รีเซ็ต</h3>
         <button
@@ -252,5 +261,85 @@ function Toggle({
     >
       <span className="settings-toggle-thumb" />
     </button>
+  );
+}
+
+function CloudSyncSection() {
+  // Local mirror — refresh on action so the UI updates without
+  // needing a full page reload.
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick((n) => n + 1);
+  // Re-read every render is cheap (localStorage). The `tick` dep is
+  // what forces re-render after enable/disable.
+  void tick;
+  const session = loadSession();
+  const isOn = hasStoredSession() && getBackend().isOnline();
+  const [busy, setBusy] = useState(false);
+
+  const handleEnable = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await enableCloud();
+      toast.success('เปิด cloud sync แล้ว · เกมจะ sync ไป server โดยอัตโนมัติ');
+    } catch (err) {
+      toast.error(`เปิด cloud sync ไม่สำเร็จ: ${String(err)}`);
+    } finally {
+      setBusy(false);
+      refresh();
+    }
+  };
+
+  const handleDisable = () => {
+    toast.confirm(
+      'ปิด cloud sync? · session ปัจจุบันจะถูกลบ · เกมหลังจากนี้จะไม่ sync',
+      {
+        confirmLabel: 'ปิด',
+        destructive: true,
+        onConfirm: () => {
+          disableCloud();
+          toast.success('ปิด cloud sync แล้ว · กลับเป็น offline mode');
+          refresh();
+        },
+      },
+    );
+  };
+
+  return (
+    <section className="settings-section">
+      <h3>☁️ Cloud Sync</h3>
+      <p className="settings-hint">
+        เปิดเพื่อ sync เกม · rating · leaderboard ระหว่างเครื่อง · ใช้ anonymous account · ไม่ต้องสมัคร · ปิดได้ทุกเมื่อ
+      </p>
+
+      {isOn ? (
+        <>
+          <div className="settings-cloud-status">
+            <div>
+              <strong>เชื่อมต่อแล้ว</strong>{' '}
+              · {session.displayName || 'ผู้เล่น'}
+            </div>
+            <div className="label-aside">
+              user id: <code>{session.userId.slice(0, 8)}…</code>{' '}
+              · sync ล่าสุด:{' '}
+              {session.lastSyncAt
+                ? new Date(session.lastSyncAt).toLocaleString('th-TH')
+                : '—'}
+            </div>
+          </div>
+          <button className="settings-reset-button" onClick={handleDisable}>
+            🔌 ปิด cloud sync
+          </button>
+        </>
+      ) : (
+        <button
+          className="settings-cloud-enable"
+          onClick={handleEnable}
+          disabled={busy}
+        >
+          {busy ? '⏳ กำลังเชื่อมต่อ…' : '☁️ เปิด cloud sync'}
+        </button>
+      )}
+    </section>
   );
 }

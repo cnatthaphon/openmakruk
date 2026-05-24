@@ -45,3 +45,9 @@ playwright/.cache/
 play-page-now.png
 sidebar-now.png
 *.debug.png
+
+# Cloudflare Worker dev artifacts (worker/)
+worker/.wrangler/
+worker/.dev.vars
+worker/dist/
+worker/.miniflare/

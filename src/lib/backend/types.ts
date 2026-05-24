@@ -51,6 +51,62 @@ export type LeaderboardEntry = {
   lastActiveAt: number;
 };
 
+/** Match-leaderboard row — weighted by CPU level on the server. */
+export type MatchLeaderboardEntry = {
+  rank: number;
+  userId: string;
+  displayName: string;
+  rating: number;
+  score: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  gamesPlayed: number;
+  lastActiveAt: number;
+};
+
+/** Anonymous user account returned by registerAnon. `token` is the
+ *  bearer credential — caller MUST persist it locally to keep the
+ *  account beyond the current session (server cannot reissue it). */
+export type AnonUser = {
+  id: string;
+  displayName: string;
+  token: string;
+  rating: number;
+  createdAt: number;
+};
+
+/** Profile fetched via getProfile (no token in the response — the
+ *  token never leaves the client after registration). */
+export type UserProfile = {
+  id: string;
+  displayName: string;
+  rating: number;
+  createdAt: number;
+  lastSeenAt: number;
+};
+
+/** Game-record submission. Server computes Elo update. */
+export type GameSubmit = {
+  opponent: string;
+  userSide: 'white' | 'black';
+  outcome: 'win' | 'loss' | 'draw';
+  plyCount: number;
+  moves?: string[];
+  finalFen: string;
+  timeControlId?: string | null;
+  mode?: 'rated' | 'casual';
+};
+
+export type GameSubmitResult = {
+  id: string;
+  ratingBefore: number;
+  ratingAfter: number;
+  ratingDelta: number;
+  verified: boolean;
+  createdAt: number;
+};
+
 /** Draft of a puzzle the user wants to submit for community review. */
 export type PuzzleDraft = Omit<
   Puzzle,
@@ -79,6 +135,18 @@ export type BackendAdapter = {
   isOnline(): boolean;
 
   // ----- User identity / sync ----------------------------------------
+
+  /** Mint a new anonymous account. Returns id + bearer token. Token
+   *  is returned ONCE — caller must persist it. */
+  registerAnon?(displayName?: string): Promise<AnonUser>;
+
+  /** Resolve an existing token to its profile. Returns null if the
+   *  token is invalid / unknown (caller should re-register). */
+  getProfile?(token: string): Promise<UserProfile | null>;
+
+  /** Update display name (only mutable field for anon accounts). */
+  updateProfile?(token: string, changes: { displayName: string }): Promise<UserProfile>;
+
   /**
    * Reconcile local stats against the server's copy. Caller hands in
    * the freshly-loaded local stats; receives the merged result they
@@ -87,6 +155,27 @@ export type BackendAdapter = {
    * larger history.
    */
   syncStats?(local: UserStats): Promise<StatsSyncResult>;
+
+  // ----- Game records ------------------------------------------------
+
+  /** Record a completed game. Server returns the new rating. */
+  recordGame?(token: string, game: GameSubmit): Promise<GameSubmitResult>;
+
+  /** Fetch the user's recent games (server-authoritative history). */
+  fetchGameHistory?(
+    token: string,
+    opts?: { limit?: number; cursor?: string | null },
+  ): Promise<{
+    games: Array<GameSubmit & {
+      id: string;
+      ratingBefore: number;
+      ratingAfter: number;
+      ratingDelta: number;
+      createdAt: number;
+      verified: boolean;
+    }>;
+    nextCursor: string | null;
+  }>;
 
   // ----- Leaderboards ------------------------------------------------
   /**
@@ -97,6 +186,9 @@ export type BackendAdapter = {
     category: PuzzleCategory | null,
     limit?: number,
   ): Promise<LeaderboardEntry[]>;
+
+  /** Global match leaderboard — weighted by CPU difficulty. */
+  fetchMatchLeaderboard?(limit?: number): Promise<MatchLeaderboardEntry[]>;
 
   // ----- User-submitted content --------------------------------------
   /** Submit a puzzle the user crafted. Returns the server-assigned id. */

@@ -1,0 +1,249 @@
+// Game-record endpoints — write-heavy, history-light.
+//
+// POST /api/games        — record a finished game. Updates the user's
+//                          rating server-side via Elo. Engine
+//                          verification is deferred to a cron job
+//                          (Phase 9B): we accept the moves_json as
+//                          authoritative but mark `verified = 0` until
+//                          replayed.
+// GET  /api/games        — paginated history for the current user.
+// GET  /api/games/me/totals — denormalized win/loss totals by opponent,
+//                            used by the personal Match leaderboard
+//                            without scanning the whole history.
+//
+// Why server-side Elo update: clients can't be trusted with rating
+// math (cheating). The rating in the DB is the source of truth; the
+// client mirrors it locally only for offline display.
+
+import { Hono } from 'hono';
+import type { Env } from '../index';
+import { authMiddleware, getUser, newId, type AuthVars } from '../auth';
+import { applyElo, opponentRating, type Outcome } from '../elo';
+
+const PAGE_SIZE = 50;
+const VALID_OUTCOMES = new Set<Outcome>(['win', 'loss', 'draw']);
+const VALID_SIDES = new Set(['white', 'black']);
+
+export const gamesRoute = new Hono<{ Bindings: Env; Variables: AuthVars }>();
+
+type GameSubmitBody = {
+  opponent?: string;
+  userSide?: 'white' | 'black';
+  outcome?: Outcome;
+  plyCount?: number;
+  moves?: string[];
+  finalFen?: string;
+  timeControlId?: string | null;
+  mode?: 'rated' | 'casual';
+};
+
+/** Record a finished game. Auth required.
+ *
+ *  Validation:
+ *    - opponent is a string (no further check at write time; ratings
+ *      are resolved through `opponentRating()` which defaults to 1000
+ *      for unknown engines so abuse is bounded)
+ *    - outcome in {win, loss, draw}
+ *    - plyCount > 0 and < 500 (sanity bound)
+ *    - moves array length matches plyCount when provided
+ *    - mode defaults to 'rated' if absent
+ *
+ *  Side effects: row inserted into `games`; user's `rating` and
+ *  `last_seen_at` updated in a single transaction. */
+gamesRoute.post('/', authMiddleware, async (c) => {
+  const user = getUser(c);
+  const body = await c.req.json<GameSubmitBody>().catch(() => ({} as GameSubmitBody));
+
+  // ── validate ─────────────────────────────────────────────────────
+  if (!body.opponent || typeof body.opponent !== 'string') {
+    return c.json({ error: 'bad_request', reason: 'opponent_required' }, 400);
+  }
+  if (!body.userSide || !VALID_SIDES.has(body.userSide)) {
+    return c.json({ error: 'bad_request', reason: 'userSide_invalid' }, 400);
+  }
+  if (!body.outcome || !VALID_OUTCOMES.has(body.outcome)) {
+    return c.json({ error: 'bad_request', reason: 'outcome_invalid' }, 400);
+  }
+  const plyCount = Number(body.plyCount);
+  if (!Number.isFinite(plyCount) || plyCount <= 0 || plyCount > 500) {
+    return c.json({ error: 'bad_request', reason: 'plyCount_range' }, 400);
+  }
+  if (body.moves && Array.isArray(body.moves) && body.moves.length !== plyCount) {
+    return c.json({ error: 'bad_request', reason: 'moves_length_mismatch' }, 400);
+  }
+  if (!body.finalFen || typeof body.finalFen !== 'string') {
+    return c.json({ error: 'bad_request', reason: 'finalFen_required' }, 400);
+  }
+  const mode = body.mode === 'casual' ? 'casual' : 'rated';
+
+  // ── compute rating change (rated only) ───────────────────────────
+  const opponentR = opponentRating(body.opponent);
+  let newRating = user.rating;
+  let delta = 0;
+  if (mode === 'rated') {
+    const result = applyElo(user.rating, opponentR, body.outcome);
+    newRating = result.newRating;
+    delta = result.delta;
+  }
+
+  // ── persist ──────────────────────────────────────────────────────
+  const id = newId();
+  const now = Date.now();
+  const movesJson = JSON.stringify(body.moves ?? []);
+
+  // D1 doesn't have explicit BEGIN/COMMIT in the JS driver; we issue
+  // batched statements via `batch()` which runs them as one
+  // transaction at the storage layer.
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `INSERT INTO games
+         (id, user_id, opponent, user_side, outcome, ply_count, moves_json,
+          final_fen, rating_before, rating_after, rating_delta,
+          time_control_id, mode, created_at, verified)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    ).bind(
+      id,
+      user.id,
+      body.opponent,
+      body.userSide,
+      body.outcome,
+      plyCount,
+      movesJson,
+      body.finalFen,
+      user.rating,
+      newRating,
+      delta,
+      body.timeControlId ?? null,
+      mode,
+      now,
+    ),
+    c.env.DB.prepare('UPDATE users SET rating = ?, last_seen_at = ? WHERE id = ?').bind(
+      newRating,
+      now,
+      user.id,
+    ),
+  ]);
+
+  return c.json({
+    id,
+    ratingBefore: user.rating,
+    ratingAfter: newRating,
+    ratingDelta: delta,
+    verified: false,
+    createdAt: now,
+  });
+});
+
+/** Paginated game history for the current user. */
+gamesRoute.get('/', authMiddleware, async (c) => {
+  const user = getUser(c);
+  const limit = Math.min(Number(c.req.query('limit') ?? PAGE_SIZE), PAGE_SIZE);
+  const cursor = c.req.query('cursor');
+
+  const where: string[] = ['user_id = ?'];
+  const params: unknown[] = [user.id];
+  if (cursor) {
+    const [createdAtStr, lastId] = cursor.split('|');
+    const createdAt = Number(createdAtStr);
+    if (!Number.isFinite(createdAt) || !lastId) {
+      return c.json({ error: 'bad_request', reason: 'bad_cursor' }, 400);
+    }
+    where.push('(created_at < ? OR (created_at = ? AND id < ?))');
+    params.push(createdAt, createdAt, lastId);
+  }
+
+  const sql = `
+    SELECT id, opponent, user_side, outcome, ply_count, moves_json,
+           final_fen, rating_before, rating_after, rating_delta,
+           time_control_id, mode, created_at, verified
+    FROM games
+    WHERE ${where.join(' AND ')}
+    ORDER BY created_at DESC, id DESC
+    LIMIT ${limit + 1}
+  `;
+  const result = await c.env.DB.prepare(sql).bind(...params).all<GameRow>();
+  const rows = result.results ?? [];
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+  const last = page[page.length - 1];
+  const nextCursor = hasMore && last ? `${last.created_at}|${last.id}` : null;
+
+  return c.json({
+    games: page.map(rowToGame),
+    nextCursor,
+  });
+});
+
+/** Totals by opponent — used by the personal Match leaderboard.
+ *  Returns one row per opponent with win/loss/draw counts. */
+gamesRoute.get('/me/totals', authMiddleware, async (c) => {
+  const user = getUser(c);
+  const sql = `
+    SELECT opponent,
+           SUM(CASE WHEN outcome = 'win'  THEN 1 ELSE 0 END) AS wins,
+           SUM(CASE WHEN outcome = 'loss' THEN 1 ELSE 0 END) AS losses,
+           SUM(CASE WHEN outcome = 'draw' THEN 1 ELSE 0 END) AS draws,
+           COUNT(*) AS total
+    FROM games
+    WHERE user_id = ? AND mode = 'rated'
+    GROUP BY opponent
+    ORDER BY opponent ASC
+  `;
+  const result = await c.env.DB.prepare(sql).bind(user.id).all<TotalsRow>();
+  return c.json({ totals: result.results ?? [] });
+});
+
+// ─── row shapes ────────────────────────────────────────────────────
+
+type GameRow = {
+  id: string;
+  opponent: string;
+  user_side: string;
+  outcome: string;
+  ply_count: number;
+  moves_json: string;
+  final_fen: string;
+  rating_before: number;
+  rating_after: number;
+  rating_delta: number;
+  time_control_id: string | null;
+  mode: string;
+  created_at: number;
+  verified: number;
+};
+
+type TotalsRow = {
+  opponent: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  total: number;
+};
+
+function rowToGame(r: GameRow) {
+  return {
+    id: r.id,
+    opponent: r.opponent,
+    userSide: r.user_side,
+    outcome: r.outcome,
+    plyCount: r.ply_count,
+    moves: safeJSON<string[]>(r.moves_json, []),
+    finalFen: r.final_fen,
+    ratingBefore: r.rating_before,
+    ratingAfter: r.rating_after,
+    ratingDelta: r.rating_delta,
+    timeControlId: r.time_control_id,
+    mode: r.mode,
+    createdAt: r.created_at,
+    verified: r.verified === 1,
+  };
+}
+
+function safeJSON<T>(s: string | null, fallback: T): T {
+  if (!s) return fallback;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return fallback;
+  }
+}

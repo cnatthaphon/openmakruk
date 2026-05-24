@@ -11,17 +11,34 @@ export default defineConfig({
   retries: 0,
   workers: 1,           // serialise — they share localStorage / IDB state
   reporter: 'list',
-  // Auto-start the Vite dev server if it's not already running. The
-  // bot-game test imports ffish from /node_modules/... directly, so we
-  // need the dev server (not a static preview) to serve those files.
-  webServer: {
-    command: 'node node_modules/vite/bin/vite.js --port 5174 --strictPort',
-    url: 'http://localhost:5174',
-    reuseExistingServer: true,
-    timeout: 60_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  // Auto-start both the Vite dev server and the wrangler dev worker.
+  // The cloud-integration spec (cloud-sync.spec.ts) needs the worker
+  // online; pre-existing specs don't, but starting wrangler is cheap
+  // (~3s) so we do it unconditionally to keep test invocation simple.
+  webServer: [
+    {
+      command: 'node node_modules/vite/bin/vite.js --port 5174 --strictPort',
+      url: 'http://localhost:5174',
+      reuseExistingServer: true,
+      timeout: 60_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+    {
+      // Worker on a distinct port from the manual `wrangler dev` (8787)
+      // and the worker's own integration suite (8788). Reuses the same
+      // local D1 sqlite so test runs accumulate state — each spec
+      // creates its own user so they don't collide.
+      command:
+        'node node_modules/wrangler/bin/wrangler.js dev --port 8789 --ip 127.0.0.1',
+      cwd: './worker',
+      url: 'http://localhost:8789/api/health',
+      reuseExistingServer: true,
+      timeout: 60_000,
+      stdout: 'ignore',
+      stderr: 'pipe',
+    },
+  ],
   use: {
     baseURL: 'http://localhost:5174',
     headless: true,

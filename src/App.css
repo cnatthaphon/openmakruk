@@ -4703,6 +4703,34 @@ footer a:hover {
   font-size: 0.85rem;
 }
 
+/* Cloud sync settings --------------------------------------------- */
+.settings-cloud-status {
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  padding: 0.7rem 0.9rem;
+  margin: 0.6rem 0;
+  line-height: 1.5;
+}
+.settings-cloud-status code {
+  background: rgba(0,0,0,0.3);
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+.settings-cloud-enable {
+  padding: 0.55rem 1.1rem;
+  background: var(--accent, #d4a23c);
+  color: #1c1f24;
+  border: 0;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.settings-cloud-enable:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 /* Onboarding modal ------------------------------------------------- */
 .onboarding-backdrop {
   position: fixed;

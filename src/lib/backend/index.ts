@@ -38,5 +38,15 @@ export function onBackendChange(fn: (b: BackendAdapter) => void): () => void {
   return () => { listeners.delete(fn); };
 }
 
-export type { BackendAdapter, StatsSyncResult, LeaderboardEntry, PuzzleDraft } from './types';
+export type {
+  BackendAdapter,
+  StatsSyncResult,
+  LeaderboardEntry,
+  MatchLeaderboardEntry,
+  PuzzleDraft,
+  AnonUser,
+  UserProfile,
+  GameSubmit,
+  GameSubmitResult,
+} from './types';
 export { NoOpBackend };

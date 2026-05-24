@@ -1,0 +1,28 @@
+# Cloudflare Worker config — OpenMakruk backend API.
+#
+# Local dev:  wrangler dev   → http://localhost:8787
+# Deploy:     wrangler deploy → https://openmakruk-api.<account>.workers.dev
+#
+# D1 binding `DB` is the project database (openmakruk-db). The
+# database_id below is filled in after running `wrangler d1 create`.
+
+name = "openmakruk-api"
+main = "src/index.ts"
+compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# CORS: dev frontend runs on localhost:5174 (Vite). Production frontend
+# lives at openmakruk.com (Cloudflare Pages or wherever). Both origins
+# are allowed in src/cors.ts.
+
+# D1 database binding — filled in after first `wrangler d1 create`.
+# The id is safe to commit; it's not a secret (auth lives in token hashes
+# inside the db, not in this binding).
+[[d1_databases]]
+binding = "DB"
+database_name = "openmakruk-db"
+database_id = "PLACEHOLDER_FILL_AFTER_D1_CREATE"
+
+# Observability — surface logs in `wrangler tail` and the dashboard.
+[observability]
+enabled = true

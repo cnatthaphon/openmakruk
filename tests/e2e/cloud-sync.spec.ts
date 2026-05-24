@@ -1,0 +1,201 @@
+// End-to-end cloud sync — frontend → worker → leaderboard.
+//
+// Pre-conditions (playwright.config.ts handles both):
+//   - vite dev on localhost:5174
+//   - wrangler dev on localhost:8789 (separate from manual :8787 and
+//     the worker's own integration suite on :8788)
+//
+// These tests pin `openmakruk_api_base` to the worker URL via an
+// init script so the singleton CloudflareBackend instance picks it up
+// at module load (before the user's first interaction).
+//
+// What we verify:
+//   1. Settings exposes a "Cloud Sync" section that registers an
+//      anonymous user on first enable.
+//   2. After enable, the bearer token is persisted and re-attached on
+//      reload (no second registration call).
+//   3. recordGame round-trips against the live worker — we call into
+//      the page bundle directly because driving a full Makruk game to
+//      completion in Playwright is overkill for an integration check.
+//   4. The match leaderboard query returns our user once a rated win
+//      has been recorded.
+
+import { test, expect } from '@playwright/test';
+
+const API_BASE = 'http://localhost:8789';
+
+test.use({
+  // Reset stored state so cloud-sync starts unauthenticated, and point
+  // the adapter at the test worker port.
+  storageState: { cookies: [], origins: [] },
+});
+
+test.describe('cloud sync — frontend ↔ worker', () => {
+  test.beforeEach(async ({ page }) => {
+    // The API base override must be applied BEFORE the bundle loads,
+    // otherwise the singleton adapter caches the default port.
+    await page.addInitScript((apiBase) => {
+      localStorage.setItem('openmakruk_api_base', apiBase);
+      // Skip the welcome modal so the Settings page is reachable in
+      // one click without dismissing onboarding first.
+      localStorage.setItem('openmakruk_onboarded', '1');
+    }, API_BASE);
+  });
+
+  test('Settings exposes Cloud Sync section with an enable button', async ({ page }) => {
+    await page.goto('/#/settings');
+    // The section's <h3> is the unambiguous anchor — exact match
+    // since "Cloud Sync" might appear elsewhere as substring.
+    await expect(page.getByRole('heading', { name: /Cloud Sync/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /เปิด cloud sync/ })).toBeVisible();
+  });
+
+  test('enable → registers a fresh anonymous account against the live worker', async ({ page }) => {
+    await page.goto('/#/settings');
+
+    // Click the enable button and wait for the UI to flip to the
+    // "connected" state. enableCloud() does ONE network round-trip
+    // (registerAnon), which on a healthy worker resolves in ~50ms.
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Token should be persisted in localStorage under the cloud-session
+    // key. We don't inspect the raw value (it's secret-ish) but we do
+    // confirm the structure: wrapper { v, d: { token, userId, ... } }.
+    const session = await page.evaluate(() => {
+      const raw = localStorage.getItem('openmakruk_cloud_session');
+      if (!raw) return null;
+      try {
+        const parsed = JSON.parse(raw);
+        return parsed.d ?? parsed;
+      } catch {
+        return null;
+      }
+    });
+    expect(session).not.toBeNull();
+    expect(session.token.length).toBeGreaterThanOrEqual(32);
+    expect(session.userId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  test('reload re-attaches the same session (no double registration)', async ({ page }) => {
+    await page.goto('/#/settings');
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    const before = await page.evaluate(() => {
+      const raw = localStorage.getItem('openmakruk_cloud_session');
+      return raw ? JSON.parse(raw).d : null;
+    });
+
+    await page.reload();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    const after = await page.evaluate(() => {
+      const raw = localStorage.getItem('openmakruk_cloud_session');
+      return raw ? JSON.parse(raw).d : null;
+    });
+    expect(after.userId).toBe(before.userId);
+    expect(after.token).toBe(before.token);
+  });
+
+  test('recordGame round-trips: a win raises server-side rating', async ({ page }) => {
+    await page.goto('/#/settings');
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Drive the adapter from inside the page bundle — the only piece
+    // we're verifying here is the network plumbing.
+    const result = await page.evaluate(async () => {
+      // @ts-expect-error — dynamic ESM import resolved at runtime
+      const backendMod = await import('/src/lib/backend/index.ts');
+      // @ts-expect-error — dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const backend = backendMod.getBackend();
+      const session = sessionMod.loadSession();
+      if (!backend.recordGame) throw new Error('recordGame not supported');
+      const res = await backend.recordGame(session.token, {
+        opponent: 'medium',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 40,
+        moves: Array.from({ length: 40 }, () => 'e2e4'),
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        timeControlId: null,
+        mode: 'rated',
+      });
+      return res;
+    });
+    expect(result.ratingBefore).toBe(1000);
+    expect(result.ratingDelta).toBeGreaterThan(0);
+    expect(result.ratingAfter).toBeGreaterThan(1000);
+  });
+
+  test('after a rated win, this user appears on the match leaderboard', async ({ page }) => {
+    await page.goto('/#/settings');
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    const userId = await page.evaluate(async () => {
+      // @ts-expect-error dynamic
+      const backendMod = await import('/src/lib/backend/index.ts');
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const backend = backendMod.getBackend();
+      const session = sessionMod.loadSession();
+      // 2 wins vs hard so the user has a meaningful score (8 + 8 = 16
+      // points) — easier to find them on a populated board.
+      await backend.recordGame(session.token, {
+        opponent: 'hard',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 50,
+        moves: Array.from({ length: 50 }, () => 'e2e4'),
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        mode: 'rated',
+      });
+      await backend.recordGame(session.token, {
+        opponent: 'hard',
+        userSide: 'black',
+        outcome: 'win',
+        plyCount: 60,
+        moves: Array.from({ length: 60 }, () => 'e2e4'),
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        mode: 'rated',
+      });
+      return session.userId;
+    });
+
+    const lb = await page.evaluate(async () => {
+      // @ts-expect-error dynamic
+      const backendMod = await import('/src/lib/backend/index.ts');
+      const backend = backendMod.getBackend();
+      const entries = await backend.fetchMatchLeaderboard(200);
+      return entries;
+    });
+    const me = (lb as { userId: string; score: number }[]).find(
+      (e) => e.userId === userId,
+    );
+    expect(me).toBeDefined();
+    expect(me!.score).toBeGreaterThan(0);
+  });
+
+  test('disable clears the session + reverts to offline', async ({ page }) => {
+    await page.goto('/#/settings');
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Disable triggers a confirm toast — pick the destructive option.
+    await page.getByRole('button', { name: /ปิด cloud sync/ }).click();
+    // Toast's destructive OK is exactly "ปิด" (no extra text). The
+    // section's own button reads "🔌 ปิด cloud sync" so we disambiguate
+    // by exact name match.
+    await page.getByRole('button', { name: 'ปิด', exact: true }).click();
+
+    // Section flips back to the enable state.
+    await expect(page.getByRole('button', { name: /เปิด cloud sync/ })).toBeVisible({
+      timeout: 5_000,
+    });
+    const stored = await page.evaluate(() => localStorage.getItem('openmakruk_cloud_session'));
+    expect(stored).toBeNull();
+  });
+});
