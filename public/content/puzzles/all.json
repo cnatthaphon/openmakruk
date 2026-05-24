@@ -5,10 +5,15 @@
     "category": "mate-1",
     "rating": 800,
     "toMove": "white",
-    "solution": ["a1a8"],
+    "solution": [
+      "a1a8"
+    ],
     "prompt": "ขาวเดิน · รุกจน 1 ตา",
     "hint": "ใช้เรือไล่หลังพระราชา · ขุนของคุณช่วยปิดทางหนีทางใต้",
-    "themes": ["back-rank", "rook-king-mate"],
+    "themes": [
+      "back-rank",
+      "rook-king-mate"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -17,10 +22,15 @@
     "category": "mate-1",
     "rating": 900,
     "toMove": "white",
-    "solution": ["b1b8"],
+    "solution": [
+      "b1b8"
+    ],
     "prompt": "ขาวเดิน · รุกจน 1 ตา (สองเรือ ladder)",
     "hint": "เรือ a7 คุมแถว 7 อยู่แล้ว · เรืออีกตัวขึ้นไปแถว 8 เพื่อปิดเกม",
-    "themes": ["ladder-mate", "two-rooks"],
+    "themes": [
+      "ladder-mate",
+      "two-rooks"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -29,10 +39,15 @@
     "category": "mate-1",
     "rating": 750,
     "toMove": "white",
-    "solution": ["a1a8"],
+    "solution": [
+      "a1a8"
+    ],
     "prompt": "ขาวเดิน · รุกจน 1 ตา (back-rank — เบี้ยปิดทางหนีให้ขุนตัวเอง)",
     "hint": "เบี้ย f7-g7-h7 ของฝ่ายตรงข้ามปิดทางหนีของขุนตัวเอง · ใช้เรือรุกท้ายแถว",
-    "themes": ["back-rank", "trapped-king"],
+    "themes": [
+      "back-rank",
+      "trapped-king"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -41,10 +56,15 @@
     "category": "mate-1",
     "rating": 850,
     "toMove": "white",
-    "solution": ["a1a8"],
+    "solution": [
+      "a1a8"
+    ],
     "prompt": "ขาวเดิน · รุกจน 1 ตา (K+R ไล่ขุนเปลือย)",
     "hint": "ขุนของคุณที่ c6 คุมช่อง b7/c7/d7 อยู่แล้ว · เรือคุมแถวสุดท้าย",
-    "themes": ["back-rank", "k-and-rook"],
+    "themes": [
+      "back-rank",
+      "k-and-rook"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -53,10 +73,15 @@
     "category": "mate-1",
     "rating": 1000,
     "toMove": "white",
-    "solution": ["a1a8"],
+    "solution": [
+      "a1a8"
+    ],
     "prompt": "ขาวเดิน · รุกจน 1 ตา (เม็ดช่วยปิด)",
     "hint": "เม็ดที่ d7 คุมช่อง c8/e8 อยู่แล้ว · ขุนคุม c7/e7 · เรือต้องคุมแถวสุดท้าย",
-    "themes": ["back-rank", "met-support"],
+    "themes": [
+      "back-rank",
+      "met-support"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -65,10 +90,15 @@
     "category": "mate-1",
     "rating": 800,
     "toMove": "white",
-    "solution": ["e1e8"],
+    "solution": [
+      "e1e8"
+    ],
     "prompt": "ขาวเดิน · รุกจน 1 ตา (เรือเดินขึ้นแถว 8)",
     "hint": "ขุนของคุณที่ g6 ปิดทางหนี h7/g7/g8 ไว้แล้ว · เรือเดินตรงขึ้นไปได้ไกลแค่ไหน?",
-    "themes": ["back-rank", "rook-king-mate"],
+    "themes": [
+      "back-rank",
+      "rook-king-mate"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -77,12 +107,20 @@
     "category": "mate-2",
     "rating": 1100,
     "toMove": "white",
-    "solution": ["h5h7", "a8b8", "h7h8"],
+    "solution": [
+      "h5h7",
+      "a8b8",
+      "h7h8"
+    ],
     "prompt": "ขาวเดิน · รุกจนใน 2 ตา (K+R vs K ladder)",
     "goal": "รุกจน ภายใน 2 ตา",
     "hint": "ตาแรกใช้เรือ 'ตัดทาง' rank 7 บีบขุนดำ → ขุนดำมีตาเดียวที่หนีได้ → ตาที่สองรุกจน",
-    "explanation": "เทคนิค 'ladder mate' ของ K+R vs K — ใช้เรือผลักขุนเปลือยเข้าแถวข้างทีละ rank พร้อมขุนของเราเดินขนาน. ที่นี่: 1.Rh7 ตัดทาง r7 (ขุนดำเหลือแค่ b8), 1...Kb8 บังคับ, 2.Rh8# คุมแถว 8 = ปิดเกม. กฎ count limit K+R vs K = 8 ตา ดังนั้นต้องเร็ว",
-    "themes": ["k-and-rook", "ladder-mate", "endgame-technique"],
+    "explanation": "เทคนิค 'ladder mate' ของ K+R vs K — ใช้เรือผลักขุนเปลือยเข้าแถวข้างทีละ rank พร้อมขุนของเราเดินขนาน. ที่นี่: 1.Rh7 ตัดทาง r7 (ขุนดำเหลือแค่ b8), 1...Kb8 บังคับ, 2.Rh8# คุมแถว 8 = ปิดเกม. กฎ count limit K+R vs K = 16 ตา · ต้องไล่ขุนเปลือยเข้ามุมก่อนหมดเวลา",
+    "themes": [
+      "k-and-rook",
+      "ladder-mate",
+      "endgame-technique"
+    ],
     "source": "OpenMakruk starter set — classic K+R vs K technique"
   },
   {
@@ -91,10 +129,15 @@
     "category": "tactic",
     "rating": 700,
     "toMove": "white",
-    "solution": ["g3h5"],
+    "solution": [
+      "g3h5"
+    ],
     "prompt": "ขาวเดิน · ฟรี! จับตัวที่ไม่มีใครป้องกัน",
     "hint": "เรือดำที่ h5 ไม่มีตัวป้องกัน · หาตัวที่เดินถึง h5 ได้",
-    "themes": ["hanging-piece", "knight"],
+    "themes": [
+      "hanging-piece",
+      "knight"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -103,10 +146,15 @@
     "category": "tactic",
     "rating": 600,
     "toMove": "white",
-    "solution": ["e1e5"],
+    "solution": [
+      "e1e5"
+    ],
     "prompt": "ขาวเดิน · เม็ดดำที่ e5 ไม่มีใครป้องกัน",
     "hint": "เรือคุณอยู่บนแฟ้ม e เดียวกัน · เดินตรงขึ้นไปได้เลย",
-    "themes": ["hanging-piece", "rook"],
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -115,12 +163,18 @@
     "category": "tactic",
     "rating": 900,
     "toMove": "white",
-    "solution": ["d4c5"],
+    "solution": [
+      "d4c5"
+    ],
     "prompt": "ขาวเดิน · เลือกจับให้ฉลาด — มี 2 ทาง แต่ตัวไหนค่ามากกว่า?",
     "goal": "จับตัวที่มีค่ามากที่สุดด้วยเบี้ย",
     "hint": "เบี้ยจับเฉียง — c5 มีโคน (Khon), e5 มีเม็ด (Met). ในหมากรุกไทย Khon ค่าสูงกว่า Met เพราะมี mobility 5 ช่อง (เม็ด 4 ช่อง) + Khon ไม่มี promotion มาทดแทน · จับ Khon ดีกว่า",
     "explanation": "ในหมากรุกไทย โคน (Khon, ~2.5) มีค่าสูงกว่า เม็ด (Met, ~1.5) เพราะ: (1) Khon เดินได้ 5 ช่อง (ตรง 1 + เฉียง 4) ขณะที่ Met เดินได้แค่ 4 ช่อง (เฉียงเท่านั้น), (2) Met สามารถ 'manufacture' ได้จากการที่เบี้ยโปรโมต — Khon มีแค่ 2 ตัวต่อฝ่ายตลอดเกม. สรุป: ตัดสินใจเลือกจับ ให้ดูที่ทั้ง mobility และความหายาก",
-    "themes": ["pawn-capture", "best-capture", "material-value"],
+    "themes": [
+      "pawn-capture",
+      "best-capture",
+      "material-value"
+    ],
     "source": "OpenMakruk starter set"
   },
   {
@@ -129,10 +183,824 @@
     "category": "tactic",
     "rating": 550,
     "toMove": "white",
-    "solution": ["a5b5"],
+    "solution": [
+      "a5b5"
+    ],
     "prompt": "ขาวเดิน · เม็ดดำลอย ไม่มีใครป้องกัน",
     "hint": "เรือคุณกับเม็ดดำอยู่บนแถว 5 เดียวกัน · เดินขวาง 1 ช่อง",
-    "themes": ["hanging-piece", "rook"],
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "counting-001",
+    "fen": "7R/8/8/8/8/1K6/8/k7 w - - 0 1",
+    "category": "counting",
+    "rating": 850,
+    "toMove": "white",
+    "solution": [
+      "h8h1"
+    ],
+    "prompt": "ฝ่ายดำเหลือขุนเปลือย · นับ K+R = 16 ตา · รุกจน 1 ตา",
+    "goal": "จบเกมใน 1 ตา ก่อนหมดเวลา",
+    "hint": "ขุนของคุณที่ b3 ปิดทางหนีของขุนดำที่ a2 และ b2 อยู่แล้ว · เหลือแค่ b1 — ใช้เรือคุม rank 1",
+    "explanation": "นับศักดิ์ K+R vs K มีกรอบเวลา 16 ตา — เป็นกฎหมากรุกไทยที่ทำให้คุณต้อง 'รีบ' ปิดเกม. ตาเดียวที่ใช้คือเลื่อนเรือลงไปคุมแถวล่างสุด · เนื่องจากขุนของคุณคุมช่องอื่นไว้หมดแล้ว · ขุนดำที่อยู่ในมุมจะไม่มีทางหนี",
+    "themes": [
+      "counting",
+      "k-and-rook",
+      "corner-mate",
+      "back-rank"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-002",
+    "fen": "2k5/8/2K5/8/8/8/8/7R w - - 0 1",
+    "category": "counting",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "นับ K+R vs K · เหลือ 16 ตา · จบให้ทัน 1 ตา",
+    "goal": "จบเกมใน 1 ตา",
+    "hint": "ขุนของคุณบนแฟ้มเดียวกับขุนดำ (แฟ้ม c) ห่าง 2 แถว · ปิดทางหนีทั้งหมดบน rank 7 ไว้แล้ว · ใช้เรือคุม rank 8",
+    "explanation": "ในการนับศักดิ์ K+R vs K คุณมี 16 ตาในการรุกจน. position นี้คือ technique 'opposition' — ขุนของคุณยืนตรงข้ามขุนดำห่าง 2 แถว ทำให้ flight squares ทั้ง 3 ช่อง (b7, c7, d7) ถูกปิด. เหลือแค่เลื่อนเรือเข้าคุมแถว 8 = mate",
+    "themes": [
+      "counting",
+      "k-and-rook",
+      "opposition"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-003",
+    "fen": "7k/R7/6K1/8/8/8/8/1R6 w - - 0 1",
+    "category": "counting",
+    "rating": 950,
+    "toMove": "white",
+    "solution": [
+      "b1b8"
+    ],
+    "prompt": "นับ K+R+R vs K · เหลือ 8 ตา · จบให้ทัน 1 ตา",
+    "goal": "จบเกมใน 1 ตา (count strict 8 ตา)",
+    "hint": "สองเรือ + ขุน — เรือ a7 ตัด rank 7 อยู่แล้ว · ขุนคุม g7/h7 · เหลือแค่ปิด rank 8 ด้วยเรือตัวที่สอง",
+    "explanation": "K+R+R vs K คือ count limit เคร่งที่สุดในหมากรุกไทย — แค่ 8 ตา. แต่ก็มี 2 เรือ + ขุน ทำให้ trap ขุนเปลือยได้ไวที่สุด. เทคนิค 'two-rook ladder' — เรือหนึ่งคุมแถว N เรืออีกตัวคุมแถว N+1 → ขุนเปลือยไม่มีทางหนี",
+    "themes": [
+      "counting",
+      "two-rooks",
+      "ladder-mate"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-004",
+    "fen": "R7/8/8/8/8/6K1/8/7k w - - 0 1",
+    "category": "counting",
+    "rating": 850,
+    "toMove": "white",
+    "solution": [
+      "a8a1"
+    ],
+    "prompt": "นับ K+R vs K · ขุนดำติดมุม h1 · รุกจน 1 ตา",
+    "goal": "ปิดเกมใน 1 ตา ก่อน count 16 หมด",
+    "hint": "ขุนของคุณที่ g3 คุม g2/h2 ไว้แล้ว · เรือต้องลงไปคุม rank 1 เพื่อปิด g1",
+    "explanation": "Mirror ของ counting-001 ใน corner ฝั่ง h1. หลักเดียวกัน: ขุนของคุณวางทแยงจากขุนดำ 2 ช่อง = คุม 2 ใน 3 flight squares · เรือคุม flight ที่เหลือผ่านการเดินตรงข้ามแถวสุดท้าย",
+    "themes": [
+      "counting",
+      "k-and-rook",
+      "corner-mate",
+      "back-rank"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-005",
+    "fen": "k7/8/K7/8/8/8/8/7R w - - 0 1",
+    "category": "counting",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "นับ K+R vs K · เหลือ 16 ตา · จบ 1 ตา",
+    "goal": "จบเกมใน 1 ตา",
+    "hint": "ขุนของคุณที่ a6 อยู่แฟ้มเดียวกับขุนดำที่ a8 · ปิดทาง a7 และ b7 ไว้แล้ว · เหลือแค่ b8 — เรือคุม rank 8",
+    "explanation": "Pattern 'file opposition' — เมื่อขุนของคุณอยู่แฟ้มเดียวกับขุนเปลือย ห่าง 2 แถว → คุม flight squares ทั้ง 3 ช่องของแถวกลาง (a7 จาก a6, b7 จาก a6 ทแยง, b8 ไม่คุม). ดังนั้นเรือคุม rank 8 = ปิด b8 = mate",
+    "themes": [
+      "counting",
+      "k-and-rook",
+      "opposition",
+      "corner-mate"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-006",
+    "fen": "k7/7R/1K6/8/8/8/8/2R5 w - - 0 1",
+    "category": "counting",
+    "rating": 900,
+    "toMove": "white",
+    "solution": [
+      "c1c8"
+    ],
+    "prompt": "นับ K+R+R vs K · เหลือ 8 ตา · จบ 1 ตา",
+    "goal": "ปิดเกมใน 1 ตา (count 8 strict)",
+    "hint": "ขุนของคุณคุม a7 + เรือบน rank 7 คุม b7-h7 = rank 7 ปิดสนิท · เหลือเรือตัวที่สองคุม rank 8",
+    "explanation": "two-rook + king combo: ขุนของคุณคุม a7 (เป็นช่องที่เรือบน rank 7 เข้าไม่ถึงเพราะอยู่ห่าง) → ทั้งสามฝ่ายช่วยกันปิดแถว 7 + แถว 8. ปิดเกมใน 1 ตา = ใช้ count limit 8 ตาเหลือไป 7 ตา (เผื่อกรณีต้องไล่ยาวกว่านี้ในเกมจริง)",
+    "themes": [
+      "counting",
+      "two-rooks",
+      "k-supports"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-007",
+    "fen": "4k3/R7/8/8/8/8/8/K6R w - - 0 1",
+    "category": "counting",
+    "rating": 950,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "นับ K+R+R vs K · ขุนดำกลาง rank 8 · รุกจน 1 ตา",
+    "goal": "จบเกมใน 1 ตา",
+    "hint": "เรือ a7 คุมแถว 7 ทั้งหมด · เรืออีกตัวที่ h1 ขึ้นไปคุมแถว 8 = ขุนดำไม่มีทางไป",
+    "explanation": "พอ rank 7 ถูกคุมโดยเรือตัวหนึ่ง · ขุนดำกลาง rank 8 ก็จะ trap. เรือตัวที่สองเข้าคุม rank 8 = mate. นี่คือ 'ladder' แบบ direct — ไม่ต้องไล่ขุนดำเข้ามุมก่อน เพราะรู้ว่า count strict",
+    "themes": [
+      "counting",
+      "two-rooks",
+      "ladder-mate"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-008",
+    "fen": "7k/8/6K1/R7/8/8/8/8 w - - 0 1",
+    "category": "counting",
+    "rating": 1150,
+    "toMove": "white",
+    "solution": [
+      "a5a7",
+      "h8g8",
+      "a7a8"
+    ],
+    "prompt": "นับ K+R vs K · เหลือ 16 ตา · จบให้ทันใน 2 ตา",
+    "goal": "รุกจนใน 2 ตา (mate-in-2 forced)",
+    "hint": "ตาแรกใช้เรือ 'ตัดทาง' rank 7 → ขุนดำมีตาเดียวที่หนีได้ (g8) → ตาที่สองรุกจน rank 8",
+    "explanation": "เทคนิค K+R vs K ladder forced mate-in-2: (1) เลื่อนเรือไป rank 7 = ตัดทางไม่ให้ขุนดำลง rank 7 และขุนของคุณคุม g7+h7 ไว้แล้ว → ขุนดำเหลือทางเดียวคือ g8. (2) เลื่อนเรือไป rank 8 = mate. เรียนรู้ pattern นี้จะมัดมือชกขุนเปลือยได้ใน 2 ตาเสมอเมื่อพร้อม",
+    "themes": [
+      "counting",
+      "k-and-rook",
+      "ladder-mate",
+      "mate-in-2"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "mate-007",
+    "fen": "3k4/8/3K4/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-1",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (ขุน d8 + เรา d6)",
+    "hint": "ขุนของคุณห่างขุนดำ 2 แถวในไฟล์เดียวกัน · คุม c7/d7/e7 ไว้แล้ว · ใช้เรือคุม rank 8",
+    "themes": [
+      "back-rank",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-008",
+    "fen": "4k3/8/4K3/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-1",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (ขุน e8 + เรา e6)",
+    "hint": "ขุนของคุณยืนตรงกันข้ามขุนดำ · ปิด d7/e7/f7 ไว้แล้ว · เรือคุม rank 8",
+    "themes": [
+      "back-rank",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-009",
+    "fen": "5k2/8/5K2/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-1",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (ขุน f8 + เรา f6)",
+    "hint": "pattern เดียวกัน f-file variant · เรือ a1 → a8",
+    "themes": [
+      "back-rank",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-010",
+    "fen": "4k3/4M3/4K3/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-1",
+    "rating": 1050,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (เม็ดบล็อก e7)",
+    "hint": "เม็ดที่ e7 ปิดช่อง d8/f8 (เม็ดเดินทแยง 1 ช่อง) · ขุนคุม d7/e7/f7",
+    "explanation": "KRM-K combo — เม็ด (Met) ทำงานเหมือนเป็น blocker ช่วยปิดทางหนี · พบบ่อยในช่วง endgame ที่เม็ดยังเหลืออยู่",
+    "themes": [
+      "back-rank",
+      "met-support",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-011",
+    "fen": "6k1/5ppp/8/8/8/8/8/R6K w - - 0 1",
+    "category": "mate-1",
+    "rating": 750,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · back-rank mate (เบี้ยขาวปิดทางขุนดำ)",
+    "hint": "เบี้ยที่ f7/g7/h7 (ของขาวยังไม่ promote) ปิดทางหนีลงล่างของขุนดำที่ g8",
+    "explanation": "Pattern \"trapped king by own pawns\" — ในเกมจริงพบเมื่อขาวรุกผ่าน pawn ไปข้างหน้ามาก · ขุนดำที่อยู่ rank 8 ไม่มีทางหนีลง · เรือ rank 8 = mate",
+    "themes": [
+      "back-rank",
+      "trapped-king"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-012",
+    "fen": "7k/R7/8/4K3/8/8/8/1R6 w - - 0 1",
+    "category": "mate-1",
+    "rating": 950,
+    "toMove": "white",
+    "solution": [
+      "b1b8"
+    ],
+    "prompt": "ขาวเดิน · 2 เรือ ladder mate · ขุนไกล",
+    "hint": "เรือ a7 ตัด rank 7 อยู่แล้ว · เรือ b1 ขึ้นไป b8 ปิด rank 8",
+    "explanation": "KRR-K mate ไม่ต้องใช้ขุนช่วย · 2 เรือคุม 2 rank ติดกัน = ขุนเปลือยไม่มีทางหนี · pattern พื้นฐานของ 2-rook ladder",
+    "themes": [
+      "ladder-mate",
+      "two-rooks"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-013",
+    "fen": "1k6/8/1K6/8/8/8/8/7R w - - 0 1",
+    "category": "mate-1",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (ขุนดำ b8 + เรา b6)",
+    "hint": "ขุนของคุณที่ b6 คุม a7/b7/c7 · เรือ h1 → h8 คุม rank 8",
+    "themes": [
+      "back-rank",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate-014",
+    "fen": "6k1/8/6K1/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-1",
+    "rating": 800,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 1 ตา (ขุนดำ g8 + เรา g6)",
+    "hint": "pattern เหมือน mate-001 · ขุนเรา g6 คุม f7/g7/h7 · เรือคุม rank 8",
+    "themes": [
+      "back-rank",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-005",
+    "fen": "r3k3/8/3N4/8/8/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 850,
+    "toMove": "white",
+    "solution": [
+      "d6e8"
+    ],
+    "prompt": "ขาวเดิน · ม้า fork ขุน + เรือ",
+    "hint": "ม้าที่ d6 กระโดด e8 — รุกขุนดำ · เรือ a8 ลอยพร้อมถูกจับ",
+    "explanation": "Classic knight fork — ขุนดำต้องเดินหนี · เทิร์นต่อไปขาวจับเรือฟรี · เป็น pattern พื้นฐานที่สุดของ Ma ในการได้ material",
+    "themes": [
+      "fork",
+      "knight"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-006",
+    "fen": "k3r3/8/8/8/8/8/8/4R2K w - - 0 1",
+    "category": "tactic",
+    "rating": 700,
+    "toMove": "white",
+    "solution": [
+      "e1e8"
+    ],
+    "prompt": "ขาวเดิน · skewer ขุน-เรือ",
+    "hint": "เรือ e1 → e8 จับเรือดำ · ขุนดำที่ a8 อยู่ line เดียวกัน",
+    "explanation": "Skewer — ตัวที่มีค่ามากกว่า (ขุน) อยู่ข้างหน้า · เมื่อรุก ขุนต้องหนี ตัวข้างหลังถูกจับ · ในที่นี้ rook e8 ถูกจับเป็นโบนัส",
+    "themes": [
+      "skewer",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-007",
+    "fen": "7k/8/3m4/8/8/8/3R4/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "d2d6"
+    ],
+    "prompt": "ขาวเดิน · จับเม็ดดำที่ลอย",
+    "hint": "เรือ d2 + เม็ดดำ d6 file เดียวกัน · ไม่มีตัวป้องกัน · เดินตรงขึ้นไป",
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-008",
+    "fen": "7k/8/8/3p4/2P5/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 550,
+    "toMove": "white",
+    "solution": [
+      "c4d5"
+    ],
+    "prompt": "ขาวเดิน · เบี้ยจับเบี้ย",
+    "hint": "เบี้ยขาว c4 จับเฉียง d5 · ได้เบี้ยฟรี",
+    "themes": [
+      "pawn-capture"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-009",
+    "fen": "4k3/8/4s3/8/4R3/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 650,
+    "toMove": "white",
+    "solution": [
+      "e4e6"
+    ],
+    "prompt": "ขาวเดิน · จับโคนดำที่ลอย",
+    "hint": "เรือ e4 + โคนดำ e6 file เดียวกัน · ไม่มีตัวป้องกัน",
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-010",
+    "fen": "4k3/8/4n3/8/8/8/8/4R2K w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "e1e6"
+    ],
+    "prompt": "ขาวเดิน · จับม้าดำที่ลอย",
+    "hint": "เรือเดินตรงขึ้นไปจับม้าดำที่ e6 · ไม่มีตัวป้องกัน",
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-011",
+    "fen": "r3k3/8/8/8/3N4/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 750,
+    "toMove": "white",
+    "solution": [
+      "d4c6"
+    ],
+    "prompt": "ขาวเดิน · ม้ากระโดดโจมตีเรือดำที่ลอย",
+    "hint": "ม้า d4 → c6 · ตำแหน่งใหม่โจมตี a-file ถึงเรือดำที่ a8 · ตาต่อไปจับเรือ",
+    "themes": [
+      "knight",
+      "attack-rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-012",
+    "fen": "4k3/8/8/2p5/3P4/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 550,
+    "toMove": "white",
+    "solution": [
+      "d4c5"
+    ],
+    "prompt": "ขาวเดิน · เบี้ยจับเบี้ยซ้าย",
+    "hint": "เบี้ย d4 จับเฉียงไปทางซ้าย · c5 มีเบี้ยดำ",
+    "themes": [
+      "pawn-capture"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-013",
+    "fen": "4k3/8/8/8/8/2r5/8/2R1K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "c1c3"
+    ],
+    "prompt": "ขาวเดิน · จับเรือดำที่ลอยใน file เดียวกัน",
+    "hint": "เรือ c1 + เรือดำ c3 file เดียวกัน · ไม่มีตัวป้องกัน",
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-014",
+    "fen": "7k/8/8/8/3r4/8/3R4/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "d2d4"
+    ],
+    "prompt": "ขาวเดิน · จับเรือดำที่ลอย",
+    "hint": "เรือ d2 + เรือดำ d4 file เดียวกัน · ไม่มีตัวป้องกัน",
+    "themes": [
+      "hanging-piece",
+      "rook"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-015",
+    "fen": "4k3/8/8/3p4/8/2N5/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "c3d5"
+    ],
+    "prompt": "ขาวเดิน · ม้ากระโดดจับเบี้ย",
+    "hint": "ม้า c3 → d5 (กระโดด knight-shape) จับเบี้ยดำ",
+    "themes": [
+      "knight",
+      "pawn-capture"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-016",
+    "fen": "4k3/8/2p5/3S4/8/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "d5c6"
+    ],
+    "prompt": "ขาวเดิน · โคนจับเบี้ยทแยง",
+    "hint": "โคน d5 เดินทแยง 1 ช่อง → c6 มีเบี้ยดำ",
+    "explanation": "Khon เดินทแยง 4 ช่อง (รวม straight forward 1 ช่อง) · ใน Makruk โคนเป็นตัวระยะใกล้ — ต้องวางใกล้เป้าหมาย",
+    "themes": [
+      "khon",
+      "capture"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "tactic-017",
+    "fen": "4k3/8/2p5/3M4/8/8/8/4K3 w - - 0 1",
+    "category": "tactic",
+    "rating": 600,
+    "toMove": "white",
+    "solution": [
+      "d5c6"
+    ],
+    "prompt": "ขาวเดิน · เม็ดจับเบี้ยทแยง",
+    "hint": "เม็ด d5 เดินทแยง 1 ช่อง → c6 มีเบี้ยดำ",
+    "explanation": "Met เดินทแยง 4 ช่อง (เฉพาะทแยง) · ใน Makruk Met เป็นตัวอ่อน — แต่ก็จับเบี้ยฟรีได้เมื่อมีโอกาส",
+    "themes": [
+      "met",
+      "capture"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "counting-009",
+    "fen": "3k4/8/3K4/8/8/8/8/7R w - - 0 1",
+    "category": "counting",
+    "rating": 850,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "นับ K+R vs K · ขุนดำ d8 · เหลือ 16 ตา · จบ 1 ตา",
+    "goal": "ปิดเกมใน 1 ตา (count limit 16)",
+    "hint": "ขุนของคุณคุม c7/d7/e7 · เรือ h1 ขึ้นไป h8 = mate",
+    "explanation": "D-file variant ของ \"opposition-style mate\" · ขุนเราอยู่ 2 แถวห่างขุนดำในไฟล์เดียวกัน · เรือไกลส่ง coup de grâce",
+    "themes": [
+      "counting",
+      "k-and-rook",
+      "opposition"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-010",
+    "fen": "5k2/8/5K2/8/8/8/8/7R w - - 0 1",
+    "category": "counting",
+    "rating": 850,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "นับ K+R vs K · ขุนดำ f8 · จบ 1 ตา",
+    "goal": "จบเกมใน 1 ตา ก่อน count 16",
+    "hint": "ขุนของคุณที่ f6 · เรือ rank 8",
+    "explanation": "F-file variant · pattern เหมือน counting-009/002 ในไฟล์อื่นๆ · ฝึกความคุ้นเคยกับการ \"เพ่งจุด\" เพื่อหารูปแบบ",
+    "themes": [
+      "counting",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-011",
+    "fen": "6k1/5ppp/8/8/8/8/8/R6K w - - 0 1",
+    "category": "counting",
+    "rating": 750,
+    "toMove": "white",
+    "solution": [
+      "a1a8"
+    ],
+    "prompt": "นับใน back-rank mate (เบี้ยปิดทางตัวเอง) · 1 ตา",
+    "goal": "รุกจน back rank โดยที่เบี้ยฝ่ายเราช่วยปิดทาง",
+    "hint": "เบี้ยขาวที่ f7/g7/h7 ปิดทางหนีของขุนดำที่ g8 · เรือ a → a8 = mate",
+    "explanation": "Pattern พบบ่อยใน endgame ที่ส่วนของขาวรุกผ่าน · ขุนดำที่ rank 8 ไม่มีทางหนี · ใช้กับ count limit บังคับให้ปิดเร็ว",
+    "themes": [
+      "counting",
+      "back-rank",
+      "trapped-king"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-012",
+    "fen": "1k6/8/1K6/8/8/8/8/7R w - - 0 1",
+    "category": "counting",
+    "rating": 850,
+    "toMove": "white",
+    "solution": [
+      "h1h8"
+    ],
+    "prompt": "นับ K+R vs K · ขุนดำ b8 · จบ 1 ตา",
+    "goal": "รุกจนใน 1 ตา · count 16",
+    "hint": "ขุนของคุณที่ b6 · เรือ rank 8",
+    "explanation": "B-file variant · ครอบ pattern แทบทุก file ใน back-rank · ฝึกให้คุ้นกับการเห็นรูปแบบนี้ในเกมจริง",
+    "themes": [
+      "counting",
+      "k-and-rook"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "counting-013",
+    "fen": "7k/R7/8/8/8/4K3/8/1R6 w - - 0 1",
+    "category": "counting",
+    "rating": 900,
+    "toMove": "white",
+    "solution": [
+      "b1b8"
+    ],
+    "prompt": "นับ K+2R vs K · ขุนเราไกล · 1 ตา (count 8)",
+    "goal": "ปิดเกมใน 1 ตา (count strict 8 ตา)",
+    "hint": "Ladder pattern · เรือ a7 ตัด rank 7 + เรือ b1 → b8 = ปิด rank 8",
+    "explanation": "K+R+R count = 8 ตา (เคร่งที่สุด) · 2 เรือคุม 2 rank ติดกัน → ขุนเปลือยไม่มีทางหนี · ขุนของเราอยู่ไกลก็ได้ใน pattern นี้",
+    "themes": [
+      "counting",
+      "two-rooks",
+      "ladder-mate"
+    ],
+    "source": "OpenMakruk counting set"
+  },
+  {
+    "id": "defense-001",
+    "fen": "4k3/6S1/8/8/8/8/8/4R3 b - - 0 1",
+    "category": "defense",
+    "rating": 750,
+    "toMove": "black",
+    "solution": [
+      "e8d8"
+    ],
+    "prompt": "ดำเดิน · กำลังถูกรุก · หาตาเดียวที่หนีรอด",
+    "hint": "แฟ้ม e ถูกเรือคุม · ตรวจสองช่อง d8/f8 · ตัวไหนถูกตัวขาวคุม?",
+    "explanation": "โคนขาวที่ g7 คุม f8 (โคนเดินทแยง 1 ช่อง · g7→f8 ทแยง) · ดังนั้น f8 ตาย. d8 เดียวเท่านั้นที่ปลอดภัย",
+    "themes": [
+      "only-move",
+      "king-escape",
+      "defense"
+    ],
+    "source": "OpenMakruk defense set"
+  },
+  {
+    "id": "defense-002",
+    "fen": "4k3/8/8/3r4/8/8/8/R3K3 b - - 0 1",
+    "category": "defense",
+    "rating": 800,
+    "toMove": "black",
+    "solution": [
+      "d5d8"
+    ],
+    "prompt": "ดำเดิน · ขาวรุกแถว 8 · บล็อกให้ได้",
+    "hint": "เรือดำที่ d5 มาขวางได้ที่ d8 — ขุนดำจะป้องกันเรือตัวเอง",
+    "explanation": "การรุกของขาวจากแถว 8 · ดำต้องบล็อกระหว่าง · เรือ d5 → d8 เป็น block ที่ขุนดำป้องกันให้ · เกิดการ trade เท่ากัน · pattern \"ขวางทาง\"",
+    "themes": [
+      "interpose",
+      "rook-block",
+      "defense"
+    ],
+    "source": "OpenMakruk defense set"
+  },
+  {
+    "id": "defense-003",
+    "fen": "7k/8/5S2/8/8/4K3/8/R7 b - - 0 1",
+    "category": "defense",
+    "rating": 700,
+    "toMove": "black",
+    "solution": [
+      "h8h7"
+    ],
+    "prompt": "ดำเดิน · กำลังถูกรุก · หนีลงล่าง",
+    "hint": "g7 ถูกโคนขาวที่ f6 คุม (โคนเดินทแยง 1 ช่อง · f6→g7 ทแยง) · ทางหนีเดียว = h7",
+    "explanation": "เรือขาวคุม rank 8 · โคนขาวที่ f6 คุม g7 ทแยง · h7 เป็นทางหนีเดียว · ฝึกสายตาให้รู้ว่าตัวเล็กก็คุมช่องสำคัญ",
+    "themes": [
+      "only-move",
+      "king-escape",
+      "defense"
+    ],
+    "source": "OpenMakruk defense set"
+  },
+  {
+    "id": "defense-004",
+    "fen": "4k3/4R3/8/4r3/8/8/8/4K3 b - - 0 1",
+    "category": "defense",
+    "rating": 700,
+    "toMove": "black",
+    "solution": [
+      "e5e7"
+    ],
+    "prompt": "ดำเดิน · จับตัวที่รุก",
+    "hint": "เรือขาวที่ e7 ไม่มีใครป้องกัน · เรือดำของคุณจับได้",
+    "explanation": "วิธีที่ดีที่สุดในการตอบรุก: จับตัวที่รุก · ถ้าตัวนั้นไม่มีใครป้องกัน = ฟรี · รู้จัก \"remove the attacker\" pattern",
+    "themes": [
+      "capture-attacker",
+      "defense"
+    ],
+    "source": "OpenMakruk defense set"
+  },
+  {
+    "id": "defense-005",
+    "fen": "R3k3/3s4/8/8/8/8/8/4K3 b - - 0 1",
+    "category": "defense",
+    "rating": 850,
+    "toMove": "black",
+    "solution": [
+      "d7c8"
+    ],
+    "prompt": "ดำเดิน · ขาวรุกแถว 8 · โคนช่วยบล็อก",
+    "hint": "โคนดำที่ d7 เดินทแยง 1 ช่อง · c8 ขวางระหว่างเรือขาวกับขุนดำ",
+    "explanation": "โคน (Khon) เดินทแยง 1 ช่อง · จาก d7 ไป c8 ทแยง · ขวางการรุกของเรือที่ a8 · ขุนดำป้องกัน c8 ทำให้ถ้าเรือขาวจับโคนจะถูกจับคืน",
+    "themes": [
+      "interpose",
+      "khon-block",
+      "defense"
+    ],
+    "source": "OpenMakruk defense set"
+  },
+  {
+    "id": "mate2-002",
+    "fen": "8/8/8/7R/8/1K6/8/k7 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1100,
+    "toMove": "white",
+    "solution": [
+      "h5h2",
+      "a1b1",
+      "h2h1"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา (a1 corner ladder)",
+    "goal": "รุกจน 2 ตา",
+    "hint": "ตา 1 เรือไป rank 2 = ตัด · ขุนดำเหลือ b1 · ตา 2 รุก rank 1",
+    "explanation": "Mirror ของ mate2-001 ที่มุมล่าง · pattern K+R vs K ladder · เรือตัด rank ก่อน · ขุนเปลือยถูกบังคับให้เลื่อนใน 1 ทิศทาง · ตาถัดไปปิดเกม",
+    "themes": [
+      "k-and-rook",
+      "ladder-mate",
+      "corner-mate"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate2-003",
+    "fen": "8/8/8/R7/8/6K1/8/7k w - - 0 1",
+    "category": "mate-2",
+    "rating": 1100,
+    "toMove": "white",
+    "solution": [
+      "a5a2",
+      "h1g1",
+      "a2a1"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา (h1 corner ladder)",
+    "goal": "รุกจน 2 ตา",
+    "hint": "ตา 1 เรือไป rank 2 · ขุนดำเหลือ g1 · ตา 2 รุก rank 1",
+    "explanation": "Mirror ที่มุม h1 · pattern เดียวกัน · ฝึกให้คุ้นกับ ladder ในทุกมุม",
+    "themes": [
+      "k-and-rook",
+      "ladder-mate",
+      "corner-mate"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate2-004",
+    "fen": "7k/8/6K1/8/8/1R6/8/8 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1150,
+    "toMove": "white",
+    "solution": [
+      "b3b7",
+      "h8g8",
+      "b7b8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา (h8 corner · เรือเริ่ม b3)",
+    "goal": "รุกจน 2 ตา",
+    "hint": "ตา 1 เรือไป rank 7 · ขุนดำเหลือ g8 · ตา 2 รุก rank 8",
+    "explanation": "Pattern ladder K+R vs K · จากตำแหน่งเรือต่างกัน · ฝึกให้เห็นว่า starting square ไม่ใช่เรื่องสำคัญ ที่สำคัญคือเรือไป rank 7 · ขุนเรา g6 คุม g7/h7 → ขุนดำต้องเลื่อน g8",
+    "themes": [
+      "k-and-rook",
+      "ladder-mate",
+      "corner-mate"
+    ],
+    "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate2-005",
+    "fen": "k7/8/1K6/8/5R2/8/8/8 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1150,
+    "toMove": "white",
+    "solution": [
+      "f4f7",
+      "a8b8",
+      "f7f8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา (a8 corner · เรือเริ่ม f4)",
+    "goal": "รุกจน 2 ตา",
+    "hint": "ตา 1 เรือไป rank 7 · ขุนดำเหลือ b8 · ตา 2 รุก rank 8",
+    "explanation": "Variation ของ mate2-001 — เรือเริ่มจากตำแหน่งใหม่ · pattern เหมือนเดิม · ลองเห็น \"หลังบ้าน\" ของฝ่ายตรงข้ามต่างมุมมอง",
+    "themes": [
+      "k-and-rook",
+      "ladder-mate",
+      "corner-mate"
+    ],
     "source": "OpenMakruk starter set"
   }
 ]

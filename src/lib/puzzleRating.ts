@@ -9,7 +9,9 @@
 // A future Phase will swap this for Glicko-2 which handles rating
 // deviation; the call-sites care only about `currentRating(state)`.
 
-const STORAGE_KEY = 'openmakruk_puzzle_rating';
+import { defineStore } from './stores';
+
+const PUZZLE_RATING_VERSION = 1;
 
 export type PuzzleRatingState = {
   rating: number;       // current personal puzzle rating
@@ -25,17 +27,6 @@ export type PuzzleRatingState = {
 export const STARTING_RATING = 1200;
 const K_FACTOR = 24;
 
-export function loadPuzzleRating(): PuzzleRatingState {
-  if (typeof window === 'undefined') return blank();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return blank();
-    return { ...blank(), ...JSON.parse(raw) };
-  } catch {
-    return blank();
-  }
-}
-
 function blank(): PuzzleRatingState {
   return {
     rating: STARTING_RATING,
@@ -46,13 +37,22 @@ function blank(): PuzzleRatingState {
   };
 }
 
+const store = defineStore<PuzzleRatingState>({
+  key: 'openmakruk_puzzle_rating',
+  version: PUZZLE_RATING_VERSION,
+  default: blank,
+  migrate: (raw) => {
+    const obj = (raw && typeof raw === 'object' ? raw : {}) as Partial<PuzzleRatingState>;
+    return { ...blank(), ...obj };
+  },
+});
+
+export function loadPuzzleRating(): PuzzleRatingState {
+  return store.load();
+}
+
 export function savePuzzleRating(state: PuzzleRatingState): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore
-  }
+  store.save(state);
 }
 
 /**

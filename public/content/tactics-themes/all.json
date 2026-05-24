@@ -1,1 +1,30 @@
-[]
+[
+  {
+    "id": "theme-hanging",
+    "name": "ตัวลอย (Hanging Piece)",
+    "description": "ตัวที่ฝ่ายตรงข้ามวางไว้โดยไม่มีใครป้องกัน — โอกาสจับฟรี. ฝึกสายตาให้เห็นว่ามีอะไรลอยอยู่บ้างก่อนจะเดินตา.",
+    "matchTag": "hanging-piece",
+    "examplePuzzles": ["tactic-001", "tactic-002", "tactic-004", "tactic-007", "tactic-009"]
+  },
+  {
+    "id": "theme-fork",
+    "name": "Fork (ขู่ 2 ตัวพร้อมกัน)",
+    "description": "เดินตาเดียวขู่ 2 ตัวพร้อมกัน — ฝ่ายตรงข้ามป้องกันได้แค่ตัวเดียว · เก็บอีกตัวฟรี. Knight (Ma) เป็นตัวที่ fork บ่อยที่สุดเพราะกระโดดข้ามตัวอื่นได้.",
+    "matchTag": "fork",
+    "examplePuzzles": ["tactic-005"]
+  },
+  {
+    "id": "theme-skewer",
+    "name": "Skewer (รุก่หลังจับด้านหน้า)",
+    "description": "รุกตัวที่มีค่ามาก ฝ่ายตรงข้ามต้องหนี · ตัวที่อยู่ข้างหลังจะถูกจับเปิดเผย. ตรงข้ามกับ pin.",
+    "matchTag": "skewer",
+    "examplePuzzles": ["tactic-006"]
+  },
+  {
+    "id": "theme-pawn-capture",
+    "name": "เบี้ยจับเฉียง (Pawn Capture)",
+    "description": "เบี้ย Makruk จับเฉียง 1 ช่อง — เหมือนหมากรุกฝรั่ง. ใช้บ่อยในจังหวะกลางเกมเพื่อยึดศูนย์กลางหรือเปิด file ให้เรือ.",
+    "matchTag": "pawn-capture",
+    "examplePuzzles": ["tactic-008", "tactic-012", "tactic-014", "tactic-015"]
+  }
+]

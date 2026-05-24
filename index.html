@@ -6,10 +6,37 @@
     <meta name="description" content="OpenMakruk — เล่นหมากรุกไทยกับคอม ฝึกฝน เรียนรู้ ไม่ต้องสมัคร" />
     <meta name="theme-color" content="#1a1816" />
 
+    <!-- OpenGraph / share previews. Used when a deep link like
+         openmakruk.com/#/puzzles/mate-001 is pasted into Line / Facebook
+         / Twitter / Discord. Hash fragments aren't sent to crawlers, so
+         every deep link picks up these same site-level defaults — the
+         landing page handles the routing in JS once the user clicks. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="OpenMakruk" />
+    <meta property="og:title" content="OpenMakruk · หมากรุกไทย open-source" />
+    <meta property="og:description" content="เล่นหมากรุกไทยกับ Fairy-Stockfish · ฝึกบทเรียน · แก้ปริศนา · ไม่มี ad ไม่ต้องสมัคร" />
+    <meta property="og:url" content="https://openmakruk.com" />
+    <meta property="og:image" content="https://openmakruk.com/og.svg" />
+    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="th_TH" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <!-- Twitter / X uses its own card metadata; `summary_large_image`
+         renders the 1200x630 above as the hero. -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OpenMakruk · หมากรุกไทย open-source" />
+    <meta name="twitter:description" content="เล่นหมากรุกไทยกับ Fairy-Stockfish · ฝึก · ปริศนา · ไม่ต้องสมัคร" />
+    <meta name="twitter:image" content="https://openmakruk.com/og.svg" />
+
     <!-- PWA wiring -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon.svg" />
+
+    <!-- Canonical so search engines collapse `/#/<anything>` variants. -->
+    <link rel="canonical" href="https://openmakruk.com" />
 
     <title>OpenMakruk · หมากรุกไทย</title>
   </head>

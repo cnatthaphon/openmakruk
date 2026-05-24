@@ -26,6 +26,10 @@ import {
 import { fenToPieceMap } from '../lib/makruk';
 import { letterToPiece } from '../lib/chessAttacks';
 import { thaiUci } from '../lib/thaiUci';
+import { useState } from 'react';
+import { mineMoveIntoPuzzle } from '../lib/puzzleMiner';
+import { loadStats } from '../lib/stats';
+import { toast } from './Toast';
 
 type Props = {
   moves: AnnotatedMove[];
@@ -162,8 +166,29 @@ function AccuracyCard({
 }
 
 function KeyMomentCard({ move, onJump }: { move: AnnotatedMove; onJump: () => void }) {
+  const [mining, setMining] = useState(false);
+  const [mined, setMined] = useState(false);
+  const handleMine = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (mining || mined) return;
+    setMining(true);
+    const result = await mineMoveIntoPuzzle(move, loadStats().displayName);
+    setMining(false);
+    if (result.ok) {
+      setMined(true);
+      toast.success('📌 บันทึกเป็น puzzle แล้ว · ดูที่ tab ปริศนา → ของฉัน');
+    } else {
+      toast.error(`บันทึก puzzle ไม่สำเร็จ: ${result.reason}`);
+    }
+  };
   return (
-    <button className="key-moment" onClick={onJump} title="คลิกเพื่อข้ามไปดูตำแหน่งนี้บนกระดาน">
+    <div
+      className="key-moment"
+      onClick={onJump}
+      title="คลิกเพื่อข้ามไปดูตำแหน่งนี้บนกระดาน"
+      role="button"
+      tabIndex={0}
+    >
       <MiniBoard
         fen={move.fenBefore}
         playedArrow={{ from: move.uci.slice(0, 2), to: move.uci.slice(2, 4) }}
@@ -201,8 +226,16 @@ function KeyMomentCard({ move, onJump }: { move: AnnotatedMove; onJump: () => vo
           <span className="label">ควรเล่น:</span>{' '}
           <code className="good">{thaiUci(move.bestMove)}</code>
         </div>
+        <button
+          type="button"
+          className="key-moment-mine"
+          onClick={handleMine}
+          disabled={mining || mined}
+        >
+          {mined ? '✓ บันทึกแล้ว' : mining ? '🔄 กำลังบันทึก...' : '📌 บันทึกเป็น puzzle'}
+        </button>
       </div>
-    </button>
+    </div>
   );
 }
 

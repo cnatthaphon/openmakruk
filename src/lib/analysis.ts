@@ -2,18 +2,17 @@
 // for finished games so the user can revisit "where did I go wrong"
 // after the fact without re-running the engine each time.
 //
-// Today (skeleton): in-memory + localStorage stash of analysis runs.
-// A future iteration will integrate this with a Game Review viewer
-// on the Profile page that walks ply-by-ply showing eval delta, top
-// engine move, and classification badge (best / good / inaccuracy /
-// mistake / blunder).
+// Today: in-memory + localStorage stash via the versioned stores
+// module. Future iterations will integrate this with a richer Game
+// Review viewer; the store contract stays stable.
 //
 // One analysis = one finished game. Re-analyzing overwrites the
 // previous run for that game id.
 
 import type { EvalScore } from './evalParser';
+import { defineStore } from './stores';
 
-const STORAGE_KEY = 'openmakruk_game_analyses';
+const ANALYSIS_VERSION = 1;
 
 export type MoveAnalysis = {
   /** UCI move actually played by the player on this ply. */
@@ -49,40 +48,39 @@ export type AnalysisStore = {
   analyses: Record<string, GameAnalysis>;
 };
 
+const store = defineStore<AnalysisStore>({
+  key: 'openmakruk_game_analyses',
+  version: ANALYSIS_VERSION,
+  default: () => ({ analyses: {} }),
+  migrate: (raw) => {
+    const obj = (raw && typeof raw === 'object' ? raw : {}) as Partial<AnalysisStore>;
+    return {
+      analyses:
+        obj.analyses && typeof obj.analyses === 'object' ? obj.analyses : {},
+    };
+  },
+});
+
 export function loadAnalysisStore(): AnalysisStore {
-  if (typeof window === 'undefined') return { analyses: {} };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { analyses: {} };
-    return JSON.parse(raw);
-  } catch {
-    return { analyses: {} };
-  }
+  return store.load();
 }
 
-export function saveAnalysisStore(store: AnalysisStore): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-  } catch {
-    // localStorage quota: each analysis is ~2KB so 5MB cap = ~2500
-    // games. Should be plenty for v1 — when it does start being an
-    // issue, switch to IndexedDB.
-  }
+export function saveAnalysisStore(s: AnalysisStore): void {
+  store.save(s);
 }
 
 export function storeAnalysis(
-  store: AnalysisStore,
+  s: AnalysisStore,
   analysis: GameAnalysis,
 ): AnalysisStore {
-  return { analyses: { ...store.analyses, [analysis.gameId]: analysis } };
+  return { analyses: { ...s.analyses, [analysis.gameId]: analysis } };
 }
 
 export function getAnalysis(
-  store: AnalysisStore,
+  s: AnalysisStore,
   gameId: string,
 ): GameAnalysis | null {
-  return store.analyses[gameId] ?? null;
+  return s.analyses[gameId] ?? null;
 }
 
 /**

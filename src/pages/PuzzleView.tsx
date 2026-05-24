@@ -338,11 +338,31 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
 
           {state.status === 'won' && (() => {
             const best = loadPuzzleProgress().solved[puzzle.id];
-            if (!best || !best.timeToSolveMs) return null;
+            if (!best) return null;
+            // Optimal solve = user took exactly as many moves as the
+            // canonical solution path (no wrong attempts). The
+            // "user moves" in the solution are at odd indices (0, 2, 4…).
+            const optimalUserMoves = Math.ceil(puzzle.solution.length / 2);
+            const isOptimal = best.attempts <= optimalUserMoves && !best.usedHint;
             return (
-              <div className="puzzle-best-stats label-aside">
-                🏆 สถิติ: {best.attempts} ครั้ง · {(best.timeToSolveMs / 1000).toFixed(1)} วินาที
-                {best.usedHint && ' · ใช้ hint'}
+              <div className="puzzle-best-stats">
+                <div className="label-aside">
+                  🏆 สถิติ: {best.attempts} ครั้ง
+                  {best.timeToSolveMs &&
+                    ` · ${(best.timeToSolveMs / 1000).toFixed(1)} วินาที`}
+                  {best.usedHint && ' · ใช้ hint'}
+                </div>
+                <div className="puzzle-best-optimal">
+                  {isOptimal ? (
+                    <span className="puzzle-optimal-badge">
+                      🏃 Speed: optimal ({optimalUserMoves} ตา) — ไม่มี wrong attempts!
+                    </span>
+                  ) : (
+                    <span className="label-aside">
+                      Engine path: {optimalUserMoves} ตา · ของคุณ: {best.attempts} ครั้ง
+                    </span>
+                  )}
+                </div>
               </div>
             );
           })()}

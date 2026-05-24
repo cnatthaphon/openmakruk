@@ -15,6 +15,8 @@ import {
   type Settings,
 } from '../lib/settings';
 import { playMove } from '../lib/audio';
+import { toast } from '../components/Toast';
+import { listEngines } from '../lib/engine';
 
 type Props = {
   onSettingsChange?: (s: Settings) => void;
@@ -148,6 +150,22 @@ export function SettingsPage({ onSettingsChange }: Props) {
             onChange={(v) => set('showEvalBar', v)}
           />
         </SettingRow>
+
+        <SettingRow
+          label="Engine"
+          hint="เลือก engine ที่ใช้คิด · Fairy-Stockfish (แข็งสุด) · personality bots (สไตล์ต่างๆ ระดับ 700–1100) · Random/Greedy (baseline)"
+        >
+          <select
+            value={settings.engineId}
+            onChange={(e) => set('engineId', e.target.value)}
+          >
+            {listEngines().map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+        </SettingRow>
       </section>
 
       <section className="settings-section">
@@ -176,13 +194,17 @@ export function SettingsPage({ onSettingsChange }: Props) {
         <button
           className="settings-reset-button"
           onClick={() => {
-            if (
-              confirm(
-                'รีเซ็ตการตั้งค่าทั้งหมดเป็นค่าเริ่มต้น? (ไม่กระทบ rating / ประวัติเกม)',
-              )
-            ) {
-              setSettings({ ...DEFAULT_SETTINGS });
-            }
+            toast.confirm(
+              'รีเซ็ตการตั้งค่าทั้งหมดเป็นค่าเริ่มต้น? (ไม่กระทบ rating / ประวัติเกม)',
+              {
+                confirmLabel: 'รีเซ็ต',
+                destructive: true,
+                onConfirm: () => {
+                  setSettings({ ...DEFAULT_SETTINGS });
+                  toast.success('รีเซ็ตการตั้งค่าแล้ว');
+                },
+              },
+            );
           }}
         >
           🔄 รีเซ็ตการตั้งค่าทั้งหมด

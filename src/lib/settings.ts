@@ -1,11 +1,16 @@
-// User-facing preferences. Persisted to localStorage — never leaves
-// the browser. Read by the Settings page; consumed by Play page,
-// Board, audio module, etc.
+// User-facing preferences. Persisted via the versioned stores module
+// — read by the Settings page, consumed by Play page / Board / audio.
 //
 // Every setting has a sensible default so brand-new users get a
-// reasonable experience without touching anything.
+// reasonable experience without touching anything. Adding a new
+// setting:
+//   1. Add the field to `Settings` + `DEFAULT_SETTINGS`
+//   2. Bump SETTINGS_VERSION
+//   3. Extend `migrate` so older payloads gain the new field
 
-const STORAGE_KEY = 'openmakruk_settings';
+import { defineStore } from './stores';
+
+const SETTINGS_VERSION = 3;
 
 export type Settings = {
   /** Which set of piece SVGs to render. */
@@ -24,12 +29,18 @@ export type Settings = {
   showLegalDots: boolean;
   /** Animation duration in ms; 0 disables animations entirely. */
   animationMs: number;
-  /** UI language. English UI is a Phase-future feature. */
+  /** UI language. */
   language: 'th' | 'en';
   /** Show engine eval bar during games (Casual mode only). */
   showEvalBar: boolean;
   /** Confirm before resigning / offering draw. */
   confirmActions: boolean;
+  /** Active engine id (matches a registered engine in `lib/engines/`).
+   *  Defaults to 'fairy-stockfish'. When future engines (AlphaZero-
+   *  style nets, random baseline, community variants) are registered,
+   *  they show up in the Settings dropdown automatically — no code
+   *  change needed here. */
+  engineId: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -44,29 +55,28 @@ export const DEFAULT_SETTINGS: Settings = {
   language: 'th',
   showEvalBar: false,
   confirmActions: true,
+  engineId: 'fairy-stockfish',
 };
 
+const store = defineStore<Settings>({
+  key: 'openmakruk_settings',
+  version: SETTINGS_VERSION,
+  default: () => ({ ...DEFAULT_SETTINGS }),
+  migrate: (raw) => {
+    // All historical versions are a flat object of partial settings;
+    // missing fields fall back to defaults. Future shape changes will
+    // branch on `fromVersion` here.
+    const partial = (raw && typeof raw === 'object' ? raw : {}) as Partial<Settings>;
+    return { ...DEFAULT_SETTINGS, ...partial };
+  },
+});
+
 export function loadSettings(): Settings {
-  if (typeof window === 'undefined') return { ...DEFAULT_SETTINGS };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_SETTINGS };
-    const parsed = JSON.parse(raw);
-    // Merge with defaults so newly-added keys get sane values when
-    // a returning user loads an older settings blob.
-    return { ...DEFAULT_SETTINGS, ...parsed };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
+  return store.load();
 }
 
 export function saveSettings(settings: Settings): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // quota exceeded / disabled — silently ignore
-  }
+  store.save(settings);
 }
 
 export function updateSetting<K extends keyof Settings>(

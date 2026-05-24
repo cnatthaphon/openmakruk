@@ -11,6 +11,7 @@ test.describe('play tab', () => {
     await page.goto('/');
     await page.evaluate(() => {
       localStorage.clear();
+      localStorage.setItem('openmakruk_onboarded', '1');
     });
   });
 

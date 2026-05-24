@@ -10,13 +10,18 @@
 // Source tag (custom / play / puzzle / analysis) shows where the
 // position came from so the user can mentally filter.
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fenToPieceMap } from '../lib/makruk';
 import { letterToPiece, ROLE_TH } from '../lib/chessAttacks';
 import { loadLibrary, removePosition, type SavedPosition } from '../lib/library';
+import { toast } from '../components/Toast';
 
 type Props = {
   onLoad: (fen: string) => void;
+  /** When set and matching an entry, jumps straight to that position
+   *  (clicking through "Open" still goes via the same onLoad path).
+   *  Powers `/#/library/<id>` deep links. */
+  initialPositionId?: string | null;
 };
 
 const SOURCE_LABEL: Record<SavedPosition['source'], string> = {
@@ -26,9 +31,23 @@ const SOURCE_LABEL: Record<SavedPosition['source'], string> = {
   analysis: '🔍 วิเคราะห์',
 };
 
-export function LibraryPage({ onLoad }: Props) {
+export function LibraryPage({ onLoad, initialPositionId }: Props) {
   const [library, setLibrary] = useState<SavedPosition[]>(() => loadLibrary());
   const [filter, setFilter] = useState('');
+
+  // Deep-link: when a position id is present in the route, find it and
+  // open immediately (same path as clicking ▶ Open). Use a ref-style
+  // guard so we don't re-fire after the user navigates away within
+  // the same mount.
+  const openedDeepLinkRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialPositionId || openedDeepLinkRef.current === initialPositionId) return;
+    const match = library.find((p) => p.id === initialPositionId);
+    if (match) {
+      openedDeepLinkRef.current = initialPositionId;
+      onLoad(match.fen);
+    }
+  }, [initialPositionId, library, onLoad]);
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return library;
@@ -42,9 +61,15 @@ export function LibraryPage({ onLoad }: Props) {
   }, [library, filter]);
 
   const handleDelete = (id: string) => {
-    if (!confirm('ลบตำแหน่งนี้ออกจากคลัง? (กู้ไม่ได้)')) return;
-    removePosition(id);
-    setLibrary(loadLibrary());
+    toast.confirm('ลบตำแหน่งนี้ออกจากคลัง? (กู้ไม่ได้)', {
+      confirmLabel: 'ลบ',
+      destructive: true,
+      onConfirm: () => {
+        removePosition(id);
+        setLibrary(loadLibrary());
+        toast.success('ลบแล้ว');
+      },
+    });
   };
 
   return (

@@ -1,0 +1,47 @@
+<!--
+  OpenGraph share-preview image. 1200x630 (the standard Facebook/Twitter
+  card aspect). SVG works on Discord/Slack/Twitter; Facebook's crawler
+  is occasionally finicky with SVG OG images, so a PNG fallback (og.png)
+  rendered from this file is recommended before the public launch.
+  Convert with: rsvg-convert -w 1200 og.svg > og.png
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Dark Makruk-wood background -->
+  <rect width="1200" height="630" fill="#1a1816"/>
+
+  <!-- Subtle 8x8 board pattern in the background -->
+  <defs>
+    <pattern id="board" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="#e3c187" opacity="0.04"/>
+      <rect x="40" y="40" width="40" height="40" fill="#e3c187" opacity="0.04"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#board)"/>
+
+  <!-- Soft gold glow behind the title -->
+  <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#d4a23c" stop-opacity="0.18"/>
+    <stop offset="100%" stop-color="#d4a23c" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="600" cy="315" r="320" fill="url(#glow)"/>
+
+  <!-- King-mark glyph on the left -->
+  <g fill="#d4a23c" transform="translate(80, 195)">
+    <path d="M 0 0 H 60 V 180 L 195 0 H 270 L 160 156 L 295 386 H 215 L 102 200 L 60 257 V 386 H 0 Z"/>
+  </g>
+
+  <!-- Wordmark + tagline -->
+  <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <text x="445" y="280" fill="#f5e8c8" font-size="92" font-weight="800">OpenMakruk</text>
+    <text x="445" y="335" fill="#d4a23c" font-size="36" font-weight="600">หมากรุกไทย · open-source training platform</text>
+    <text x="445" y="395" fill="#a8a39a" font-size="26" font-weight="500">เล่น · ฝึก · แก้ปริศนา · เปิดดู source ได้</text>
+    <text x="445" y="430" fill="#a8a39a" font-size="26" font-weight="500">ไม่มี ad · ไม่ต้องสมัคร · ทำงาน offline</text>
+  </g>
+
+  <!-- Bottom bar -->
+  <rect x="0" y="595" width="1200" height="35" fill="#0f0d0b"/>
+  <g font-family="system-ui, -apple-system, sans-serif" fill="#8a857d" font-size="20" font-weight="500">
+    <text x="80" y="620">openmakruk.com</text>
+    <text x="1120" y="620" text-anchor="end">Fairy-Stockfish · MIT · Thailand</text>
+  </g>
+</svg>

@@ -1,4 +1,5 @@
-// User rating + per-level record persisted in localStorage.
+// User rating + per-level record persisted in localStorage via the
+// versioned stores module.
 //
 // Goals:
 //   1. Give the user a single number that says "you're roughly at this
@@ -14,9 +15,9 @@
 //   master ~2500  (skill 20, depth 20 — full strength, no NNUE yet)
 
 import type { Difficulty } from './engine';
+import { defineStore } from './stores';
 
-const STORAGE_KEY = 'openmakruk_stats';
-const STATS_VERSION = 1;
+const STATS_VERSION = 2;
 const K_FACTOR = 32;
 
 export const CPU_RATINGS: Record<Difficulty, number> = {
@@ -55,6 +56,9 @@ export type GameRecord = {
 export type LevelRecord = { wins: number; losses: number; draws: number };
 
 export type UserStats = {
+  /** Deprecated: kept on the in-memory shape for back-compat with any
+   *  caller that read it. The stores module is now the source of truth
+   *  for schema version (see STATS_VERSION). */
   version: number;
   displayName: string; // user-chosen handle, default 'ผู้เล่น'
   createdAt: number;   // ms timestamp of first init
@@ -66,38 +70,48 @@ export type UserStats = {
 
 const EMPTY_LEVEL: LevelRecord = { wins: 0, losses: 0, draws: 0 };
 
-const INITIAL_STATS: UserStats = {
+function initialStats(): UserStats {
+  return {
+    version: STATS_VERSION,
+    displayName: 'ผู้เล่น',
+    createdAt: Date.now(),
+    rating: 1000,
+    totalGames: 0,
+    byLevel: {
+      easy: { ...EMPTY_LEVEL },
+      medium: { ...EMPTY_LEVEL },
+      hard: { ...EMPTY_LEVEL },
+      master: { ...EMPTY_LEVEL },
+    },
+    history: [],
+  };
+}
+
+const store = defineStore<UserStats>({
+  key: 'openmakruk_stats',
   version: STATS_VERSION,
-  displayName: 'ผู้เล่น',
-  createdAt: Date.now(),
-  rating: 1000,
-  totalGames: 0,
-  byLevel: {
-    easy: { ...EMPTY_LEVEL },
-    medium: { ...EMPTY_LEVEL },
-    hard: { ...EMPTY_LEVEL },
-    master: { ...EMPTY_LEVEL },
+  default: initialStats,
+  migrate: (raw) => {
+    // v0 legacy: unwrapped object with its own embedded `version`
+    // field. v1+: wrapped by stores.ts. Either way we merge with the
+    // initial shape so newly-added fields (e.g. future stats) get
+    // sane defaults without needing a per-version branch.
+    const base = initialStats();
+    const partial = (raw && typeof raw === 'object' ? raw : {}) as Partial<UserStats>;
+    return {
+      ...base,
+      ...partial,
+      version: STATS_VERSION,
+      byLevel: { ...base.byLevel, ...(partial.byLevel ?? {}) },
+      history: Array.isArray(partial.history) ? partial.history : [],
+      displayName: partial.displayName ?? base.displayName,
+      createdAt: partial.createdAt ?? base.createdAt,
+    };
   },
-  history: [],
-};
+});
 
 export function loadStats(): UserStats {
-  if (typeof window === 'undefined') return cloneStats(INITIAL_STATS);
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return cloneStats(INITIAL_STATS);
-    const parsed = JSON.parse(raw) as Partial<UserStats>;
-    return {
-      ...INITIAL_STATS,
-      ...parsed,
-      byLevel: { ...INITIAL_STATS.byLevel, ...(parsed.byLevel ?? {}) },
-      history: parsed.history ?? [],
-      displayName: parsed.displayName ?? INITIAL_STATS.displayName,
-      createdAt: parsed.createdAt ?? INITIAL_STATS.createdAt,
-    };
-  } catch {
-    return cloneStats(INITIAL_STATS);
-  }
+  return store.load();
 }
 
 export function exportStatsJSON(stats: UserStats): string {
@@ -108,13 +122,15 @@ export function importStatsJSON(json: string): UserStats | null {
   try {
     const parsed = JSON.parse(json) as Partial<UserStats>;
     if (typeof parsed.rating !== 'number') return null;
+    const base = initialStats();
     return {
-      ...INITIAL_STATS,
+      ...base,
       ...parsed,
-      byLevel: { ...INITIAL_STATS.byLevel, ...(parsed.byLevel ?? {}) },
+      version: STATS_VERSION,
+      byLevel: { ...base.byLevel, ...(parsed.byLevel ?? {}) },
       history: parsed.history ?? [],
-      displayName: parsed.displayName ?? INITIAL_STATS.displayName,
-      createdAt: parsed.createdAt ?? INITIAL_STATS.createdAt,
+      displayName: parsed.displayName ?? base.displayName,
+      createdAt: parsed.createdAt ?? base.createdAt,
     };
   } catch {
     return null;
@@ -122,21 +138,11 @@ export function importStatsJSON(json: string): UserStats | null {
 }
 
 export function saveStats(stats: UserStats): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
-  } catch {
-    // localStorage may be full or disabled — silently ignore for now
-  }
+  store.save(stats);
 }
 
 export function clearStats(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
+  store.clear();
 }
 
 /**
@@ -213,8 +219,4 @@ function outcomeFromResult(
   if (result === '1-0') return userSide === 'white' ? 'win' : 'loss';
   if (result === '0-1') return userSide === 'black' ? 'win' : 'loss';
   return null;
-}
-
-function cloneStats(s: UserStats): UserStats {
-  return JSON.parse(JSON.stringify(s)) as UserStats;
 }

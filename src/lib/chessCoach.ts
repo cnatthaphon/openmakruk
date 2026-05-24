@@ -28,6 +28,7 @@ import {
   ROLE_TH,
 } from './chessAttacks';
 import type { Color, Role } from './lessonRules';
+import { thaiSquare } from './thaiUci';
 import { parseUci } from './makruk';
 
 export type CoachInput = {
@@ -240,7 +241,7 @@ function composeSentences(motifs: CoachMotif[], evalLabel?: string): string[] {
     if (s) out.push(s);
   }
   if (out.length === 0 && evalLabel) {
-    out.push(`ตาเดินทำให้ตำแหน่งดีขึ้น (eval ${evalLabel})`);
+    out.push(`ตาเดินนี้ทำให้สถานการณ์ดีขึ้น (${evalLabel})`);
   }
   return out;
 }
@@ -250,30 +251,30 @@ function sentence(m: CoachMotif): string {
     case 'mate':
       return '🏆 รุกจน! เกมจบ';
     case 'mateThreat':
-      return `🎯 เปิดทาง mate ใน ${m.inMoves} ตา`;
+      return `🎯 เปิดทางรุกจนใน ${m.inMoves} ตา`;
     case 'check':
-      return `⚔️ รุก! ${ROLE_TH[m.attackerRole]} ที่ ${m.attackerSquare} ขู่ขุน — ฝ่ายตรงข้ามต้องตอบสนอง`;
+      return `⚔️ รุก! ${ROLE_TH[m.attackerRole]}ที่ ${thaiSquare(m.attackerSquare)} ขู่ขุน — ฝ่ายตรงข้ามต้องป้องกัน`;
     case 'fork': {
       const labels = m.targets
-        .map((t) => `${ROLE_TH[t.role]} ที่ ${t.square}`)
-        .join(' + ');
-      return `🪤 ${ROLE_TH[m.attackerRole]} fork — ขู่ ${labels} พร้อมกัน`;
+        .map((t) => `${ROLE_TH[t.role]}ที่ ${thaiSquare(t.square)}`)
+        .join(' กับ ');
+      return `🪤 ${ROLE_TH[m.attackerRole]}ขู่ ${labels} พร้อมกัน (fork)`;
     }
     case 'capture': {
       if (m.isFree) {
-        return `💰 จับ ${ROLE_TH[m.victim]} ที่ ${m.square} ฟรี (ไม่มีใครจับคืน)`;
+        return `💰 จับ${ROLE_TH[m.victim]}ที่ ${thaiSquare(m.square)} ฟรี — ไม่มีใครจับคืน`;
       }
       if (m.isEqualOrBetterTrade) {
-        return `🔄 แลก ${ROLE_TH[m.victim]} ที่ ${m.square} — แลกได้คุ้ม`;
+        return `🔄 แลก${ROLE_TH[m.victim]}ที่ ${thaiSquare(m.square)} — คุ้มทุน`;
       }
-      return `⚠️ จับ ${ROLE_TH[m.victim]} ที่ ${m.square} แต่อาจเสียตัวกลับ — ระวัง`;
+      return `⚠️ จับ${ROLE_TH[m.victim]}ที่ ${thaiSquare(m.square)} แต่อาจถูกจับคืน — ระวัง`;
     }
     case 'hangingTarget':
-      return `👀 ${ROLE_TH[m.role]} ที่ ${m.square} ของฝ่ายตรงข้ามไม่มีใครป้องกัน — รอจับตาต่อไป`;
+      return `👀 ${ROLE_TH[m.role]}ของฝ่ายตรงข้ามที่ ${thaiSquare(m.square)} ไม่มีใครป้องกัน — เก็บไว้รอจับ`;
     case 'promotion':
-      return `✨ เบี้ยถึงแถวโปรโมต — กลายเป็นเม็ดที่ ${m.to}`;
+      return `✨ เบี้ยถึงแถวโปรโมต กลายเป็นเม็ดที่ ${thaiSquare(m.to)}`;
     case 'develop':
-      return `🏃 พัฒนา ${ROLE_TH[m.role]} ออกจากแถวหลัง (${m.from} → ${m.to})`;
+      return `🏃 นำ${ROLE_TH[m.role]}ออกมาเล่น (${thaiSquare(m.from)} → ${thaiSquare(m.to)})`;
   }
 }
 

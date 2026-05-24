@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "id": "op-khun-pawn",
+    "name": "การเปิดเบี้ยขุน (Khun-Pawn)",
+    "moves": ["d3d4", "d6d5", "e3e4", "e6e5"],
+    "description": "เปิดเกมแบบมาตรฐาน · ดันเบี้ยกลางทั้งคู่เพื่อยึดศูนย์กลาง. เหมาะกับมือใหม่ — สมดุล ไม่เสี่ยง · พื้นที่ทำงานเปิดให้ทั้ง Met และ Khon ออกได้ในตาถัดไป.",
+    "themes": ["classical", "balanced", "beginner-friendly"],
+    "ratingBand": { "min": 0, "max": 1400 }
+  },
+  {
+    "id": "op-met-shuffle",
+    "name": "การเปิดเม็ดออก (Met Advance)",
+    "moves": ["e3e4", "e6e5", "e1f2", "d6d5"],
+    "description": "ดัน e-pawn แล้วเลื่อน Met จาก e1 ไปยัง f2 ทันที — Met เปิดออกมาช่วยควบคุมศูนย์กลาง · เป็นการเปิดที่ active กว่า Khun-Pawn ปกติ · ระวังให้ Met มี support เสมอเพราะเป็นตัวอ่อน.",
+    "themes": ["active", "central-control"],
+    "ratingBand": { "min": 800, "max": 1800 }
+  },
+  {
+    "id": "op-khon-fianchetto",
+    "name": "การเปิดโคนทั้งคู่ (Two-Khon)",
+    "moves": ["f3f4", "f6f5", "c3c4", "c6c5"],
+    "description": "ดันเบี้ย f และ c เพื่อเปิดทแยงให้ Khon ทั้งสองตัว · pattern คล้าย fianchetto ของหมากรุกฝรั่ง · เน้น positional · Khon ทำงานบนทแยงยาวคู่ขนาน · เหมาะกับผู้เล่นที่ชอบสายช้า.",
+    "themes": ["positional", "two-khon", "wing-development"],
+    "ratingBand": { "min": 1000, "max": 1800 }
+  },
+  {
+    "id": "op-khon-line",
+    "name": "การเปิดโคนเส้นยาว (Khon Diagonal)",
+    "moves": ["d3d4", "d6d5", "f1e2", "f8e7"],
+    "description": "เปิด d-pawn แล้วนำ Khon จาก f1 ทแยงไปยัง e2 ทันที · Khon ตำแหน่งใหม่ที่ e2 มี diagonal ไกล + ทำงานร่วมกับเบี้ย d4 · ใน Makruk Khon เดินช้า การเปิดเร็วสำคัญ.",
+    "themes": ["khon-development", "diagonal-control"],
+    "ratingBand": { "min": 1200, "max": 2000 }
+  },
+  {
+    "id": "op-rua-line",
+    "name": "การเปิดทางเรือ (Rook File Open)",
+    "moves": ["a3a4", "a6a5", "h3h4", "h6h5"],
+    "description": "ดันเบี้ย flank ทั้งสองข้าง (a และ h) — ตั้งใจเปิดเส้นทาง a-file และ h-file ให้เรือทั้งสองตัว · สายโจมตี · เรือจะมีพื้นที่ขยับตรง · ในมือผู้เล่นแข็งจะกดดันฝ่ายตรงข้ามได้ดี.",
+    "themes": ["flank-attack", "rook-activity", "aggressive"],
+    "ratingBand": { "min": 1400, "max": 2400 }
+  }
+]

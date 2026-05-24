@@ -1,0 +1,106 @@
+// Hash-based router.
+//
+// All app navigation uses URL hashes so the app can be served as a
+// static SPA from any host without server rewrites. Routes:
+//
+//   #/play                          tab=play
+//   #/play?fen=...&autoanalyze=1    tab=play with params
+//   #/learn                         tab=learn (index)
+//   #/learn/<lessonId>              tab=learn, open lessonId
+//   #/puzzles                       tab=puzzles (index)
+//   #/puzzles/<puzzleId>            tab=puzzles, open puzzleId
+//   #/library                       tab=library (index)
+//   #/library/<positionId>          tab=library, open positionId
+//   #/custom, #/profile, #/settings, #/about — single-screen tabs
+//
+// Adding a new sub-route ("daily puzzle"): just add the tab id + an
+// optional second segment. The router stays generic; each page is
+// responsible for reading `route.id` and opening the matching item.
+// This is the same plug-in story as the engine / content modules:
+// deep links are pure JSON-shaped data, no caller code needs to
+// change to support a new entity type as long as it lives under an
+// existing tab.
+
+import { useEffect, useState } from 'react';
+
+export const TAB_IDS = [
+  'play',
+  'learn',
+  'study',
+  'puzzles',
+  'custom',
+  'library',
+  'profile',
+  'settings',
+  'about',
+] as const;
+
+export type Tab = (typeof TAB_IDS)[number];
+
+export type Route = {
+  /** Top-level tab. Always present (falls back to 'play'). */
+  tab: Tab;
+  /** Optional sub-resource id — what's after `#/<tab>/`. */
+  id: string | null;
+  /** Parsed `?key=value` pairs after the path. */
+  params: Record<string, string>;
+};
+
+const DEFAULT_ROUTE: Route = { tab: 'play', id: null, params: {} };
+
+function isTab(s: string): s is Tab {
+  return (TAB_IDS as readonly string[]).includes(s);
+}
+
+/** Parse a hash string of the form `#/tab[/id][?k=v&...]` into a Route. */
+export function parseRoute(hash: string): Route {
+  if (!hash || !hash.startsWith('#/')) return { ...DEFAULT_ROUTE };
+  // Strip leading "#/" and split off the query string first.
+  const [pathPart, queryPart = ''] = hash.slice(2).split('?', 2);
+  const segments = pathPart.split('/').filter(Boolean);
+  const rawTab = segments[0] ?? 'play';
+  const tab: Tab = isTab(rawTab) ? rawTab : 'play';
+  const id = segments[1] ?? null;
+  const params: Record<string, string> = {};
+  if (queryPart) {
+    for (const pair of queryPart.split('&')) {
+      if (!pair) continue;
+      const [k, v = ''] = pair.split('=', 2);
+      if (k) params[decodeURIComponent(k)] = decodeURIComponent(v);
+    }
+  }
+  return { tab, id, params };
+}
+
+/** Build a hash string for the given route shape. */
+export function buildHash(route: Partial<Route> & { tab: Tab }): string {
+  const id = route.id ? `/${encodeURIComponent(route.id)}` : '';
+  const params = route.params ?? {};
+  const query = Object.entries(params)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&');
+  return `#/${route.tab}${id}${query ? `?${query}` : ''}`;
+}
+
+/** Imperative navigation. Triggers a hashchange so listeners react. */
+export function navigate(route: Partial<Route> & { tab: Tab }): void {
+  if (typeof window === 'undefined') return;
+  const next = buildHash(route);
+  if (window.location.hash === next) return;
+  window.location.hash = next;
+}
+
+/** React hook: subscribe to the current parsed route. */
+export function useRoute(): Route {
+  const [route, setRoute] = useState<Route>(() =>
+    typeof window === 'undefined'
+      ? DEFAULT_ROUTE
+      : parseRoute(window.location.hash),
+  );
+  useEffect(() => {
+    const onChange = () => setRoute(parseRoute(window.location.hash));
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  return route;
+}

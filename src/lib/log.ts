@@ -24,13 +24,11 @@ export type LogEvent = {
 const events: LogEvent[] = [];
 const timers = new Map<string, number>();
 
+import { loggingEnabled } from './flags';
+
 function isEnabled(): boolean {
   if (typeof window === 'undefined') return false;
-  try {
-    return window.localStorage.getItem('openmakruk_log') !== 'off';
-  } catch {
-    return true;
-  }
+  return loggingEnabled.read();
 }
 
 function push(ev: LogEvent) {

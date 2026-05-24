@@ -2,12 +2,15 @@
 //
 // Positions can be created from anywhere (Custom editor, Play tab
 // after a game, Analysis panel) and replayed/studied later. Stored
-// in localStorage; capped at 200 entries to keep the quota healthy.
+// in localStorage via the versioned stores module; capped at
+// MAX_ENTRIES so quota stays healthy.
 //
 // IDs are stable random strings so multiple positions can be edited
 // or shared via URL.
 
-const STORAGE_KEY = 'openmakruk_library';
+import { defineStore } from './stores';
+
+const LIBRARY_VERSION = 1;
 const MAX_ENTRIES = 200;
 
 export type SavedPosition = {
@@ -20,25 +23,40 @@ export type SavedPosition = {
   source: 'custom' | 'play' | 'puzzle' | 'analysis';
 };
 
+const store = defineStore<SavedPosition[]>({
+  key: 'openmakruk_library',
+  version: LIBRARY_VERSION,
+  default: () => [],
+  migrate: (raw) => {
+    if (!Array.isArray(raw)) return [];
+    // Defensive: drop entries missing required fields rather than
+    // crash the Library page.
+    return (raw as unknown[]).filter(
+      (e): e is SavedPosition =>
+        !!e &&
+        typeof e === 'object' &&
+        typeof (e as SavedPosition).id === 'string' &&
+        typeof (e as SavedPosition).fen === 'string',
+    ).map((e) => ({
+      id: e.id,
+      fen: e.fen,
+      title: typeof e.title === 'string' ? e.title : '',
+      note: typeof e.note === 'string' ? e.note : '',
+      tags: Array.isArray(e.tags) ? e.tags.filter((t) => typeof t === 'string') : [],
+      createdAt: typeof e.createdAt === 'number' ? e.createdAt : Date.now(),
+      source: ['custom', 'play', 'puzzle', 'analysis'].includes(e.source)
+        ? e.source
+        : 'custom',
+    }));
+  },
+});
+
 export function loadLibrary(): SavedPosition[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as SavedPosition[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return store.load();
 }
 
 function persist(library: SavedPosition[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
-  } catch {
-    // quota / disabled — silently ignore
-  }
+  store.save(library);
 }
 
 export function savePosition(

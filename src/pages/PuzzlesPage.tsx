@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { loadPuzzles } from '../lib/content';
+import { loadUserPuzzles } from '../lib/userPuzzles';
 import { isPuzzleSolved, loadPuzzleProgress, type PuzzleProgress } from '../lib/puzzleProgress';
 import { formatRating, loadPuzzleRating, type PuzzleRatingState } from '../lib/puzzleRating';
 import { loadSchedule, dueNow } from '../lib/spacedRepetition';
@@ -21,20 +22,49 @@ import {
   type PuzzleCategory,
 } from '../lib/puzzleSchema';
 import { PuzzleView } from './PuzzleView';
+import { navigate } from '../lib/router';
+import { SkeletonGrid } from '../components/Skeleton';
 
-export function PuzzlesPage() {
+type Props = {
+  /** Optional puzzle id from the route — when present and matching a
+   *  puzzle in the catalog, open it directly. Lets `/#/puzzles/<id>`
+   *  serve as a stable share link without restructuring this page. */
+  initialPuzzleId?: string | null;
+};
+
+export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
   const [puzzles, setPuzzles] = useState<Puzzle[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<PuzzleProgress>(() => loadPuzzleProgress());
   const [rating] = useState<PuzzleRatingState>(() => loadPuzzleRating());
   const reviewQueueSize = useMemo(() => dueNow(loadSchedule()).length, []);
-  const [activePuzzleId, setActivePuzzleId] = useState<string | null>(null);
+  const [activePuzzleId, setActivePuzzleId] = useState<string | null>(initialPuzzleId);
 
   useEffect(() => {
     loadPuzzles()
-      .then((data) => setPuzzles(data))
+      // Merge curated + user-created so both appear in the same
+      // category counts. User puzzles aren't filtered out — they're
+      // a first-class part of the catalog once verified.
+      .then((data) => setPuzzles([...data, ...loadUserPuzzles()]))
       .catch((err) => setLoadError(String(err)));
   }, []);
+
+  // React to route changes while the page is mounted (e.g. user pastes
+  // a deep link or clicks a daily-puzzle card). When the requested id
+  // doesn't exist in the catalog we fall through to the index view —
+  // toasts here would be too noisy for a shareable-link scenario.
+  useEffect(() => {
+    if (initialPuzzleId && puzzles?.some((p) => p.id === initialPuzzleId)) {
+      setActivePuzzleId(initialPuzzleId);
+    }
+  }, [initialPuzzleId, puzzles]);
+
+  // Mirror the active selection into the URL so deep-links + browser
+  // back/forward behave intuitively. Index view = `/#/puzzles`, open
+  // puzzle = `/#/puzzles/<id>`.
+  useEffect(() => {
+    navigate({ tab: 'puzzles', id: activePuzzleId });
+  }, [activePuzzleId]);
 
   const byCategory = useMemo(() => {
     const grouped: Record<PuzzleCategory, Puzzle[]> = {
@@ -42,6 +72,7 @@ export function PuzzlesPage() {
       'mate-2': [],
       tactic: [],
       counting: [],
+      defense: [],
     };
     if (puzzles) {
       for (const p of puzzles) grouped[p.category].push(p);
@@ -122,8 +153,11 @@ export function PuzzlesPage() {
         {loadError && (
           <p className="puzzles-error">⚠ โหลด content ไม่สำเร็จ: {loadError}</p>
         )}
-        {!puzzles && !loadError && <p className="label-aside">กำลังโหลด ...</p>}
       </header>
+
+      {!puzzles && !loadError && (
+        <SkeletonGrid count={4} withThumb={false} />
+      )}
 
       {puzzles && (
         <DailyPuzzleCard

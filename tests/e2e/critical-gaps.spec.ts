@@ -49,7 +49,10 @@ async function loadCustomFenViaLibrary(
 test.describe('critical gap coverage', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('openmakruk_onboarded', '1');
+    });
   });
 
   // ────────────────────────────────────────────────────────────────

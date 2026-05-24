@@ -1,1 +1,66 @@
-[]
+[
+  {
+    "id": "eg-kr-vs-k-corner",
+    "title": "K+R vs K · มุมสุด · 1 ตา",
+    "fen": "4k3/8/4K3/8/8/8/8/R7 w - - 0 1",
+    "moves": ["a1a8"],
+    "commentary": [
+      { "plyAfter": 0, "text": "ตำแหน่งเริ่มต้น · เราเหลือเรือเป็นกำลังหลัก · ฝ่ายตรงข้ามขุนเปลือย · count = 16 ตา." },
+      { "plyAfter": 1, "text": "Ra8# — ปิดเกม. ขุนของเรา (e6) คุม d7/e7/f7 · เรือใหม่คุม rank 8 · ขุนดำไม่มีทางหนี." }
+    ],
+    "category": "kr-vs-k",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "eg-krr-vs-k-ladder",
+    "title": "K+R+R vs K · Ladder · 3 ตา",
+    "fen": "4k3/8/8/8/4K3/8/R7/1R6 w - - 0 1",
+    "moves": ["a2a7", "e8d8", "b1b8"],
+    "commentary": [
+      { "plyAfter": 0, "text": "K+R+R vs K · count strict = 8 ตา · ใช้ 2 เรือ ladder pattern." },
+      { "plyAfter": 1, "text": "1.Ra7 — เรือคุม rank 7 ตัดทางทิศใต้ของขุนดำ · บีบให้ขุนต้องเลือกระหว่าง d8 หรือ f8." },
+      { "plyAfter": 2, "text": "1...Kd8 — ขุนดำเลือกซ้าย (ถ้าเลือกขวา ก็ใช้ pattern เดียวกัน)." },
+      { "plyAfter": 3, "text": "2.Rb8# — เรือตัวที่สองคุม rank 8 · ขุนดำติดระหว่างเรา 2 ตัว · mate." }
+    ],
+    "category": "kr-vs-k",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "eg-krm-vs-k",
+    "title": "K+R+M vs K · เม็ดช่วยปิด · 1 ตา",
+    "fen": "4k3/4M3/4K3/8/8/8/8/R7 w - - 0 1",
+    "moves": ["a1a8"],
+    "commentary": [
+      { "plyAfter": 0, "text": "K+R+M (Met) vs K · count = 16 (ไม่นับ Met เป็นตัวเสริม). Met ที่ e7 ทำหน้าที่ block." },
+      { "plyAfter": 1, "text": "Ra8# — Met ที่ e7 คุม d8/f8 (1 diagonal) · ขุนเราคุม e7 · เรือคุม rank 8. ตัวที่ทำให้ mate เป็นไปได้คือเม็ดบล็อก escape squares." }
+    ],
+    "category": "kr-m-vs-k",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "eg-kr-push-side",
+    "title": "K+R vs K · ผลักขุนกลาง · 3 ตา",
+    "fen": "8/8/4k3/8/4K3/8/8/R7 w - - 0 1",
+    "moves": ["a1a6", "e6f7", "e4f5"],
+    "commentary": [
+      { "plyAfter": 0, "text": "K+R vs K · ขุนดำกลางกระดาน · ต้องผลักไปริมกระดานก่อนถึงจะ mate ได้." },
+      { "plyAfter": 1, "text": "1.Ra6+ — รุกขุนดำ · บังคับให้ขยับ. เรือคุม rank 6 · ขุนเรา e4 ทำงานคู่กับเรือ." },
+      { "plyAfter": 2, "text": "1...Kf7 — ขุนดำต้องไปข้างขวา (e7 ถูกขุนเราคุม · g7/g6 ก็ถูกบีบ)." },
+      { "plyAfter": 3, "text": "2.Kf5 — opposition · ขุนเรายืนตรงข้ามขุนดำ (ห่าง 1 file 2 ranks ขั้น setup). ตาถัดไปจะ Rxx แล้ว ไล่ขุนไปริม. คงค่อย ๆ บีบ · ระวังนับศักดิ์." }
+    ],
+    "category": "kr-vs-k",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "eg-counting-1r-16",
+    "title": "นับศักดิ์ K+R vs K · มุม h · 16 ตา · 1 ตา",
+    "fen": "7k/8/6K1/8/8/8/8/R7 w - - 0 1",
+    "moves": ["a1a8"],
+    "commentary": [
+      { "plyAfter": 0, "text": "ฝ่ายดำเหลือขุนเปลือย เริ่มนับศักดิ์ K+R vs K = 16 ตา · ตำแหน่งเหมาะใช้ pattern 'corner mate' พื้นฐาน." },
+      { "plyAfter": 1, "text": "Ra8# — ตา 1 จาก 16 · เพราะขุนเราตรงข้ามขุนดำในมุม + เรือใหม่คุม rank 8 = ไม่มีทางหนี. ฝึกความเร็วในการ recognize pattern นี้ใน real game." }
+    ],
+    "category": "kr-vs-k",
+    "difficulty": "beginner"
+  }
+]

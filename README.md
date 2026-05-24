@@ -1,6 +1,6 @@
 # OpenMakruk
 
-> เว็บฝึก / เล่น / วิเคราะห์ **หมากรุกไทย** — เปิด source · 100% client-side · ไม่มี server, ไม่มี cookies, ไม่มี analytics
+> เว็บฝึก / เล่น / วิเคราะห์ **หมากรุกไทย** — เปิด source · 100% client-side app logic · ไม่มี account server · ไม่มี cookies · ไม่มี analytics · static asset เท่านั้น
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![E2E: Playwright](https://img.shields.io/badge/tests-42_passing-brightgreen)](tests/e2e)
@@ -164,7 +164,7 @@ src/
 | NNUE network | belzedar_'s makruk-a8c621e24a8c | **CC BY-SA 4.0** |
 | E2E test runner | Playwright | Apache 2.0 (devDep — not shipped) |
 
-All GPL-3.0 deps are used **unmodified** (loaded from npm at build, served as static assets at runtime). OpenMakruk's own code therefore remains MIT-licensed without GPL-contamination.
+OpenMakruk's own source code is licensed MIT. Bundled runtime dependencies retain their original licenses — GPL-3.0 deps (chessground, ffish-es6, fairy-stockfish-nnue.wasm) are used **unmodified** and loaded as static assets. Users and redistributors must comply with the GPL-3.0 and CC BY-SA 4.0 terms listed in [`NOTICE.md`](NOTICE.md).
 
 CC BY-SA 4.0 assets require **attribution visible to end users** — provided on the [About page](src/pages/AboutPage.tsx) at `/#/about` in the running app.
 
@@ -213,7 +213,7 @@ The dragMove helper is smart: synthesised mouse drag for multi-square moves, cli
 
 ## Privacy
 
-100% client-side. No server contacts. No third-party trackers. No cookies.
+100% client-side app logic. No account server, no database, no telemetry, no third-party trackers, no cookies. Static assets (HTML/JS/CSS/board piece SVGs/content JSON) are served from the host you load the app from; the optional NNUE network blob is fetched from jsDelivr's CDN on demand. None of these requests carry user identifiers — they're plain static file fetches.
 
 User state in `localStorage`:
 - `openmakruk_stats` — rating, history, displayName

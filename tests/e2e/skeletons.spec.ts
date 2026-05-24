@@ -3,12 +3,15 @@
 // (or fails loudly) before any content fill-in.
 
 import { test, expect } from '@playwright/test';
-import { waitForContentReady } from './helpers';
+import { readStore, waitForContentReady } from './helpers';
 
 test.describe('skeleton features', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
+    await page.evaluate(() => {
+      localStorage.clear();
+      localStorage.setItem('openmakruk_onboarded', '1');
+    });
   });
 
   test('Settings page shows every section + a working toggle', async ({ page }) => {
@@ -30,9 +33,10 @@ test.describe('skeleton features', () => {
     await expect(soundsToggle).toHaveClass(/off/);
 
     // Verify the change persisted to localStorage
-    const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('openmakruk_settings') ?? '{}'),
-    );
+    const stored = (await readStore<{ soundsEnabled: boolean }>(
+      page,
+      'openmakruk_settings',
+    )) ?? { soundsEnabled: true };
     expect(stored.soundsEnabled).toBe(false);
   });
 

@@ -1,7 +1,7 @@
 // Puzzle E2E — actually solve a mate-in-1 by dragging the piece.
 
 import { test, expect } from '@playwright/test';
-import { dragMove, readBoardFen, waitForContentReady } from './helpers';
+import { dragMove, readBoardFen, readStore, waitForContentReady } from './helpers';
 
 test.describe('puzzles', () => {
   test.beforeEach(async ({ page }) => {
@@ -11,19 +11,17 @@ test.describe('puzzles', () => {
     });
   });
 
-  test('lists 4 categories with correct counts', async ({ page }) => {
+  test('lists 5 categories with correct counts', async ({ page }) => {
     await page.goto('/#/puzzles');
     await waitForContentReady(page);
     const cards = page.locator('.puzzle-category-card');
-    await expect(cards).toHaveCount(4);
-    // mate-in-1 has 6 puzzles
-    await expect(cards.nth(0)).toContainText('0 / 6');
-    // mate-in-2 has 1 puzzle
-    await expect(cards.nth(1)).toContainText('0 / 1');
-    // tactic has 4 puzzles
-    await expect(cards.nth(2)).toContainText('0 / 4');
-    // counting has 0 puzzles
-    await expect(cards.nth(3)).toContainText('0 / 0');
+    await expect(cards).toHaveCount(5);
+    // v6 manifest: mate-1=14, mate-2=5, tactic=17, counting=13, defense=5
+    await expect(cards.nth(0)).toContainText('0 / 14');
+    await expect(cards.nth(1)).toContainText('0 / 5');
+    await expect(cards.nth(2)).toContainText('0 / 17');
+    await expect(cards.nth(3)).toContainText('0 / 13');
+    await expect(cards.nth(4)).toContainText('0 / 5');
   });
 
   test('solves a mate-in-1 by dragging a1→a8', async ({ page }) => {
@@ -83,9 +81,10 @@ test.describe('puzzles', () => {
       page.locator('.puzzle-feedback-text.good'),
     ).toBeVisible({ timeout: 5_000 });
 
-    const progress = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('openmakruk_puzzle_progress') ?? '{}'),
-    );
+    const progress = (await readStore<{ solved: Record<string, { attempts: number; usedHint: boolean }> }>(
+      page,
+      'openmakruk_puzzle_progress',
+    )) ?? { solved: {} };
     // Whichever puzzle was first-unsolved should now be in `solved`.
     // (With fresh localStorage that's mate-003 — lowest rating in mate-1.)
     const solvedIds = Object.keys(progress.solved ?? {});

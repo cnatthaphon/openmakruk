@@ -4,6 +4,7 @@ import type { Api } from 'chessground/api';
 import type { Config } from 'chessground/config';
 import type { Key } from 'chessground/types';
 import type { Square } from '../lib/makruk';
+import { invalidateChessgroundBounds } from '../lib/chessgroundBounds';
 import './Board.css';
 
 type Props = {
@@ -58,6 +59,29 @@ function toChessgroundFen(makrukFen: string): string {
     .replace(/s/g, 'b');
 }
 
+/**
+ * Detect a "jump" between two FENs — i.e. the next fen is NOT a
+ * single-move continuation of the previous one. True for resume,
+ * library load, review-mode variation jumps, undo-back-to-start.
+ *
+ * Heuristic: count piece-placement chars that differ between the two
+ * FENs' first field. A single legal move changes at most ~4 chars
+ * (one piece moved + maybe a capture + maybe rank-count digit shifts).
+ * More than 6 chars different = something bigger than one move.
+ */
+function isFenJump(prevFen: string, nextFen: string): boolean {
+  if (prevFen === nextFen) return false;
+  const prevPlacement = prevFen.split(' ')[0];
+  const nextPlacement = nextFen.split(' ')[0];
+  if (prevPlacement.length !== nextPlacement.length) return true;
+  let diff = 0;
+  for (let i = 0; i < prevPlacement.length; i++) {
+    if (prevPlacement[i] !== nextPlacement[i]) diff++;
+    if (diff > 6) return true;
+  }
+  return false;
+}
+
 function buildDests(legalMoves: string[]): Map<Key, Key[]> {
   const dests = new Map<Key, Key[]>();
   for (const uci of legalMoves) {
@@ -102,6 +126,25 @@ export function Board({
   useEffect(() => {
     onMoveRef.current = onMove;
   });
+
+  // Bulletproof bounds-cache invalidation: clear the chessground
+  // bounds memo at the START of every pointer interaction (capture
+  // phase, before chessground's own handler reads it). Why we need
+  // this: chessground's internal ResizeObserver fires on size
+  // changes only, NOT position changes — so a layout shift that
+  // moves the board without resizing leaves clicks 1 file/rank off.
+  // See `lib/chessgroundBounds.ts` for the encapsulated detail.
+  useEffect(() => {
+    const wrap = containerRef.current;
+    if (!wrap) return;
+    const clearBounds = () => invalidateChessgroundBounds(apiRef.current);
+    wrap.addEventListener('mousedown', clearBounds, { capture: true });
+    wrap.addEventListener('touchstart', clearBounds, { capture: true, passive: true });
+    return () => {
+      wrap.removeEventListener('mousedown', clearBounds, { capture: true });
+      wrap.removeEventListener('touchstart', clearBounds, { capture: true });
+    };
+  }, []);
 
   // Mount chessground once. Subsequent state changes go through api.set()
   // in the second effect so we never re-create the DOM (chessground
@@ -154,8 +197,36 @@ export function Board({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Track previous fen + orientation so we can detect "jumps" (resume
+  // from save / library load / review variation / orientation flip).
+  // Three problems to solve on jumps:
+  //   1. Animation interpolates every piece's transform from old to new
+  //      position — mid-animation visuals don't match the piece map,
+  //      so clicks during the transition land on the wrong square
+  //      ("clicked Met but it counted as Bia").
+  //   2. Chessground caches the board's bounding rect for click hit-
+  //      testing; if layout shifts (resume-banner appearing/disappearing,
+  //      sidebar tab swap), the cached rect goes stale and click coords
+  //      map to wrong squares.
+  //   3. Orientation flip on resume (userSide=black) — the same coord
+  //      change without invalidating the rect causes the same effect.
+  // Fix: detect jump, disable animation for that update, AND force a
+  // redrawAll afterwards so chessground re-measures the DOM.
+  const prevFenRef = useRef(fen);
+  const prevFlippedRef = useRef(flipped);
+
   // Sync React state into chessground without remounting.
   useEffect(() => {
+    const prevFen = prevFenRef.current;
+    const orientationChanged = prevFlippedRef.current !== flipped;
+    const isJump = isFenJump(prevFen, fen) || orientationChanged;
+    prevFenRef.current = fen;
+    prevFlippedRef.current = flipped;
+    // ALWAYS invalidate the bounds memo before applying state changes.
+    // Cheap (next click re-measures lazily) but bulletproof against
+    // any unobserved layout shift — banner removal, sub-tab swap,
+    // sidebar resize, parent flex reflow, etc.
+    invalidateChessgroundBounds(apiRef.current);
     apiRef.current?.set({
       fen: toChessgroundFen(fen),
       orientation: flipped ? 'black' : 'white',
@@ -169,7 +240,7 @@ export function Board({
         showDests: showLegalDots,
       },
       animation: {
-        enabled: animationMs > 0,
+        enabled: !isJump && animationMs > 0,
         duration: animationMs,
       },
       highlight: {
@@ -177,6 +248,13 @@ export function Board({
         check: true,
       },
     });
+    // After a jump (resume / inspect / orientation flip), re-measure
+    // bounds AND force a piece DOM rebuild so any in-flight animation
+    // doesn't leave pieces at intermediate positions.
+    if (isJump) {
+      invalidateChessgroundBounds(apiRef.current);
+      apiRef.current?.redrawAll();
+    }
   }, [
     fen,
     legalMoves,

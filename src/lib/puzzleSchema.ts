@@ -7,7 +7,13 @@
 //
 // Adding a puzzle = appending a JSON entry. No code change required.
 
-export type PuzzleCategory = 'mate-1' | 'mate-2' | 'tactic' | 'counting';
+export type PuzzleCategory =
+  | 'mate-1'   // single-move mate
+  | 'mate-2'   // 2-3 move forced mate
+  | 'tactic'   // material gain / positional motif
+  | 'counting' // counting-rule (นับศักดิ์) constrained mate
+  | 'defense'  // user must defend / escape / block — find the ONLY move that survives
+  ;
 
 export type Puzzle = {
   id: string;
@@ -54,6 +60,11 @@ export const PUZZLE_CATEGORY_META: Record<
     description: 'ไล่จนทันก่อน count limit',
     emoji: '⏱️',
   },
+  defense: {
+    title: 'ป้องกัน (หนีให้รอด)',
+    description: 'หาตาเดียวที่กันรุก / บล็อก / หนีตาย',
+    emoji: '🛡️',
+  },
 };
 
 export const PUZZLE_CATEGORY_ORDER: PuzzleCategory[] = [
@@ -61,4 +72,49 @@ export const PUZZLE_CATEGORY_ORDER: PuzzleCategory[] = [
   'mate-2',
   'tactic',
   'counting',
+  'defense',
 ];
+
+// ─── User-generated puzzles ───────────────────────────────────────
+//
+// Same shape as a system puzzle, plus authorship + engine-verification
+// metadata. Stored in `openmakruk_user_puzzles` localStorage (not in
+// /content/puzzles/all.json). The two pools are MERGED at read time so
+// the Puzzles tab shows both side-by-side; the `source` field tells
+// the UI which is which (system pool gets a 🌳 badge, user pool gets
+// 👤 with author name).
+//
+// Why a separate store rather than appending to all.json:
+//   1. Content version bumps for the curated pool shouldn't churn
+//      every user's localStorage.
+//   2. User puzzles never sync to the manifest server (they're local
+//      until a future Phase 9 backend offers community submission).
+//   3. Privacy: a user's drafts stay on their device unless they
+//      explicitly share.
+//
+// `verifiedBy: 'engine'` is a SOFT promise — the verification happens
+// at creation time but the engine could have a bug or the user could
+// have hand-edited localStorage. Treat user puzzles as best-effort,
+// not as authoritative ground truth.
+
+export type UserPuzzle = Puzzle & {
+  /** Always 'user-created' for puzzles in the user store. */
+  source: 'user-created';
+  /** Display name from stats at creation time. May be blank if the
+   *  user didn't set one yet — UI falls back to "ไม่ระบุชื่อ". */
+  authorName: string;
+  /** When this puzzle was first saved. */
+  createdAt: number;
+  /** Verification provenance — set to 'engine' after a successful
+   *  ffish-validated solution check. */
+  verifiedBy: 'engine' | 'unverified';
+  /** Engine search depth used to verify (so future re-verification
+   *  can decide whether to re-run at higher depth). */
+  verifiedAtDepth?: number;
+  /** Timestamp of last verification pass. */
+  verifiedAt?: number;
+};
+
+export type UserPuzzleStore = {
+  puzzles: UserPuzzle[];
+};

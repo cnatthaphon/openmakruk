@@ -23,9 +23,11 @@ import {
 import {
   DIFFICULTY_LABELS,
   DIFFICULTY_PRESETS,
+  getActiveEngineId,
   isNNUELoaded,
   loadNNUE,
   searchBestMove,
+  setActiveEngine,
   type Difficulty,
 } from './lib/engine';
 import { log, timeStart, timeEnd } from './lib/log';
@@ -39,6 +41,7 @@ import {
   type UserStats,
 } from './lib/stats';
 import { LearnPage } from './pages/LearnPage';
+import { StudyPage } from './pages/StudyPage';
 import { PuzzlesPage } from './pages/PuzzlesPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { CustomPage } from './pages/CustomPage';
@@ -60,25 +63,55 @@ import {
   loadSavedGame,
   saveCurrentGame,
 } from './lib/gameState';
+import { autoAnalyze, nnueAutoLoad } from './lib/flags';
 import { fenToPieceMap } from './lib/makruk';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
+import { ClockDisplay } from './components/Clock';
+import {
+  TIME_CONTROLS,
+  clockFromControl,
+  tickClock,
+  applyMove as clockApplyMove,
+  startClock,
+  type ClockState,
+  type TimeControl,
+} from './lib/clock';
 import { MultiPV } from './components/MultiPV';
 import type { EvalInfo, EvalScore } from './lib/evalParser';
 import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
 import { GameReport } from './components/GameReport';
-
-type Tab = 'play' | 'learn' | 'puzzles' | 'custom' | 'library' | 'profile' | 'settings' | 'about';
-
-function readTabFromHash(): Tab {
-  if (typeof window === 'undefined') return 'play';
-  const m = window.location.hash.match(/^#\/(play|learn|puzzles|custom|library|profile|settings|about)/);
-  return (m?.[1] as Tab | undefined) ?? 'play';
-}
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { toast } from './components/Toast';
+import { OnboardingModal } from './components/OnboardingModal';
+import { hasOnboarded } from './lib/onboarding';
+import { useRoute, navigate, type Tab } from './lib/router';
+import { thaiSquare, thaiUci } from './lib/thaiUci';
+import {
+  loadStreak,
+  saveStreak,
+  recordActivity,
+} from './lib/streak';
+import {
+  evaluateAchievements,
+  loadUnlocks,
+  saveUnlocks,
+} from './lib/achievements';
+import {
+  applyGauntletOutcome,
+  currentLevel as gauntletCurrentLevel,
+  loadGauntlet,
+  saveGauntlet,
+} from './lib/gauntlet';
+import { applyEventOutcome, matchEvent } from './lib/events';
+import { loadPuzzles } from './lib/content';
+import { loadPuzzleProgress } from './lib/puzzleProgress';
+import { loadLessonProgress } from './lib/learnProgress';
 
 const TAB_LABELS: Record<Tab, string> = {
   play:     '♔ เล่น',
   learn:    '🎓 ฝึก',
+  study:    '📖 ศึกษา',
   puzzles:  '🧩 ปริศนา',
   custom:   '🎨 ออกแบบ',
   library:  '📚 คลัง',
@@ -144,6 +177,8 @@ export default function App() {
   const [speed, setSpeed] = useState<Speed>('normal');
   const [thinking, setThinking] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
+  const [timeControlId, setTimeControlId] = useState<string>('unlimited');
+  const [clock, setClock] = useState<ClockState | null>(null);
   const [hint, setHint] = useState<{ from: Square; to: Square } | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [hintInfo, setHintInfo] = useState<string | null>(null);
@@ -161,6 +196,24 @@ export default function App() {
   const [reviewProgress, setReviewProgress] = useState<{ current: number; total: number } | null>(
     null,
   );
+
+  // Variation explorer (lichess-style "what if I had played differently?").
+  // When non-null, overrides the review-mode board FEN with a "what if"
+  // position derived from playing the engine's best move (or a chosen
+  // alternative). The exploration is a linear line — stepping forward
+  // appends moves, going back pops. UI exits via "กลับ" button.
+  const [exploreVariation, setExploreVariation] = useState<{
+    /** Ply being reviewed when exploration started — used to return cleanly. */
+    fromPly: number;
+    /** Starting FEN of the variation (= fenBefore of the move we're alt'ing). */
+    fenStart: string;
+    /** UCI moves played from fenStart in this exploration. */
+    line: string[];
+    /** Per-ply FENs (length = line.length + 1, fens[0] === fenStart). */
+    fens: string[];
+    /** Which step in the line is shown on the board (0 = fenStart). */
+    cursor: number;
+  } | null>(null);
 
   // Self-play pause / auto-stop. Engines at < skill 20 introduce small
   // randomness so 3-fold repetition doesn't reliably trigger; we add our
@@ -220,26 +273,62 @@ export default function App() {
   // default — practice with assist; nothing affects the rating.
   // Self-play and manual modes are always Casual regardless of toggle.
   const [rated, setRated] = useState(false);
-  // Active tab. Hash-synced so links and refresh land back on the same
-  // page; default to "play" when nothing matches.
-  const [currentTab, setCurrentTab] = useState<Tab>(() => readTabFromHash());
+  // Active route. Hash-synced via `useRoute` so back/forward buttons,
+  // deep links, and refresh all land on the same screen. Sub-resource
+  // ids (route.id) and query params (route.params) let pages deep-link
+  // into a specific lesson / puzzle / library entry.
+  const route = useRoute();
+  const currentTab: Tab = route.tab;
+  const setCurrentTab = (t: Tab) => navigate({ tab: t });
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
-  // Load ffish-es6 once on mount.
-  // Keep tab state and url hash in sync (back/forward buttons work).
-  useEffect(() => {
-    const wanted = `#/${currentTab}`;
-    if (window.location.hash !== wanted) {
-      window.history.replaceState(null, '', wanted);
-    }
-  }, [currentTab]);
+  // Onboarding gate: show on first ever visit. Read once at mount so
+  // subsequent re-renders don't keep popping the modal — the flag flips
+  // in the modal's onClose. Defer initial value to a lazy initializer
+  // so localStorage isn't touched during render.
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
 
+  // Daily streak — pulse on every app boot. recordActivity is
+  // idempotent within a day, so multiple visits don't double-count.
   useEffect(() => {
-    const onHashChange = () => setCurrentTab(readTabFromHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const next = recordActivity(loadStreak());
+    saveStreak(next);
+    log('streak.pulse', { current: next.current, longest: next.longest });
   }, []);
+
+  // Achievement evaluation — runs whenever stats / puzzle / lesson
+  // progress changes. New unlocks are toasted. Best-effort: failures
+  // here never block gameplay.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const puzzles = await loadPuzzles();
+        if (cancelled) return;
+        const streak = loadStreak();
+        const ctx = {
+          stats,
+          puzzleProgress: loadPuzzleProgress(),
+          lessonProgress: loadLessonProgress(),
+          puzzles,
+          streakCurrent: streak.current,
+          streakLongest: streak.longest,
+        };
+        const { newlyUnlocked, updated } = evaluateAchievements(ctx, loadUnlocks());
+        if (newlyUnlocked.length > 0) {
+          saveUnlocks(updated);
+          for (const a of newlyUnlocked) {
+            toast.success(`${a.icon} ปลดล็อก: ${a.name}`);
+            log('achievement.unlock', { id: a.id });
+          }
+        }
+      } catch (err) {
+        log('achievement.eval.error', { error: String(err) });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [stats.totalGames, stats.rating, state?.fen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -428,8 +517,45 @@ export default function App() {
       });
       return next;
     });
+    // Apply outcome to active gauntlet (if any). Runs alongside rating
+    // bookkeeping so a gauntlet win counts whether or not the user is
+    // in rated mode.
+    const g = loadGauntlet();
+    if (g.active) {
+      const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+      const result = forcedResult ?? state.result;
+      let outcome: 'win' | 'loss' | 'draw';
+      if (result === '1/2-1/2') outcome = 'draw';
+      else if (result === '1-0') outcome = userColor === 'white' ? 'win' : 'loss';
+      else if (result === '0-1') outcome = userColor === 'black' ? 'win' : 'loss';
+      else { gameRecordedRef.current = true; return; }
+      const updated = applyGauntletOutcome(g, outcome);
+      saveGauntlet(updated);
+      log('gauntlet.applyOutcome', { outcome, cursor: updated.cursor, status: updated.outcome });
+      if (updated.outcome === 'completed') {
+        toast.success('🏆 Gauntlet Master! ชนะ CPU ทั้ง 4 ระดับติด ๆ');
+      } else if (updated.outcome === 'failed') {
+        toast.info(`🏰 Gauntlet จบ — ผ่านได้ ${updated.cursor} ระดับ. ลองใหม่!`);
+      }
+    }
+    // Apply outcome to active event (if engine + difficulty match).
+    const activeEvent = matchEvent(settings.engineId, difficulty);
+    if (activeEvent) {
+      const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+      const result = forcedResult ?? state.result;
+      let outcome: 'win' | 'loss' | 'draw';
+      if (result === '1/2-1/2') outcome = 'draw';
+      else if (result === '1-0') outcome = userColor === 'white' ? 'win' : 'loss';
+      else if (result === '0-1') outcome = userColor === 'black' ? 'win' : 'loss';
+      else { gameRecordedRef.current = true; return; }
+      const scored = applyEventOutcome(activeEvent, outcome);
+      log('event.applyOutcome', { event: activeEvent.id, outcome, total: scored.totalGames });
+      if (outcome === 'win') {
+        toast.info(`🎯 ${activeEvent.name}: +${activeEvent.pointsPerWin} pt`);
+      }
+    }
     gameRecordedRef.current = true;
-  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length, rated]);
+  }, [state?.isGameOver, state?.result, forcedResult, mode, difficulty, history.length, rated, settings.engineId]);
 
   // Auto-enable NNUE on next visit if it was enabled before — the
   // IndexedDB cache makes this near-instant. Effects must live above the
@@ -438,7 +564,7 @@ export default function App() {
     if (!board || !state) return;
     if (nnueState !== 'off') return;
     try {
-      if (localStorage.getItem('openmakruk_nnue') === '1' && !isNNUELoaded()) {
+      if (nnueAutoLoad.read() && !isNNUELoaded()) {
         setNnueState('loading');
         setNnueProgress({ loaded: 0, total: 0 });
         loadNNUE(undefined, (loaded, total) => {
@@ -471,6 +597,19 @@ export default function App() {
       setSettings(loadSettings());
     }
   }, [currentTab]);
+
+  // Sync active engine to settings.engineId. Skipped when the chosen
+  // engine is already active (avoid tearing down + reinitting on every
+  // settings re-load). The actual engine swap is async — caller side
+  // (Play page) tolerates this because all engine calls go through
+  // `getActiveEngine()` which awaits init.
+  useEffect(() => {
+    if (!settings.engineId) return;
+    if (getActiveEngineId() === settings.engineId) return;
+    setActiveEngine(settings.engineId).catch((err) => {
+      log('engineSwap.error', { id: settings.engineId, error: String(err) });
+    });
+  }, [settings.engineId]);
 
   // Sound effects on every new move. Compare history length + total
   // piece count (parsed from current FEN) against the previous state
@@ -521,7 +660,7 @@ export default function App() {
     if (state.isGameOver || forcedResult) return;
     if (history.length === 1) gameStartedAtRef.current = Date.now();
     saveCurrentGame({
-      version: 1,
+      version: 2,
       startedAt: gameStartedAtRef.current,
       lastMoveAt: Date.now(),
       startFen: MAKRUK_START_FEN,
@@ -529,11 +668,11 @@ export default function App() {
       mode: rated ? 'rated' : 'casual',
       difficulty,
       nnue: nnueState === 'on',
-      timeControlId: null,
-      clockMs: null,
+      timeControlId: timeControlId === 'unlimited' ? null : timeControlId,
+      clockMs: clock ? { white: clock.white, black: clock.black } : null,
       userSide: mode === 'play-white' ? 'white' : 'black',
     });
-  }, [history.length, state?.isGameOver, state?.fen, mode, rated, difficulty, nnueState, forcedResult]);
+  }, [history.length, state?.isGameOver, state?.fen, mode, rated, difficulty, nnueState, forcedResult, timeControlId, clock]);
 
   // Once a game ends, drop the saved game so the next visit starts
   // fresh and doesn't offer "resume" on a terminal position.
@@ -551,9 +690,8 @@ export default function App() {
     if (!board || !state || autoAnalyzeFiredRef.current) return;
     if (currentTab !== 'play') return;
     try {
-      const flag = localStorage.getItem('openmakruk_auto_analyze');
-      if (flag === '1') {
-        localStorage.removeItem('openmakruk_auto_analyze');
+      if (autoAnalyze.read()) {
+        autoAnalyze.clear();
         autoAnalyzeFiredRef.current = true;
         void handleAnalyze();
       }
@@ -562,6 +700,155 @@ export default function App() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [board, state?.fen, currentTab]);
+
+  // ── Gauntlet enforcement ───────────────────────────────────────
+  // When a gauntlet run is active, force difficulty to its current
+  // rung. Also ensure rated mode is on so the result actually
+  // counts toward stats. Mode stays user-chosen (play-white or
+  // play-black) since gauntlet doesn't dictate side.
+  useEffect(() => {
+    const g = loadGauntlet();
+    if (!g.active) return;
+    const level = gauntletCurrentLevel(g);
+    if (!level) return;
+    if (difficulty !== level) setDifficulty(level);
+    if (!rated) setRated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.length, currentTab]);
+
+  // ── Clock: initialise + tick + flag-fall ─────────────────────────
+  // When user picks a non-unlimited time control AND a game starts
+  // (first move played), spin up a ClockState. Tick at 10 Hz while
+  // running. On flag-fall, force-end the game so the player who lost
+  // on time records a loss.
+  useEffect(() => {
+    if (timeControlId === 'unlimited') {
+      if (clock !== null) setClock(null);
+      return;
+    }
+    // Re-init clock at the start of a fresh game (no history yet).
+    if (history.length === 0 && clock === null) {
+      const tc = TIME_CONTROLS.find((t) => t.id === timeControlId);
+      if (!tc) return;
+      const fresh = clockFromControl(tc, Date.now());
+      setClock(fresh);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeControlId, history.length]);
+
+  // Start the clock running on the side-to-move once the first move
+  // happens (or game already in progress).
+  useEffect(() => {
+    if (!clock || clock.flagged) return;
+    if (state?.isGameOver || forcedResult) return;
+    if (currentTab !== 'play') return;
+    if (history.length === 0) return;
+    const sideToMove: 'white' | 'black' = state?.turn ?? 'white';
+    if (clock.running === sideToMove) return; // already running on right side
+    setClock((c) => (c ? startClock(c, sideToMove, Date.now()) : c));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.length, state?.turn, state?.isGameOver, forcedResult, currentTab]);
+
+  // 10 Hz tick. Cheap — only runs while a clock is active + game live.
+  useEffect(() => {
+    if (!clock || clock.flagged) return;
+    if (clock.running === null) return;
+    if (state?.isGameOver || forcedResult) return;
+    const interval = window.setInterval(() => {
+      setClock((c) => (c ? tickClock(c, Date.now()) : c));
+    }, 100);
+    return () => window.clearInterval(interval);
+  }, [clock?.running, clock?.flagged, state?.isGameOver, forcedResult]);
+
+  // Flag-fall handler — when a clock hits 0, the side that flagged
+  // loses on time. Translate to a forced result so the existing
+  // game-over UI + auto-recorder picks it up.
+  useEffect(() => {
+    if (!clock?.flagged) return;
+    if (forcedResult) return;
+    // The side that flagged loses. White flagged → black wins (0-1).
+    const result = clock.flagged === 'white' ? '0-1' : '1-0';
+    setForcedResult(result);
+    log('clock.flagFall', { side: clock.flagged });
+  }, [clock?.flagged, forcedResult]);
+
+  // Apply increment + swap clock side after every move (user or CPU).
+  // We use history length as the trigger; whichever side just moved
+  // gets the increment.
+  const prevHistoryLenForClockRef = useRef(0);
+  useEffect(() => {
+    const prev = prevHistoryLenForClockRef.current;
+    const newLen = history.length;
+    prevHistoryLenForClockRef.current = newLen;
+    if (!clock || clock.flagged) return;
+    if (newLen <= prev) return; // not an advance (history reset / undo)
+    // The side that JUST moved is opposite to current state.turn.
+    // history.length odd = white just moved (1, 3, 5…); even = black.
+    const mover: 'white' | 'black' = newLen % 2 === 1 ? 'white' : 'black';
+    setClock((c) => (c ? clockApplyMove(c, mover, Date.now()) : c));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.length]);
+
+  // ── Live evaluation bar ───────────────────────────────────────────
+  // When Settings.showEvalBar is on, run a low-depth background
+  // search on every position change so the EvalBar reflects the
+  // current evaluation without the user having to press Analyze.
+  // Light-weight (depth 10 ~ 100-300 ms); cancel-safe via a token
+  // ref so out-of-order completions don't overwrite a newer eval.
+  const liveEvalTokenRef = useRef(0);
+  useEffect(() => {
+    if (!settings.showEvalBar) return;
+    if (!board || !state) return;
+    if (currentTab !== 'play') return;
+    if (state.isGameOver || forcedResult) return;
+    // Skip during the user's main Analyze run — that one uses higher
+    // depth + multi-PV; we'd just thrash the engine.
+    if (analyzing) return;
+    // Skip in review mode (eval bar is driven by the analysis archive).
+    if (reviewActive) return;
+    // Skip in inspect mode (viewer state, not real game state).
+    if (inspectPly !== null) return;
+
+    const token = ++liveEvalTokenRef.current;
+    let cancelled = false;
+    searchBestMove(state.fen, { depth: 10 })
+      .then((result) => {
+        if (cancelled) return;
+        if (token !== liveEvalTokenRef.current) return; // newer search already started
+        if (typeof result.mateIn === 'number') {
+          setLiveEval({ type: 'mate', mate: result.mateIn });
+        } else if (typeof result.scoreCp === 'number') {
+          setLiveEval({ type: 'cp', cp: result.scoreCp });
+        }
+      })
+      .catch(() => {
+        // Engine error — leave liveEval as last known good
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    state?.fen,
+    settings.showEvalBar,
+    currentTab,
+    analyzing,
+    reviewActive,
+    inspectPly,
+    state?.isGameOver,
+    forcedResult,
+  ]);
+
+  // Cancel any active exploration when the user steps to a different
+  // ply in review (or exits review entirely) — the exploration was
+  // scoped to a specific ply's fenBefore and would be confusing if it
+  // persisted after the user moved on. Must live above the early
+  // returns to satisfy React's Rules of Hooks (always same order).
+  useEffect(() => {
+    if (!exploreVariation) return;
+    if (!reviewActive) { setExploreVariation(null); return; }
+    if (exploreVariation.fromPly !== reviewPly) setExploreVariation(null);
+  }, [reviewPly, reviewActive, exploreVariation]);
 
   if (loadError) {
     return (
@@ -619,6 +906,15 @@ export default function App() {
     setHistory((h) => [...h, tryMove]);
     setHistoryFens((f) => [...f, board.fen()]);
     setState(snapshot(board));
+    // Hint banner / Coach panel becomes stale once the user moves — clear
+    // them so the sidebar doesn't keep showing yesterday's recommendation.
+    setHint(null);
+    setHintInfo(null);
+    setHintCoach(null);
+    // If the user got pushed into the "ผู้ช่วย" sub-tab by an earlier
+    // hint/analyze click, jump them back to the move log so they can see
+    // their own move land + decide what to do next.
+    if (sidebarTab === 'help') setSidebarTab('moves');
     log('user.move.applied', { move: tryMove });
   };
 
@@ -658,14 +954,21 @@ export default function App() {
   const handleResign = () => {
     if (!board || !state || state.isGameOver || forcedResult) return;
     if (mode !== 'play-white' && mode !== 'play-black') return;
-    if (!confirm('ยอมแพ้ในเกมนี้? (จะเสีย rating)')) return;
-    log('user.resign', { mode, fullmove: state.fullmove });
-    const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
-    const losingResult = userColor === 'white' ? '0-1' : '1-0';
-    // Keep history intact so the user can still review the game; the
-    // auto-recorder effect picks up forcedResult and writes the loss
-    // into stats. The game-over overlay also keys off forcedResult.
-    setForcedResult(losingResult);
+    toast.confirm('ยอมแพ้ในเกมนี้? (จะเสีย rating)', {
+      confirmLabel: 'ยอมแพ้',
+      destructive: true,
+      onConfirm: () => {
+        if (!state) return;
+        log('user.resign', { mode, fullmove: state.fullmove });
+        const userColor: 'white' | 'black' =
+          mode === 'play-white' ? 'white' : 'black';
+        const losingResult = userColor === 'white' ? '0-1' : '1-0';
+        // Keep history intact so the user can still review the game;
+        // the auto-recorder effect picks up forcedResult and writes
+        // the loss into stats. Game-over overlay also keys off it.
+        setForcedResult(losingResult);
+      },
+    });
   };
 
   const handleOfferDraw = async () => {
@@ -741,6 +1044,14 @@ export default function App() {
     setHistoryFens([board.fen()]);
     setInspectPly(null);
     setState(snapshot(board));
+    // Reset clock back to its initial state for the chosen time control.
+    if (timeControlId !== 'unlimited') {
+      const tc = TIME_CONTROLS.find((t) => t.id === timeControlId);
+      if (tc) setClock(clockFromControl(tc, Date.now()));
+    } else {
+      setClock(null);
+    }
+    setForcedResult(null);
   };
 
   const handleEnableNNUE = async () => {
@@ -756,11 +1067,7 @@ export default function App() {
       });
       setNnueState('on');
       setNnueProgress(null);
-      try {
-        localStorage.setItem('openmakruk_nnue', '1');
-      } catch {
-        // ignore — best-effort persistence
-      }
+      nnueAutoLoad.set(true);
     } catch (err) {
       console.error('NNUE load failed:', err);
       setNnueState('off');
@@ -832,15 +1139,19 @@ export default function App() {
           log('hint.coachFailed', { error: String(err) });
           setHintCoach(null);
         }
-        // Keep the compact eval label as a fallback string.
+        // Keep the compact eval label as a fallback string. Phrase it in
+        // user-friendly Thai instead of engine jargon — non-chess players
+        // will read this without knowing what "eval +1.50" means.
         let info = '';
         if (typeof result.mateIn === 'number') {
-          info = `รุกจน ${Math.abs(result.mateIn)} ตา`;
+          info = `รุกจนใน ${Math.abs(result.mateIn)} ตา`;
         } else if (typeof result.scoreCp === 'number') {
-          const pawns = (result.scoreCp / 100).toFixed(2);
-          info = `eval ${result.scoreCp > 0 ? '+' : ''}${pawns}`;
+          const cp = result.scoreCp;
+          const pawns = Math.abs(cp / 100).toFixed(1);
+          if (cp > 50) info = `ได้เปรียบ ~${pawns} เบี้ย`;
+          else if (cp < -50) info = `เสียเปรียบ ~${pawns} เบี้ย`;
+          else info = 'สูสี';
         }
-        if (result.depth) info += `${info ? ' · ' : ''}depth ${result.depth}`;
         setHintInfo(info || null);
         log('hint.shown', {
           move: result.bestMove,
@@ -900,23 +1211,33 @@ export default function App() {
   //   2. inspectedView — mid-game peek at a past ply (lightweight,
   //                      no engine)
   //   3. live          — actual current position, input enabled
-  const viewFen = reviewActive
-    ? reviewPly === 0
-      ? MAKRUK_START_FEN
-      : reviewMoves[reviewPly - 1]?.fenAfter ?? state.fen
-    : inspectedView
-      ? inspectedView.fen
-      : state.fen;
-  const viewLastMove = reviewActive
-    ? reviewPly === 0
-      ? null
-      : (() => {
-          const m = reviewMoves[reviewPly - 1];
-          return m ? parseUci(m.uci) : null;
-        })()
-    : inspectedView
-      ? inspectedView.lastMove
-      : lastMove;
+  // When variation exploration is active, its cursor wins over the
+  // normal review-ply FEN. That's how "what if I had played the engine
+  // move instead?" projects onto the same board without losing the
+  // review state behind it.
+  const viewFen = exploreVariation
+    ? exploreVariation.fens[exploreVariation.cursor] ?? exploreVariation.fenStart
+    : reviewActive
+      ? reviewPly === 0
+        ? MAKRUK_START_FEN
+        : reviewMoves[reviewPly - 1]?.fenAfter ?? state.fen
+      : inspectedView
+        ? inspectedView.fen
+        : state.fen;
+  const viewLastMove = exploreVariation
+    ? exploreVariation.cursor > 0
+      ? parseUci(exploreVariation.line[exploreVariation.cursor - 1])
+      : null
+    : reviewActive
+      ? reviewPly === 0
+        ? null
+        : (() => {
+            const m = reviewMoves[reviewPly - 1];
+            return m ? parseUci(m.uci) : null;
+          })()
+      : inspectedView
+        ? inspectedView.lastMove
+        : lastMove;
   const viewLegalMoves = reviewActive || inspectedView ? [] : state.legalMoves;
   const viewDisabled =
     reviewActive ||
@@ -925,6 +1246,81 @@ export default function App() {
     state.isGameOver ||
     (userSide !== 'both' && userSide !== state.turn);
   const reviewCurrent = reviewActive && reviewPly > 0 ? reviewMoves[reviewPly - 1] : null;
+
+  /**
+   * Start exploring a variation from the currently-reviewed move. Plays
+   * the engine's recommended move on a throwaway ffish board to get the
+   * resulting FEN, then offers a stepper UI for following the engine's
+   * continuation (we fetch more PV moves as the user advances).
+   */
+  const handleStartExploration = async () => {
+    if (!reviewCurrent || exploreVariation) return;
+    try {
+      const ffish = await loadFfish();
+      const tmpBoard = new ffish.Board('makruk', reviewCurrent.fenBefore);
+      try {
+        const ok = tmpBoard.push(reviewCurrent.bestMove);
+        if (!ok) {
+          log('explore.startFailed', { reason: 'illegal-best-move', move: reviewCurrent.bestMove });
+          return;
+        }
+        const fenAfter = tmpBoard.fen();
+        setExploreVariation({
+          fromPly: reviewPly,
+          fenStart: reviewCurrent.fenBefore,
+          line: [reviewCurrent.bestMove],
+          fens: [reviewCurrent.fenBefore, fenAfter],
+          cursor: 1,
+        });
+        log('explore.start', { ply: reviewPly, line: reviewCurrent.bestMove });
+      } finally {
+        tmpBoard.delete();
+      }
+    } catch (err) {
+      log('explore.error', { error: String(err) });
+    }
+  };
+
+  /** Step the exploration cursor forward — if the line ends, ask the
+   *  engine for the next best move from the current position. */
+  const handleExploreNext = async () => {
+    if (!exploreVariation) return;
+    const ev = exploreVariation;
+    if (ev.cursor < ev.line.length) {
+      setExploreVariation({ ...ev, cursor: ev.cursor + 1 });
+      return;
+    }
+    // At the end of the known line — ask engine for next move.
+    try {
+      const result = await searchBestMove(ev.fens[ev.cursor], { depth: 12 });
+      if (!result.bestMove || result.bestMove === '(none)' || result.bestMove === '0000') return;
+      const ffish = await loadFfish();
+      const tmpBoard = new ffish.Board('makruk', ev.fens[ev.cursor]);
+      try {
+        tmpBoard.push(result.bestMove);
+        const nextFen = tmpBoard.fen();
+        setExploreVariation({
+          ...ev,
+          line: [...ev.line, result.bestMove],
+          fens: [...ev.fens, nextFen],
+          cursor: ev.cursor + 1,
+        });
+      } finally {
+        tmpBoard.delete();
+      }
+    } catch (err) {
+      log('explore.next.error', { error: String(err) });
+    }
+  };
+
+  const handleExplorePrev = () => {
+    if (!exploreVariation || exploreVariation.cursor === 0) return;
+    setExploreVariation({ ...exploreVariation, cursor: exploreVariation.cursor - 1 });
+  };
+
+  const handleExitExploration = () => {
+    setExploreVariation(null);
+  };
 
   const handleModeChange = (newMode: Mode) => {
     if (pendingTimer.current !== null) {
@@ -973,8 +1369,32 @@ export default function App() {
     setFlipped(saved.userSide === 'black');
     setDifficulty(saved.difficulty);
     setRated(saved.mode === 'rated');
+    // Restore clock if the saved game was timed. Unlimited games keep
+    // clock = null. For timed games, reconstruct ClockState from the
+    // saved increment + the saved ms-remaining for each side. The
+    // running side is whoever's turn it is now (= state.turn) and
+    // the side that's about to move owns the elapsed time until
+    // they actually move.
+    if (saved.timeControlId && saved.timeControlId !== 'unlimited' && saved.clockMs) {
+      const tc = TIME_CONTROLS.find((t) => t.id === saved.timeControlId);
+      if (tc) {
+        const sideToMove: 'white' | 'black' = board.turn() ? 'white' : 'black';
+        setTimeControlId(saved.timeControlId);
+        setClock({
+          white: saved.clockMs.white,
+          black: saved.clockMs.black,
+          incrementMs: tc.incrementSeconds * 1000,
+          running: sideToMove,
+          lastTickMs: Date.now(),
+          flagged: null,
+        });
+      }
+    } else {
+      setTimeControlId('unlimited');
+      setClock(null);
+    }
     setResumeAvailable(false);
-    log('game.resumed', { plies: applied, mode: saved.mode });
+    log('game.resumed', { plies: applied, mode: saved.mode, timeControl: saved.timeControlId });
   };
 
   const handleDiscardSaved = () => {
@@ -1029,14 +1449,42 @@ export default function App() {
           onClick={() => setCurrentTab('profile')}
           title="ดูโปรไฟล์ + ประวัติเกม"
         >
+          {(() => {
+            const streak = loadStreak();
+            const days = streak.current;
+            return days > 0 ? (
+              <span className="app-profile-streak" title={`Streak ${days} วันติด · longest ${streak.longest}`}>
+                🔥 {days}
+              </span>
+            ) : null;
+          })()}
           <span className="app-profile-name">{stats.displayName}</span>
           <span className="app-profile-rating">{stats.rating}</span>
         </button>
       </header>
-      {currentTab === 'learn' && <LearnPage />}
-      {currentTab === 'puzzles' && <PuzzlesPage />}
+      {currentTab === 'learn' && (
+        <ErrorBoundary scope="learn">
+          <LearnPage initialLessonId={route.id} />
+        </ErrorBoundary>
+      )}
+      {currentTab === 'study' && (
+        <ErrorBoundary scope="study">
+          <StudyPage
+            onLoadPuzzleTheme={(_tag) => {
+              // Navigate to puzzles tab. Future enhancement: pass the
+              // tag as a query param so PuzzlesPage filters by it.
+              navigate({ tab: 'puzzles' });
+            }}
+          />
+        </ErrorBoundary>
+      )}
+      {currentTab === 'puzzles' && (
+        <ErrorBoundary scope="puzzles">
+          <PuzzlesPage initialPuzzleId={route.id} />
+        </ErrorBoundary>
+      )}
       {currentTab === 'custom' && (
-        <CustomPage
+        <ErrorBoundary scope="custom"><CustomPage
           initialFen={state.fen}
           onLoadPosition={(fen: string) => {
             try {
@@ -1058,13 +1506,14 @@ export default function App() {
               });
             } catch (err) {
               console.error('Load custom position failed:', err);
-              alert('โหลด position ไม่สำเร็จ — FEN อาจไม่ถูกต้องตามกฎหมากรุกไทย');
+              toast.error('โหลด position ไม่สำเร็จ — FEN อาจไม่ถูกต้องตามกฎหมากรุกไทย');
             }
           }}
-        />
+        /></ErrorBoundary>
       )}
       {currentTab === 'library' && (
-        <LibraryPage
+        <ErrorBoundary scope="library"><LibraryPage
+          initialPositionId={route.id}
           onLoad={(fen) => {
             try {
               loadFfish().then((ffish) => {
@@ -1085,38 +1534,59 @@ export default function App() {
               });
             } catch (err) {
               console.error('Load library position failed:', err);
-              alert('โหลด position ไม่สำเร็จ');
+              toast.error('โหลด position ไม่สำเร็จ');
             }
           }}
-        />
+        /></ErrorBoundary>
       )}
       {currentTab === 'profile' && (
-        <ProfilePage
+        <ErrorBoundary scope="profile"><ProfilePage
           stats={stats}
           onStatsChange={setStats}
           onResetAll={handleResetAll}
-        />
+        /></ErrorBoundary>
       )}
-      {currentTab === 'settings' && <SettingsPage />}
-      {currentTab === 'about' && <AboutPage />}
+      {currentTab === 'settings' && (
+        <ErrorBoundary scope="settings"><SettingsPage /></ErrorBoundary>
+      )}
+      {currentTab === 'about' && (
+        <ErrorBoundary scope="about"><AboutPage /></ErrorBoundary>
+      )}
       {currentTab === 'play' && (
-      <main>
-        {resumeAvailable && history.length === 0 && (
-          <div className="resume-banner">
-            <div className="resume-banner-text">
-              ⏸ มีเกมที่ค้างไว้ — ต้องการเล่นต่อหรือไม่?
-            </div>
-            <div className="resume-banner-actions">
-              <button className="resume-button-primary" onClick={handleResume}>
-                ▶ ดำเนินต่อ
-              </button>
-              <button className="resume-button-secondary" onClick={handleDiscardSaved}>
-                🗑 เริ่มใหม่
-              </button>
-            </div>
+      <ErrorBoundary scope="play"><main>
+        {settings.showEvalBar && (
+          <div className="eval-bar-live-wrap">
+            <EvalBar score={liveEval} flipped={flipped} />
           </div>
         )}
         <div className="board-container">
+          {resumeAvailable && history.length === 0 && (
+            <div className="resume-banner">
+              <div className="resume-banner-text">
+                ⏸ มีเกมที่ค้างไว้ — ต้องการเล่นต่อหรือไม่?
+              </div>
+              <div className="resume-banner-actions">
+                <button className="resume-button-primary" onClick={handleResume}>
+                  ▶ ดำเนินต่อ
+                </button>
+                <button className="resume-button-secondary" onClick={handleDiscardSaved}>
+                  🗑 เริ่มใหม่
+                </button>
+              </div>
+            </div>
+          )}
+          {inspectPly !== null && !reviewActive && (
+            <div className="inspect-banner" role="status">
+              🔍 กำลังดูตา{inspectPly === 0 ? ' เริ่มต้น' : `ที่ ${inspectPly}`} (ตำแหน่งย้อนหลัง · กระดานล็อก)
+              <button
+                type="button"
+                className="inspect-banner-live"
+                onClick={() => setInspectPly(null)}
+              >
+                ← กลับไปเล่นต่อ
+              </button>
+            </div>
+          )}
           <Board
             fen={viewFen}
             legalMoves={viewLegalMoves}
@@ -1172,6 +1642,12 @@ export default function App() {
           )}
         </div>
         <aside className="sidebar">
+          {clock && !reviewActive && (
+            <ClockDisplay
+              clock={clock}
+              userSide={mode === 'play-white' ? 'white' : 'black'}
+            />
+          )}
           {reviewActive && (
             <ReviewTabbedPanel
               moves={reviewMoves}
@@ -1184,6 +1660,11 @@ export default function App() {
               result={forcedResult ?? state.result ?? '*'}
               onPlySelect={setReviewPly}
               onExit={handleExitReview}
+              exploreVariation={exploreVariation}
+              onExploreStart={handleStartExploration}
+              onExploreNext={handleExploreNext}
+              onExplorePrev={handleExplorePrev}
+              onExploreExit={handleExitExploration}
             />
           )}
           {!reviewActive && (state.isGameOver || forcedResult) && history.length > 0 && (
@@ -1246,17 +1727,42 @@ export default function App() {
             </select>
           </div>
 
+          <div className="mode-picker">
+            <span className="label">เวลา</span>
+            <select
+              value={timeControlId}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (history.length > 0 && next !== timeControlId) {
+                  toast.confirm('เปลี่ยน time control จะรีเซ็ตเกมปัจจุบัน. ยืนยัน?', {
+                    onConfirm: () => { handleReset(); setTimeControlId(next); setClock(null); },
+                  });
+                  return;
+                }
+                setTimeControlId(next);
+                setClock(null); // re-init on next render via the timeControl effect
+              }}
+            >
+              {TIME_CONTROLS.map((tc: TimeControl) => (
+                <option key={tc.id} value={tc.id}>{tc.label}</option>
+              ))}
+            </select>
+          </div>
+
           {isVsCpu && (
             <label className={`rated-toggle ${rated ? 'is-rated' : 'is-casual'}`}>
               <input
                 type="checkbox"
                 checked={rated}
                 onChange={(e) => {
+                  const nextRated = e.target.checked;
                   if (history.length > 0) {
-                    if (!confirm('เปลี่ยนโหมด rated/casual จะรีเซ็ตเกมปัจจุบัน. ยืนยัน?')) return;
-                    handleReset();
+                    toast.confirm('เปลี่ยนโหมด rated/casual จะรีเซ็ตเกมปัจจุบัน. ยืนยัน?', {
+                      onConfirm: () => { handleReset(); setRated(nextRated); },
+                    });
+                    return;
                   }
-                  setRated(e.target.checked);
+                  setRated(nextRated);
                 }}
               />
               <span className="rated-toggle-text">
@@ -1524,7 +2030,7 @@ export default function App() {
                     >
                       <span className="move-log-num">{ply}</span>
                       <span className="move-log-side">{isWhite ? '♔' : '♚'}</span>
-                      <span className="move-log-uci">{uci}</span>
+                      <span className="move-log-uci">{thaiUci(uci)}</span>
                     </button>
                   );
                 })}
@@ -1537,9 +2043,9 @@ export default function App() {
           {hint && (
             <div className={`hint-info coach-${hintCoach?.strength ?? 'neutral'}`}>
               <div className="hint-info-header">
-                💡 แนะนำ <strong>{hint.from} → {hint.to}</strong>
-                {hintCoach?.evalLabel && (
-                  <span className="hint-info-eval">{hintCoach.evalLabel}</span>
+                💡 แนะนำ <strong>{thaiSquare(hint.from)} → {thaiSquare(hint.to)}</strong>
+                {hintInfo && (
+                  <span className="hint-info-eval">{hintInfo}</span>
                 )}
               </div>
               {hintCoach ? (
@@ -1599,7 +2105,7 @@ export default function App() {
 
           </div>{/* end of .sidebar-tab-content */}
         </aside>
-      </main>
+      </main></ErrorBoundary>
       )}
       <footer>
         <p>
@@ -1609,6 +2115,9 @@ export default function App() {
           </a>
         </p>
       </footer>
+      {showOnboarding && (
+        <OnboardingModal onClose={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 }
@@ -1723,6 +2232,14 @@ type ReviewSubTab = 'summary' | 'moments' | 'details';
  *   🎯 ตาสำคัญ — key-moment cards with arrows on mini-boards
  *   📋 รายละเอียด — position nav + filterable move list (legacy)
  */
+type ExploreVariationState = {
+  fromPly: number;
+  fenStart: string;
+  line: string[];
+  fens: string[];
+  cursor: number;
+} | null;
+
 function ReviewTabbedPanel({
   moves,
   currentPly,
@@ -1731,6 +2248,11 @@ function ReviewTabbedPanel({
   result,
   onPlySelect,
   onExit,
+  exploreVariation,
+  onExploreStart,
+  onExploreNext,
+  onExplorePrev,
+  onExploreExit,
 }: {
   moves: AnnotatedMove[];
   currentPly: number;
@@ -1739,6 +2261,11 @@ function ReviewTabbedPanel({
   result: string;
   onPlySelect: (ply: number) => void;
   onExit: () => void;
+  exploreVariation: ExploreVariationState;
+  onExploreStart: () => void;
+  onExploreNext: () => void;
+  onExplorePrev: () => void;
+  onExploreExit: () => void;
 }) {
   const [tab, setTab] = useState<ReviewSubTab>('summary');
   return (
@@ -1783,6 +2310,11 @@ function ReviewTabbedPanel({
           onPlySelect={onPlySelect}
           onExit={onExit}
           hideHeader
+          exploreVariation={exploreVariation}
+          onExploreStart={onExploreStart}
+          onExploreNext={onExploreNext}
+          onExplorePrev={onExplorePrev}
+          onExploreExit={onExploreExit}
         />
       )}
     </div>
@@ -1796,6 +2328,11 @@ function ReviewPanel({
   onPlySelect,
   onExit,
   hideHeader,
+  exploreVariation,
+  onExploreStart,
+  onExploreNext,
+  onExplorePrev,
+  onExploreExit,
 }: {
   moves: AnnotatedMove[];
   currentPly: number;
@@ -1805,6 +2342,11 @@ function ReviewPanel({
   /** When inside the tabbed wrapper, the parent already shows the
    * "🔍 รีวิวเกม" title + close button. Hide ours to avoid duplicating. */
   hideHeader?: boolean;
+  exploreVariation: ExploreVariationState;
+  onExploreStart: () => void;
+  onExploreNext: () => void;
+  onExplorePrev: () => void;
+  onExploreExit: () => void;
 }) {
   const summary = useMemo(() => summarize(moves), [moves]);
   const total = moves.length;
@@ -1899,7 +2441,59 @@ function ReviewPanel({
           {!currentMove.isBest && (
             <div className="review-current-best">
               <span className="label">เครื่องแนะนำ:</span>{' '}
-              <strong>{currentMove.bestMove}</strong>
+              <strong>{thaiUci(currentMove.bestMove)}</strong>
+              {!exploreVariation && (
+                <button
+                  type="button"
+                  className="review-explore-button"
+                  onClick={onExploreStart}
+                  title="ลองเล่นตาที่เครื่องแนะนำดูว่าเกมจะเป็นยังไง"
+                >
+                  🔍 ลองดูว่าเป็นยังไง
+                </button>
+              )}
+            </div>
+          )}
+          {exploreVariation && exploreVariation.fromPly === currentPly && (
+            <div className="review-explore-stepper">
+              <div className="review-explore-stepper-header">
+                🔍 กำลังดู "what if" line — เริ่มที่ตา {currentPly}
+                <button
+                  type="button"
+                  className="review-explore-exit"
+                  onClick={onExploreExit}
+                >
+                  ← กลับไปดูเกมจริง
+                </button>
+              </div>
+              <div className="review-explore-line">
+                <span className="label">Line:</span>{' '}
+                {exploreVariation.line.map((mv, i) => (
+                  <span
+                    key={i}
+                    className={`review-explore-move ${
+                      i + 1 === exploreVariation.cursor ? 'is-current' : ''
+                    }`}
+                  >
+                    {thaiUci(mv)}
+                  </span>
+                ))}
+              </div>
+              <div className="review-explore-controls">
+                <button
+                  type="button"
+                  onClick={onExplorePrev}
+                  disabled={exploreVariation.cursor === 0}
+                >
+                  ◀ ย้อน
+                </button>
+                <span className="label-aside">
+                  ตา {exploreVariation.cursor} / {exploreVariation.line.length}
+                </span>
+                <button type="button" onClick={onExploreNext}>
+                  ▶ เดินต่อ (engine)
+                </button>
+              </div>
             </div>
           )}
         </div>

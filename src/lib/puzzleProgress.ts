@@ -1,7 +1,9 @@
-// Per-puzzle solve bookkeeping. localStorage-only — same privacy
-// posture as everything else in the app.
+// Per-puzzle solve bookkeeping. localStorage-only via the versioned
+// stores module — same privacy posture as everything else in the app.
 
-const STORAGE_KEY = 'openmakruk_puzzle_progress';
+import { defineStore } from './stores';
+
+const PUZZLE_PROGRESS_VERSION = 1;
 
 export type PuzzleAttempt = {
   solvedAt: number; // ms epoch
@@ -19,27 +21,24 @@ export type PuzzleProgress = {
   solved: Record<string, PuzzleAttempt>;
 };
 
-type Persisted = PuzzleProgress;
+const store = defineStore<PuzzleProgress>({
+  key: 'openmakruk_puzzle_progress',
+  version: PUZZLE_PROGRESS_VERSION,
+  default: () => ({ solved: {} }),
+  migrate: (raw) => {
+    const obj = (raw && typeof raw === 'object' ? raw : {}) as Partial<PuzzleProgress>;
+    return {
+      solved: obj.solved && typeof obj.solved === 'object' ? obj.solved : {},
+    };
+  },
+});
 
 export function loadPuzzleProgress(): PuzzleProgress {
-  if (typeof window === 'undefined') return { solved: {} };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { solved: {} };
-    const parsed = JSON.parse(raw) as Persisted;
-    return { solved: parsed.solved ?? {} };
-  } catch {
-    return { solved: {} };
-  }
+  return store.load();
 }
 
 export function savePuzzleProgress(progress: PuzzleProgress): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-  } catch {
-    // ignore quota / disabled
-  }
+  store.save(progress);
 }
 
 export function recordPuzzleSolve(

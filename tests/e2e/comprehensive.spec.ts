@@ -14,13 +14,14 @@
 // own file so we can run them on demand without slowing the fast loop.
 
 import { test, expect } from '@playwright/test';
-import { dragMove, readBoardFen, waitForContentReady } from './helpers';
+import { dragMove, readBoardFen, readStore, waitForContentReady } from './helpers';
 
 test.describe('comprehensive integration', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {
       localStorage.clear();
+      localStorage.setItem('openmakruk_onboarded', '1');
       // Wipe IndexedDB content cache too so tests don't hit stale data
       const dbs = ['openmakruk-content'];
       for (const name of dbs) {
@@ -85,25 +86,28 @@ test.describe('comprehensive integration', () => {
     // Personal rating now updated — should be != 1200 (could go up or
     // down depending on solved puzzle's rating relative to ours).
     await page.waitForTimeout(500);
-    const ratingAfter = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('openmakruk_puzzle_rating') ?? '{}'),
-    );
+    const ratingAfter = (await readStore<{ attempts: number; solved: number; rating: number }>(
+      page,
+      'openmakruk_puzzle_rating',
+    )) ?? { attempts: 0, solved: 0, rating: 1200 };
     expect(ratingAfter.attempts).toBe(1);
     expect(ratingAfter.solved).toBe(1);
     expect(ratingAfter.rating).not.toBe(1200);
 
     // SR schedule has an entry for this puzzle with a future dueAt
-    const sched = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('openmakruk_puzzle_schedule') ?? '{}'),
-    );
+    const sched = (await readStore<{ entries: Record<string, { dueAt: number }> }>(
+      page,
+      'openmakruk_puzzle_schedule',
+    )) ?? { entries: {} };
     expect(Object.keys(sched.entries ?? {})).toHaveLength(1);
     const entry = Object.values(sched.entries)[0] as { dueAt: number };
     expect(entry.dueAt).toBeGreaterThan(Date.now());
 
     // Basic progress record still recorded
-    const progress = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('openmakruk_puzzle_progress') ?? '{}'),
-    );
+    const progress = (await readStore<{ solved: Record<string, unknown> }>(
+      page,
+      'openmakruk_puzzle_progress',
+    )) ?? { solved: {} };
     expect(Object.keys(progress.solved ?? {})).toHaveLength(1);
   });
 
@@ -117,9 +121,10 @@ test.describe('comprehensive integration', () => {
     await toggle.click();
     await expect(toggle).toHaveClass(/off/);
 
-    const stored = await page.evaluate(() =>
-      JSON.parse(localStorage.getItem('openmakruk_settings') ?? '{}'),
-    );
+    const stored = (await readStore<{ soundsEnabled: boolean }>(
+      page,
+      'openmakruk_settings',
+    )) ?? { soundsEnabled: true };
     expect(stored.soundsEnabled).toBe(false);
   });
 
@@ -259,10 +264,9 @@ test.describe('comprehensive integration', () => {
     // effect a tick to fire (it runs in a later commit after the move
     // updates history + state).
     await page.waitForTimeout(800);
-    const savedRaw = await page.evaluate(() => localStorage.getItem('openmakruk_current_game'));
-    expect(savedRaw).not.toBeNull();
-    const saved = JSON.parse(savedRaw!);
-    expect(saved.moves.length).toBeGreaterThan(0);
+    const saved = await readStore<{ moves: string[] }>(page, 'openmakruk_current_game');
+    expect(saved).not.toBeNull();
+    expect((saved?.moves ?? []).length).toBeGreaterThan(0);
 
     // Reload — the resume banner should appear
     await page.reload();

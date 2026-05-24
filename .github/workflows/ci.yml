@@ -1,0 +1,86 @@
+# Quality gate for every PR + push to main.
+#
+# Why this job, not 3 separate ones: typecheck/build/e2e share the same
+# install + setup, so doing them in one workflow keeps minutes low. The
+# build step also produces dist/ that we could deploy from later (Pages,
+# Cloudflare) without re-running the suite.
+#
+# Notes:
+#   - Cache `~/.npm` keyed by package-lock.json hash for fast installs.
+#   - `npm ci` (not install) — reproducible builds from the lockfile.
+#   - Playwright browsers are cached separately; on cache miss they
+#     download (~150 MB, ~30 s).
+#   - The Vite dev server is auto-started by Playwright's `webServer`
+#     config, so no extra step needed.
+#   - On failure, upload the Playwright report + screenshots so a
+#     contributor can debug without re-running locally.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs for the same PR/branch when a new commit is
+# pushed — keeps queue free and avoids wasting minutes on stale code.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: typecheck · build · e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      # Cache Playwright browser binaries by version so subsequent runs
+      # skip the ~150 MB download. The key embeds the @playwright/test
+      # version from package-lock, so an upgrade naturally busts the
+      # cache.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: node node_modules/@playwright/test/cli.js install --with-deps chromium
+
+      - name: Run e2e tests
+        run: npm run test:e2e
+
+      # Always upload the test report — green or red — so reviewers
+      # can inspect timings and (on red) the trace.
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

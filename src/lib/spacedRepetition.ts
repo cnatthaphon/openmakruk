@@ -15,7 +15,9 @@
 //   0 = total blank
 // Our app maps onto 3 grades; the math handles all 0..5.
 
-const STORAGE_KEY = 'openmakruk_puzzle_schedule';
+import { defineStore } from './stores';
+
+const SCHEDULE_VERSION = 1;
 
 export type ScheduleEntry = {
   /** Days between repetitions on next success. */
@@ -33,36 +35,37 @@ export type ScheduleStore = {
   entries: Record<string, ScheduleEntry>;
 };
 
+const store = defineStore<ScheduleStore>({
+  key: 'openmakruk_puzzle_schedule',
+  version: SCHEDULE_VERSION,
+  default: () => ({ entries: {} }),
+  migrate: (raw) => {
+    const obj = (raw && typeof raw === 'object' ? raw : {}) as Partial<ScheduleStore>;
+    return {
+      entries:
+        obj.entries && typeof obj.entries === 'object' ? obj.entries : {},
+    };
+  },
+});
+
 export function loadSchedule(): ScheduleStore {
-  if (typeof window === 'undefined') return { entries: {} };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { entries: {} };
-    return JSON.parse(raw);
-  } catch {
-    return { entries: {} };
-  }
+  return store.load();
 }
 
-export function saveSchedule(store: ScheduleStore): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-  } catch {
-    // ignore
-  }
+export function saveSchedule(s: ScheduleStore): void {
+  store.save(s);
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Update one puzzle's schedule based on the SM-2 quality grade. */
 export function applyOutcome(
-  store: ScheduleStore,
+  s: ScheduleStore,
   puzzleId: string,
   quality: 0 | 1 | 2 | 3 | 4 | 5,
   now: number = Date.now(),
 ): ScheduleStore {
-  const prev = store.entries[puzzleId] ?? {
+  const prev = s.entries[puzzleId] ?? {
     interval: 0,
     ease: 2.5,
     repetitions: 0,
@@ -92,13 +95,13 @@ export function applyOutcome(
     dueAt: now + interval * DAY_MS,
   };
   return {
-    entries: { ...store.entries, [puzzleId]: nextEntry },
+    entries: { ...s.entries, [puzzleId]: nextEntry },
   };
 }
 
 /** Get every puzzle id that's due for review at `now`. */
-export function dueNow(store: ScheduleStore, now: number = Date.now()): string[] {
-  return Object.entries(store.entries)
+export function dueNow(s: ScheduleStore, now: number = Date.now()): string[] {
+  return Object.entries(s.entries)
     .filter(([_, e]) => e.dueAt <= now)
     .map(([id]) => id);
 }

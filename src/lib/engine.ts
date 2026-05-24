@@ -1,444 +1,121 @@
-import { log, timeStart, timeEnd } from './log';
-
-// Where the Makruk NNUE network lives. Pinned to a tag so users hit
-// jsDelivr's edge cache hard — bump the tag in nnue/README.md when you
-// replace the file and clients will pick up the new build.
-export const NNUE_URL =
-  'https://cdn.jsdelivr.net/gh/cnatthaphon/openmakruk@nnue-v1/nnue/makruk.nnue';
-
-// Thin wrapper over `fairy-stockfish-nnue.wasm` that exposes a Promise-based
-// `search(fen, opts)` for the React layer. The engine loader (stockfish.js)
-// is fetched dynamically as a global script and creates internal pthread
-// workers, so search runs off the main thread without us managing a Worker
-// directly.
+// Public engine facade. All callers (App.tsx, review.ts, etc.) go
+// through this module instead of importing a concrete engine. Under
+// the hood every call routes to the active engine in the registry, so
+// dropping in a new engine (an AlphaZero, a Random baseline, a future
+// NNUE-only build) requires only registering it — no caller code change.
 //
-// UCI cheat sheet (commands we actually send):
-//   uci                                → engine identifies, ends with "uciok"
-//   isready                            → engine ack with "readyok"
-//   setoption name UCI_Variant value makruk
-//   setoption name Skill Level value 0..20
-//   position fen <fen>
-//   go depth N  |  go movetime MS
-//   bestmove <uci> ponder <uci>        ← reply we wait for
+// The exported names + signatures here match the pre-refactor API so
+// existing imports across the codebase keep working. New code can
+// instead consume `./engines/types` + `./engines/registry` directly.
 
-declare global {
-  interface Window {
-    Stockfish?: (opts?: Record<string, unknown>) => Promise<EngineInstance>;
-  }
-}
+import {
+  getActiveEngine,
+  getActiveEngineSync,
+} from './engines/registry';
+import {
+  DEFAULT_DIFFICULTY_PRESETS,
+  type AnalysisLine,
+  type DifficultyLevel,
+  type ProgressCb,
+  type SearchOpts,
+  type SearchResult,
+} from './engines/types';
 
-type EngineInstance = {
-  postMessage: (cmd: string) => void;
-  addMessageListener: (cb: (line: string) => void) => void;
-  removeMessageListener: (cb: (line: string) => void) => void;
-  terminate: () => void;
-  // Emscripten virtual filesystem — required to inject the NNUE network.
-  FS: {
-    writeFile: (path: string, data: Uint8Array) => void;
-  };
-};
+// Side-effect import: registers Fairy-Stockfish as the default engine.
+// Importing the module is what calls registerEngine() at its bottom.
+import './engines/fairyStockfish';
+import './engines/randomBot';
+import './engines/greedyBot';
+import './personalities/scoredBot';
 
-export type SearchOpts = {
-  // Pick ONE of (depth, movetime). Engine takes whichever is more restrictive
-  // when both are given, but we keep it explicit.
-  depth?: number;
-  movetime?: number;
-  // Stockfish skill level 0..20 (0 = blunder-prone, 20 = full strength).
-  skillLevel?: number;
-};
+// ---- Re-exports (backward compat) -------------------------------------
 
-export type SearchResult = {
-  bestMove: string;          // UCI like "e3e4"
-  ponder?: string;           // expected opponent reply
-  scoreCp?: number;          // centipawn eval from side-to-move POV
-  mateIn?: number;           // mate distance if applicable
-  depth?: number;
-};
+export type { SearchOpts, SearchResult, AnalysisLine, ProgressCb };
+export type Difficulty = DifficultyLevel;
 
-let enginePromise: Promise<EngineInstance> | null = null;
-
-export function getEngine(): Promise<EngineInstance> {
-  if (!enginePromise) enginePromise = bootEngine();
-  return enginePromise;
-}
-
-async function bootEngine(): Promise<EngineInstance> {
-  timeStart('engine.boot');
-  log('engine.boot.start');
-
-  // The package's stockfish.js is a UMD/CJS bundle that attaches to
-  // window.Stockfish when loaded as a regular <script>. Vite's module
-  // bundler chokes on its `document.currentScript` / pthread bootstrap,
-  // so we side-step bundling by loading it from /public/engine/ at runtime.
-  await loadScript('/engine/stockfish.js');
-  if (typeof window.Stockfish !== 'function') {
-    throw new Error('stockfish.js loaded but window.Stockfish is not a factory');
-  }
-
-  const sf = await window.Stockfish({
-    // The package looks for stockfish.wasm + stockfish.worker.js next to
-    // stockfish.js. Without locateFile it'd hit /stockfish.wasm at site root.
-    locateFile: (file: string) => `/engine/${file}`,
-  });
-
-  await sendAndWait(sf, 'uci', (line) => line === 'uciok');
-  sf.postMessage('setoption name UCI_Variant value makruk');
-  await sendAndWait(sf, 'isready', (line) => line === 'readyok');
-
-  timeEnd('engine.boot');
-  return sf;
-}
-
-function loadScript(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Avoid double-injection on HMR / StrictMode double-mount.
-    const existing = document.querySelector(`script[data-engine-src="${src}"]`);
-    if (existing) {
-      resolve();
-      return;
-    }
-    const el = document.createElement('script');
-    el.src = src;
-    el.async = true;
-    el.dataset.engineSrc = src;
-    el.onload = () => resolve();
-    el.onerror = () => reject(new Error(`failed to load ${src}`));
-    document.head.appendChild(el);
-  });
-}
-
-function sendAndWait(
-  sf: EngineInstance,
-  cmd: string,
-  done: (line: string) => boolean,
-): Promise<void> {
-  return new Promise((resolve) => {
-    const listener = (line: string) => {
-      if (done(line)) {
-        sf.removeMessageListener(listener);
-        resolve();
-      }
-    };
-    sf.addMessageListener(listener);
-    sf.postMessage(cmd);
-  });
-}
-
-export async function searchBestMove(
-  fen: string,
-  opts: SearchOpts = {},
-): Promise<SearchResult> {
-  const sf = await getEngine();
-  const searchId = `engine.search#${++searchCounter}`;
-  timeStart(searchId);
-  log('engine.search.start', { fen, opts });
-
-  if (typeof opts.skillLevel === 'number') {
-    sf.postMessage(`setoption name Skill Level value ${opts.skillLevel}`);
-  }
-  sf.postMessage(`position fen ${fen}`);
-
-  let scoreCp: number | undefined;
-  let mateIn: number | undefined;
-  let depth: number | undefined;
-
-  const result = await new Promise<SearchResult>((resolve) => {
-    const listener = (line: string) => {
-      if (line.startsWith('info')) {
-        const dMatch = line.match(/\bdepth (\d+)/);
-        if (dMatch) depth = Number(dMatch[1]);
-        const cpMatch = line.match(/\bscore cp (-?\d+)/);
-        if (cpMatch) {
-          scoreCp = Number(cpMatch[1]);
-          mateIn = undefined;
-        }
-        const mateMatch = line.match(/\bscore mate (-?\d+)/);
-        if (mateMatch) {
-          mateIn = Number(mateMatch[1]);
-          scoreCp = undefined;
-        }
-        return;
-      }
-      if (line.startsWith('bestmove')) {
-        sf.removeMessageListener(listener);
-        const parts = line.split(/\s+/);
-        resolve({
-          bestMove: parts[1],
-          ponder: parts[3],
-          scoreCp,
-          mateIn,
-          depth,
-        });
-      }
-    };
-    sf.addMessageListener(listener);
-
-    const goCmd = opts.movetime
-      ? `go movetime ${opts.movetime}`
-      : `go depth ${opts.depth ?? 10}`;
-    sf.postMessage(goCmd);
-  });
-
-  timeEnd(searchId, {
-    bestMove: result.bestMove,
-    scoreCp: result.scoreCp,
-    mateIn: result.mateIn,
-    depth: result.depth,
-  });
-  return result;
-}
-
-let searchCounter = 0;
-
-// ---- Multi-PV analysis ------------------------------------------------
-//
-// Same UCI lifecycle as searchBestMove() but with MultiPV > 1 so the
-// engine reports its top N candidate moves alongside the chosen one.
-// Used by the Analyze button on the Play page to populate the MultiPV
-// panel + the eval bar.
-//
-// We always restore MultiPV to 1 at the end so subsequent
-// searchBestMove() calls aren't slowed by ranking extra lines.
-
-export type AnalysisLine = {
-  multipv: number;
-  depth: number;
-  scoreCp?: number;
-  mateIn?: number;
-  pv: string[];
-};
-
-export async function searchTopMoves(
-  fen: string,
-  opts: SearchOpts = {},
-  multipv: number = 3,
-): Promise<AnalysisLine[]> {
-  const sf = await getEngine();
-  const searchId = `engine.analyze#${++searchCounter}`;
-  timeStart(searchId);
-  log('engine.analyze.start', { fen, opts, multipv });
-
-  if (typeof opts.skillLevel === 'number') {
-    sf.postMessage(`setoption name Skill Level value ${opts.skillLevel}`);
-  }
-  sf.postMessage(`setoption name MultiPV value ${multipv}`);
-  sf.postMessage(`position fen ${fen}`);
-
-  // Per-multipv-index latest info line. Engine emits info lines at
-  // increasing depths; we keep the last one for each multipv slot,
-  // which gives us the final analysis at the deepest depth.
-  const lines = new Map<number, AnalysisLine>();
-
-  const result = await new Promise<AnalysisLine[]>((resolve) => {
-    const listener = (line: string) => {
-      if (line.startsWith('info') && !line.includes('string')) {
-        const mpvMatch = line.match(/\bmultipv (\d+)/);
-        if (!mpvMatch) return;
-        const idx = Number(mpvMatch[1]);
-        const dMatch = line.match(/\bdepth (\d+)/);
-        const depth = dMatch ? Number(dMatch[1]) : 0;
-        const cpMatch = line.match(/\bscore cp (-?\d+)/);
-        const mateMatch = line.match(/\bscore mate (-?\d+)/);
-        const pvMatch = line.match(/\bpv ([a-h1-8 ]+)$/);
-        const pv = pvMatch ? pvMatch[1].trim().split(/\s+/) : [];
-        if (depth > 0 && pv.length > 0) {
-          lines.set(idx, {
-            multipv: idx,
-            depth,
-            scoreCp: cpMatch ? Number(cpMatch[1]) : undefined,
-            mateIn: mateMatch ? Number(mateMatch[1]) : undefined,
-            pv,
-          });
-        }
-        return;
-      }
-      if (line.startsWith('bestmove')) {
-        sf.removeMessageListener(listener);
-        // Restore MultiPV=1 for subsequent searchBestMove calls
-        sf.postMessage('setoption name MultiPV value 1');
-        const sorted = Array.from(lines.values()).sort(
-          (a, b) => a.multipv - b.multipv,
-        );
-        resolve(sorted);
-      }
-    };
-    sf.addMessageListener(listener);
-
-    const goCmd = opts.movetime
-      ? `go movetime ${opts.movetime}`
-      : `go depth ${opts.depth ?? 12}`;
-    sf.postMessage(goCmd);
-  });
-
-  timeEnd(searchId, { lines: result.length });
-  return result;
-}
-
-// Difficulty presets — depth + skill-level pair so very low skills also
-// time out fast (no use thinking deep when you're going to blunder anyway).
-export type Difficulty = 'easy' | 'medium' | 'hard' | 'master';
-
-export const DIFFICULTY_PRESETS: Record<Difficulty, SearchOpts> = {
-  easy:   { depth: 3,  skillLevel: 1 },
-  medium: { depth: 8,  skillLevel: 8 },
-  hard:   { depth: 14, skillLevel: 15 },
-  master: { depth: 20, skillLevel: 20 },
-};
-
-export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+// UI labels live here because they're the Thai display strings the Play
+// / Profile pages render; the engine itself doesn't care about labels.
+export const DIFFICULTY_LABELS: Record<DifficultyLevel, string> = {
   easy:   'ง่าย',
   medium: 'ปานกลาง',
   hard:   'ยาก',
   master: 'ระดับมาสเตอร์',
 };
 
-// ---- NNUE loading + caching --------------------------------------------
-//
-// The NNUE file is ~46 MB raw / ~24 MB on the wire. We:
-//   1. Cache the blob in IndexedDB after the first successful download
-//      → second visit is instant, no jsDelivr round-trip
-//   2. Stream the fetch and report progress so the UI can show a bar
-//   3. Inject the buffer into Fairy-Stockfish's emscripten virtual
-//      filesystem and finally tell UCI to use it via
-//      `setoption name EvalFile value <path>`
+// Default UCI-style mapping. Most callers read this synchronously to
+// pick search options before calling searchBestMove(). When/if the
+// active engine has a different difficulty mapping, prefer
+// `(await getActiveEngine()).capabilities.difficulty` instead.
+export const DIFFICULTY_PRESETS = DEFAULT_DIFFICULTY_PRESETS;
 
-const IDB_NAME = 'openmakruk';
-const IDB_STORE = 'engine';
-const IDB_KEY = 'nnue';
+// ---- Registry surface (new public API) --------------------------------
 
-type ProgressCb = (loaded: number, total: number) => void;
+export {
+  getActiveEngine,
+  getActiveEngineSync,
+  getActiveEngineId,
+  listEngines,
+  setActiveEngine,
+} from './engines/registry';
 
-let nnueLoaded = false;
+// ---- Routed calls -----------------------------------------------------
 
-export function isNNUELoaded(): boolean {
-  return nnueLoaded;
+export async function searchBestMove(
+  fen: string,
+  opts: SearchOpts = {},
+): Promise<SearchResult> {
+  const engine = await getActiveEngine();
+  return engine.search(fen, opts);
+}
+
+export async function searchTopMoves(
+  fen: string,
+  opts: SearchOpts = {},
+  multipv: number = 3,
+): Promise<AnalysisLine[]> {
+  const engine = await getActiveEngine();
+  if (engine.capabilities.multiPV && engine.searchMulti) {
+    return engine.searchMulti(fen, opts, multipv);
+  }
+  // Fallback: surface the single best move as a one-line list so callers
+  // (the Analyze panel) still render something coherent.
+  const r = await engine.search(fen, opts);
+  return [
+    {
+      multipv: 1,
+      depth: r.depth ?? 0,
+      scoreCp: r.scoreCp,
+      mateIn: r.mateIn,
+      pv: [r.bestMove],
+    },
+  ];
 }
 
 export async function loadNNUE(
-  url: string = NNUE_URL,
+  url?: string,
   onProgress?: ProgressCb,
 ): Promise<void> {
-  if (nnueLoaded) {
-    log('engine.nnue.alreadyLoaded');
-    return;
-  }
-  const sf = await getEngine();
-  timeStart('engine.nnue.total');
-
-  // Try cache first — typically <100ms hit
-  let buffer = await readCachedNNUE();
-  if (buffer) {
-    log('engine.nnue.cacheHit', { size: buffer.byteLength });
-  } else {
-    log('engine.nnue.download.start', { url });
-    timeStart('engine.nnue.download');
-    buffer = await fetchWithProgress(url, onProgress);
-    timeEnd('engine.nnue.download', { size: buffer.byteLength });
-    // Best effort cache; if quota is exceeded, we still proceed.
-    void writeCachedNNUE(buffer).catch((err) =>
-      log('engine.nnue.cacheWrite.error', { error: String(err) }),
-    );
-  }
-
-  // Hand the bytes to the engine's virtual filesystem, then point UCI at it.
-  const fileName = 'makruk.nnue';
-  sf.FS.writeFile(`/${fileName}`, new Uint8Array(buffer));
-  sf.postMessage(`setoption name EvalFile value ${fileName}`);
-  await sendAndWait(sf, 'isready', (line) => line === 'readyok');
-
-  nnueLoaded = true;
-  timeEnd('engine.nnue.total', { size: buffer.byteLength });
-  log('engine.nnue.active');
+  const engine = await getActiveEngine();
+  // Engines without a loadable network just silently no-op — the UI
+  // toggle should hide itself by checking capabilities.network first.
+  if (!engine.loadNetwork) return;
+  await engine.loadNetwork(url, onProgress);
 }
 
-async function fetchWithProgress(
-  url: string,
-  onProgress?: ProgressCb,
-): Promise<ArrayBuffer> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`NNUE fetch failed: HTTP ${response.status}`);
-  }
-
-  // Streamed body: lets us report progress. If unavailable (rare), fall
-  // back to a single arrayBuffer() call.
-  if (!response.body) return response.arrayBuffer();
-
-  const totalHeader = response.headers.get('content-length');
-  const total = totalHeader ? Number(totalHeader) : 0;
-
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let loaded = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    loaded += value.length;
-    onProgress?.(loaded, total);
-  }
-
-  const merged = new Uint8Array(loaded);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return merged.buffer;
+/**
+ * Synchronous "is the network active right now?" used by React renders.
+ * Returns false until the engine has finished init and (separately)
+ * loaded its network, which is the conservative answer either way —
+ * callers fall through to the "load NNUE" UI in both states.
+ */
+export function isNNUELoaded(): boolean {
+  const engine = getActiveEngineSync();
+  return engine?.isNetworkLoaded?.() ?? false;
 }
 
-// ---- IndexedDB cache (Promise wrapper) ---------------------------------
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(IDB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(IDB_STORE)) {
-        db.createObjectStore(IDB_STORE);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function readCachedNNUE(): Promise<ArrayBuffer | null> {
-  try {
-    const db = await openDB();
-    return await new Promise<ArrayBuffer | null>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
-      req.onsuccess = () => resolve((req.result as ArrayBuffer | undefined) ?? null);
-      req.onerror = () => reject(req.error);
-    });
-  } catch (err) {
-    log('engine.nnue.cacheRead.error', { error: String(err) });
-    return null;
-  }
-}
-
-async function writeCachedNNUE(buffer: ArrayBuffer): Promise<void> {
-  const db = await openDB();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(buffer, IDB_KEY);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
+/** Clear the on-disk cache for the active engine's network blob. */
 export async function clearCachedNNUE(): Promise<void> {
-  try {
-    const db = await openDB();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).delete(IDB_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-    nnueLoaded = false;
-  } catch (err) {
-    log('engine.nnue.cacheClear.error', { error: String(err) });
-  }
+  const engine = await getActiveEngine();
+  if (!engine.clearNetworkCache) return;
+  await engine.clearNetworkCache();
 }

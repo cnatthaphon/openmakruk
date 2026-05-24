@@ -30,6 +30,8 @@ import {
   type LessonGroup,
 } from '../lib/lessonSchema';
 import { LessonView } from './LessonView';
+import { navigate } from '../lib/router';
+import { SkeletonGrid } from '../components/Skeleton';
 
 type LessonStatus = 'locked' | 'unlocked' | 'completed';
 
@@ -62,11 +64,18 @@ function findNextLesson(
   return lessons[currentIdx + 1] ?? null;
 }
 
-export function LearnPage() {
+type Props = {
+  /** Optional lesson id from the route. When present and matching a
+   *  lesson in the catalog, the page opens it directly — powers
+   *  `/#/learn/<id>` deep links + share/return-to-this-lesson flows. */
+  initialLessonId?: string | null;
+};
+
+export function LearnPage({ initialLessonId = null }: Props = {}) {
   const [lessons, setLessons] = useState<LessonContent[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<LessonProgress>(() => loadLessonProgress());
-  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+  const [activeLessonId, setActiveLessonId] = useState<string | null>(initialLessonId);
 
   useEffect(() => {
     loadLessons()
@@ -77,6 +86,19 @@ export function LearnPage() {
   useEffect(() => {
     saveLessonProgress(progress);
   }, [progress]);
+
+  // Open lesson straight from the route once the catalog is loaded.
+  useEffect(() => {
+    if (initialLessonId && lessons?.some((l) => l.id === initialLessonId)) {
+      setActiveLessonId(initialLessonId);
+    }
+  }, [initialLessonId, lessons]);
+
+  // Mirror active selection back to the URL so deep-links + browser
+  // back behave intuitively (matches PuzzlesPage pattern).
+  useEffect(() => {
+    navigate({ tab: 'learn', id: activeLessonId });
+  }, [activeLessonId]);
 
   const handleOpenLesson = (lessonId: string) => {
     setProgress((p) => recordLessonViewed(p, lessonId));
@@ -144,7 +166,7 @@ export function LearnPage() {
   if (!lessons || !groupedLessons) {
     return (
       <div className="learn-page">
-        <p className="label-aside">กำลังโหลดบทเรียน ...</p>
+        <SkeletonGrid count={6} withThumb={false} />
       </div>
     );
   }

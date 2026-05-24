@@ -19,6 +19,12 @@ import {
   type Piece,
 } from '../lib/fen';
 import { savePosition } from '../lib/library';
+import { autoAnalyze } from '../lib/flags';
+import { toast } from '../components/Toast';
+import type { PuzzleCategory } from '../lib/puzzleSchema';
+import { verifyAndAnnotate } from '../lib/puzzleVerifier';
+import { saveUserPuzzle, newUserPuzzleId } from '../lib/userPuzzles';
+import { loadStats } from '../lib/stats';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
@@ -43,6 +49,7 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
   const [sideToMove, setSideToMove] = useState<'w' | 'b'>('w');
   // `selection` drives clicks on the board. `null` = eraser.
   const [selection, setSelection] = useState<Piece | null>({ role: 'p', color: 'white' });
+  const [showPuzzleAuthor, setShowPuzzleAuthor] = useState(false);
 
   const fen = gridToFen(grid, sideToMove);
   const validationError = validateGrid(grid);
@@ -77,17 +84,13 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
       tags,
       source: 'custom',
     });
-    alert('✓ บันทึกตำแหน่งในคลังแล้ว');
+    toast.success('บันทึกตำแหน่งในคลังแล้ว');
   };
 
   const handleAnalyzeAtPlay = () => {
     if (validationError) return;
-    // Set a flag so the Play page auto-runs Analyse on first mount
-    try {
-      window.localStorage.setItem('openmakruk_auto_analyze', '1');
-    } catch {
-      // ignore
-    }
+    // Set a flag so the Play page auto-runs Analyse on first mount.
+    autoAnalyze.set(true);
     onLoadPosition(fen);
   };
 
@@ -95,9 +98,9 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
     if (validationError) return;
     try {
       await navigator.clipboard.writeText(fen);
-      alert('คัดลอก FEN แล้ว');
+      toast.success('คัดลอก FEN แล้ว');
     } catch {
-      alert('Browser ไม่อนุญาต clipboard — กดเลือก FEN ในกล่องด้านล่างแทน');
+      toast.error('Browser ไม่อนุญาต clipboard — กดเลือก FEN ในกล่องด้านล่างแทน');
     }
   };
 
@@ -237,7 +240,18 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
               >
                 📋 คัดลอก FEN
               </button>
+              <button
+                className="custom-hub-button"
+                onClick={() => setShowPuzzleAuthor((v) => !v)}
+                disabled={validationError !== null}
+                title="บันทึกตำแหน่งนี้เป็นปริศนา · engine จะ verify ก่อน"
+              >
+                🧩 บันทึกเป็น puzzle
+              </button>
             </div>
+            {showPuzzleAuthor && validationError === null && (
+              <PuzzleAuthorPanel fen={fen} sideToMove={sideToMove} onClose={() => setShowPuzzleAuthor(false)} />
+            )}
             {validationError && (
               <div className="custom-error">⚠ {validationError}</div>
             )}
@@ -283,5 +297,121 @@ function PaletteButton({
         }}
       />
     </button>
+  );
+}
+
+/**
+ * Form for saving the current Custom-page position as a user puzzle.
+ * Engine verifies the solution before saving; the user can edit and
+ * re-verify until the engine accepts.
+ */
+function PuzzleAuthorPanel({
+  fen,
+  sideToMove,
+  onClose,
+}: {
+  fen: string;
+  sideToMove: 'w' | 'b';
+  onClose: () => void;
+}) {
+  const [solutionText, setSolutionText] = useState('');
+  const [category, setCategory] = useState<PuzzleCategory>('mate-1');
+  const [rating, setRating] = useState(800);
+  const [prompt, setPrompt] = useState('');
+  const [verifying, setVerifying] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setVerifying(true);
+    setFeedback(null);
+    const solution = solutionText.trim().split(/\s+/).filter(Boolean);
+    if (solution.length === 0) {
+      setFeedback('กรุณาใส่ตาเดินอย่างน้อย 1 ตา (เช่น "a1a8")');
+      setVerifying(false);
+      return;
+    }
+    const stats = loadStats();
+    const draft = {
+      id: newUserPuzzleId(),
+      fen,
+      category,
+      rating,
+      toMove: sideToMove === 'w' ? ('white' as const) : ('black' as const),
+      solution,
+      prompt: prompt.trim() || `Puzzle จาก ${stats.displayName}`,
+      themes: ['user-created'],
+      authorName: stats.displayName,
+    };
+    const result = await verifyAndAnnotate(draft);
+    if (!result.ok) {
+      setFeedback(`✗ Engine reject: ${result.reason}`);
+      setVerifying(false);
+      return;
+    }
+    saveUserPuzzle(result.puzzle);
+    toast.success(`🧩 บันทึกเรียบร้อย: ${draft.prompt}`);
+    setVerifying(false);
+    onClose();
+  };
+
+  return (
+    <div className="custom-puzzle-author">
+      <h4>🧩 บันทึกเป็น puzzle</h4>
+      <p className="label-aside">
+        Engine จะ verify ก่อน · ถ้าไม่ตรง (เช่น สอลูชั่นไม่ใช่ mate จริง) จะปฏิเสธ
+      </p>
+      <label className="custom-puzzle-field">
+        <span>ประเภท</span>
+        <select value={category} onChange={(e) => setCategory(e.target.value as PuzzleCategory)}>
+          <option value="mate-1">รุกจน 1 ตา</option>
+          <option value="mate-2">รุกจน 2+ ตา</option>
+          <option value="tactic">ยุทธวิธี</option>
+          <option value="counting">นับศักดิ์</option>
+          <option value="defense">ป้องกัน / หนีให้รอด</option>
+        </select>
+      </label>
+      <label className="custom-puzzle-field">
+        <span>Rating ประมาณ</span>
+        <input
+          type="number"
+          min={400}
+          max={2400}
+          step={50}
+          value={rating}
+          onChange={(e) => setRating(parseInt(e.target.value) || 800)}
+        />
+      </label>
+      <label className="custom-puzzle-field">
+        <span>คำใบ้/หัวข้อ</span>
+        <input
+          type="text"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="เช่น 'ขาวเดิน · รุกจน 1 ตา'"
+          maxLength={120}
+        />
+      </label>
+      <label className="custom-puzzle-field custom-puzzle-solution">
+        <span>ลำดับตา (UCI · คั่นด้วยช่องว่าง)</span>
+        <input
+          type="text"
+          value={solutionText}
+          onChange={(e) => setSolutionText(e.target.value)}
+          placeholder="เช่น 'a1a8' หรือ 'h5h7 a8b8 h7h8'"
+          spellCheck={false}
+        />
+      </label>
+      {feedback && (
+        <div className={`custom-puzzle-feedback ${feedback.startsWith('✗') ? 'bad' : 'good'}`}>
+          {feedback}
+        </div>
+      )}
+      <div className="custom-puzzle-actions">
+        <button onClick={onClose} className="secondary">ยกเลิก</button>
+        <button onClick={handleSave} disabled={verifying}>
+          {verifying ? '🔍 กำลัง verify...' : '✓ verify & บันทึก'}
+        </button>
+      </div>
+    </div>
   );
 }

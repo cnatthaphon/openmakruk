@@ -7,8 +7,9 @@
 // drama because we use the user's local date.
 
 import type { Puzzle } from './puzzleSchema';
+import { defineStore } from './stores';
 
-const STORAGE_KEY = 'openmakruk_daily_puzzle';
+const DAILY_PUZZLE_VERSION = 1;
 
 type DailyRecord = {
   dateKey: string;      // "2026-05-20"
@@ -16,6 +17,25 @@ type DailyRecord = {
   solved: boolean;
   attemptedAt: number | null;
 };
+
+const store = defineStore<DailyRecord | null>({
+  key: 'openmakruk_daily_puzzle',
+  version: DAILY_PUZZLE_VERSION,
+  default: () => null,
+  migrate: (raw) => {
+    if (!raw || typeof raw !== 'object') return null;
+    const obj = raw as Partial<DailyRecord>;
+    if (typeof obj.dateKey !== 'string' || typeof obj.puzzleId !== 'string') {
+      return null;
+    }
+    return {
+      dateKey: obj.dateKey,
+      puzzleId: obj.puzzleId,
+      solved: !!obj.solved,
+      attemptedAt: typeof obj.attemptedAt === 'number' ? obj.attemptedAt : null,
+    };
+  },
+});
 
 /** Today's date in YYYY-MM-DD form, using the user's local clock. */
 export function dailyDateKey(now: Date = new Date()): string {
@@ -55,23 +75,11 @@ export function pickDailyPuzzle(puzzles: Puzzle[], today?: Date): Puzzle | null 
 }
 
 export function loadDailyRecord(): DailyRecord | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return store.load();
 }
 
 export function saveDailyRecord(record: DailyRecord): void {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));
-  } catch {
-    // ignore
-  }
+  store.save(record);
 }
 
 /** Has the user already solved today's daily puzzle? */

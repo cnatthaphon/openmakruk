@@ -127,7 +127,7 @@ requirement.
 
 | Component | What we must do |
 |-----------|-----------------|
-| GPL-3.0 deps (chessground, ffish-es6, fairy-stockfish) | Used unmodified, loaded via npm — no GPL contamination of our own code. Attribution preserved in this NOTICE and the About page. Source of these components is freely available at the linked repositories. |
+| GPL-3.0 deps (chessground, ffish-es6, fairy-stockfish) | Used unmodified, loaded via npm at build and served as static runtime assets. Attribution preserved in this NOTICE and the About page; source remains freely available at the linked upstream repositories. Redistributors must comply with the GPL-3.0 terms (including providing source for these components on request). |
 | CC BY-SA 4.0 assets (Fulmene, Yevrowl, NNUE network) | **Attribution visible to end users** — provided on `/#/about` in the running app and in this NOTICE. Anyone forking OpenMakruk + redistributing these assets must keep them under CC BY-SA 4.0 and continue to credit the original authors. |
 | MIT / Apache 2.0 deps | License notices retained in `node_modules` per npm's standard practice. |
 

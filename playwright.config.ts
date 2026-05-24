@@ -31,6 +31,12 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
     // Chessground squares aren't easy to target by selector; we use
     // pixel-coord drag. Setting a fixed viewport keeps coords stable.
+    //
+    // Seed localStorage with the onboarded flag so the first-time
+    // welcome modal doesn't pop in front of every test. The modal is
+    // tested explicitly in onboarding.spec.ts where this state is
+    // overridden.
+    storageState: './tests/e2e/.storage-state.json',
   },
   projects: [
     {

@@ -2,6 +2,46 @@
 
 import type { Page, Locator } from '@playwright/test';
 
+/** Clear all localStorage but preserve the onboarding flag so the
+ *  first-time welcome modal doesn't block tests. Use this from a
+ *  beforeEach hook instead of `localStorage.clear()`. */
+export async function clearAppState(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('openmakruk_onboarded', '1');
+  });
+}
+
+/**
+ * Read a versioned store from the test browser's localStorage. Stores
+ * are persisted as `{ v: N, d: T }` (see src/lib/stores.ts). Tests
+ * historically asserted directly on the inner shape — this helper
+ * strips the wrapper so the assertions keep their original form
+ * regardless of schema version bumps.
+ *
+ * Returns `null` if the key is absent and `{}` if a legacy unwrapped
+ * entry is found (so old callers' `parsed ?? '{}'` patterns stay
+ * shape-compatible).
+ */
+export async function readStore<T = unknown>(
+  page: Page,
+  key: string,
+): Promise<T | null> {
+  return page.evaluate((storageKey) => {
+    const raw = localStorage.getItem(storageKey);
+    if (raw === null) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && 'v' in parsed && 'd' in parsed) {
+        return parsed.d;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, key);
+}
+
 /**
  * Wait for the lazy-loaded content to settle. After clicking a tab,
  * the page may briefly show "กำลังโหลด ..." before the JSON arrives.
@@ -94,6 +134,72 @@ export async function dragMove(
   await page.mouse.move(a.x + 4, a.y + 4, { steps: 2 });
   await page.mouse.move(b.x, b.y, { steps: 12 });
   await page.mouse.up();
+}
+
+/**
+ * Same as `dragMove` but uses touch events. Browser context must be
+ * created with `hasTouch: true`. Used by mobile tests to verify
+ * chessground handles touch drag correctly.
+ *
+ * Touch flow on chessground:
+ *   1. touchstart on source square → selects piece
+ *   2. touchmove past drag-threshold → enters drag state
+ *   3. touchend on target → drops piece
+ *
+ * Adjacent-square touch is finicky for the same reason as mouse —
+ * we fall back to tap-then-tap which chessground's "click-to-move"
+ * flow accepts.
+ */
+export async function touchDragMove(
+  page: Page,
+  from: string,
+  to: string,
+  flipped = false,
+) {
+  await page.locator('.cg-wrap').first().scrollIntoViewIfNeeded();
+  await page.waitForTimeout(80);
+  const a = await squareCoords(page, from, flipped);
+  const b = await squareCoords(page, to, flipped);
+  const dx = Math.abs(b.x - a.x);
+  const dy = Math.abs(b.y - a.y);
+  const wrap = await page.locator('.cg-wrap').first().boundingBox();
+  const cellW = wrap ? wrap.width / 8 : 80;
+  if (dx < cellW * 1.3 && dy < cellW * 1.3) {
+    // Tap-then-tap fallback. `page.tap()` synthesises a single
+    // touchstart→touchend, which chessground interprets as a click
+    // on that square.
+    await page.touchscreen.tap(a.x, a.y);
+    await page.waitForTimeout(80);
+    await page.touchscreen.tap(b.x, b.y);
+    return;
+  }
+  // Multi-square drag: dispatch raw touch events via CDP so we can
+  // tween across squares. Playwright's `touchscreen.tap` doesn't
+  // support drag, so we use the CDP backdoor.
+  const client = await page.context().newCDPSession(page);
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: a.x, y: a.y, id: 1 }],
+  });
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchMove',
+    touchPoints: [{ x: a.x + 6, y: a.y + 6, id: 1 }],
+  });
+  // 8 intermediate steps for a smooth-enough drag
+  const steps = 8;
+  for (let i = 1; i <= steps; i++) {
+    const x = a.x + ((b.x - a.x) * i) / steps;
+    const y = a.y + ((b.y - a.y) * i) / steps;
+    await client.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y, id: 1 }],
+    });
+  }
+  await client.send('Input.dispatchTouchEvent', {
+    type: 'touchEnd',
+    touchPoints: [],
+  });
+  await client.detach();
 }
 
 /**
