@@ -16,10 +16,14 @@
     <meta property="og:title" content="OpenMakruk · หมากรุกไทย open-source" />
     <meta property="og:description" content="เล่นหมากรุกไทยกับ Fairy-Stockfish · ฝึกบทเรียน · แก้ปริศนา · ไม่มี ad ไม่ต้องสมัคร" />
     <meta property="og:url" content="https://openmakruk.com" />
-    <meta property="og:image" content="https://openmakruk.com/og.svg" />
-    <meta property="og:image:type" content="image/svg+xml" />
+    <!-- PNG as primary because LINE / Facebook share-preview crawlers
+         drop SVG silently. The SVG ships too (sharper on Twitter +
+         high-DPI displays that respect og:image:type). -->
+    <meta property="og:image" content="https://openmakruk.com/og.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="OpenMakruk · เว็บฝึก / เล่น / วิเคราะห์ หมากรุกไทย" />
     <meta property="og:locale" content="th_TH" />
     <meta property="og:locale:alternate" content="en_US" />
 
@@ -28,7 +32,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="OpenMakruk · หมากรุกไทย open-source" />
     <meta name="twitter:description" content="เล่นหมากรุกไทยกับ Fairy-Stockfish · ฝึก · ปริศนา · ไม่ต้องสมัคร" />
-    <meta name="twitter:image" content="https://openmakruk.com/og.svg" />
+    <meta name="twitter:image" content="https://openmakruk.com/og.png" />
 
     <!-- PWA wiring -->
     <link rel="manifest" href="/manifest.webmanifest" />

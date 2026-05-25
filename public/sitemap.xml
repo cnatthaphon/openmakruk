@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hash-based routing means /#/puzzles etc. all resolve to the same
+  HTML document; crawlers see one canonical URL. When the app moves
+  to HTML5 history routing in v0.2 this file should grow to list
+  each tab as a separate <url>.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://openmakruk.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

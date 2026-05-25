@@ -1560,6 +1560,7 @@ export default function App() {
           className="app-profile-widget"
           onClick={() => setCurrentTab('profile')}
           title="ดูโปรไฟล์ + ประวัติเกม"
+          aria-label={`โปรไฟล์: ${stats.displayName} · rating ${stats.rating}`}
         >
           {(() => {
             const streak = loadStreak();
@@ -1957,7 +1958,12 @@ export default function App() {
           </>}{/* end of sidebarTab === 'game' (config block) */}
 
           {!reviewActive && sidebarTab === 'game' && <>
-          <div className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''} ${state.isCheck ? 'is-check' : ''}`}>
+          <div
+            className={`turn-badge turn-${state.turn} ${thinking ? 'is-thinking' : ''} ${state.isCheck ? 'is-check' : ''}`}
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {thinking ? (
               <>
                 <span className="spinner-sm" aria-hidden="true" />

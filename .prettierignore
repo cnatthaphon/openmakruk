@@ -1,0 +1,11 @@
+dist
+node_modules
+worker/node_modules
+worker/.wrangler
+public/engine
+public/ffish.wasm
+public/sw.js
+worker/seed-curated.sql
+worker/migrations/*.sql
+*.lock
+package-lock.json

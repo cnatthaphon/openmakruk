@@ -45,13 +45,12 @@ export async function verifyPuzzle(p: {
     return { ok: false, reason: `engine load failed: ${String(err)}` };
   }
 
-  let board: FfishBoard | null = null;
+  let board: FfishBoard;
   try {
     board = new ffish.Board('makruk', p.fen);
   } catch (err) {
     return { ok: false, reason: `invalid FEN: ${String(err)}` };
   }
-  if (!board) return { ok: false, reason: 'FEN parse returned null' };
 
   try {
     // Check side-to-move matches

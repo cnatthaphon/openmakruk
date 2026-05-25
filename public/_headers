@@ -1,3 +1,46 @@
+# Cloudflare Pages header rules — applied in order, first match wins
+# for each header key.
+#
+# Cache strategy:
+#   /assets/*       — content-addressed (hash in filename) → immutable
+#   /pieces/*       — versioned by directory (makruk/ vs flat *.svg)
+#                     → 30-day cache, still revalidate occasionally
+#   /content/*.json — manifest-versioned content; the SW already does
+#                     network-first, so a short browser cache is fine
+#   /*.wasm         — versioned by npm package, never overwritten in
+#                     place → immutable
+#   default (/)     — must-revalidate so a deploy is picked up by
+#                     repeat visitors without a hard reload
+#
+# Security headers:
+#   COOP/COEP       — required for SharedArrayBuffer (multi-threaded
+#                     Fairy-Stockfish WASM). Without it, the engine
+#                     falls back to single-thread → 5× slower.
+#   HSTS            — preload-eligible after 6 months at this max-age
+#   Permissions-Policy — explicitly deny features we never use
+#   CSP             — report-only first; tighten + enforce in v0.2
+#                     once we've seen logs
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.wasm
+  Cache-Control: public, max-age=31536000, immutable
+
+/pieces/*
+  Cache-Control: public, max-age=2592000
+
+/content/*
+  Cache-Control: public, max-age=300, must-revalidate
+
 /*
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: require-corp
+  Strict-Transport-Security: max-age=15552000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), midi=()
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://openmakruk-api.cnatthaphon.workers.dev https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+
+/
+  Cache-Control: public, max-age=0, must-revalidate

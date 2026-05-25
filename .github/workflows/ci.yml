@@ -53,6 +53,11 @@ jobs:
         # e2e webServer rely on the wrangler binary inside worker/.
         run: cd worker && npm install --no-save
 
+      - name: Lint (ESLint)
+        # Fails on `error`-level rules only; warnings (e.g. exhaustive-
+        # deps that are intentionally suppressed) don't block the build.
+        run: npm run lint
+
       - name: Typecheck (root)
         run: npm run typecheck
 
