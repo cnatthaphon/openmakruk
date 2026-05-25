@@ -30,6 +30,9 @@ import type {
   BadgeDef,
   UserBadge,
   CertView,
+  JourneyView,
+  TournamentInfo,
+  ActivitySignals,
 } from './types';
 
 /** Resolve the API base URL. Lookup order:
@@ -288,6 +291,22 @@ export class CloudflareBackend implements BackendAdapter {
     const res = await this.request('/api/badges/me/evaluate', { method: 'POST', token });
     const body = (await res.json()) as { newBadges: string[] };
     return body.newBadges;
+  }
+
+  async fetchJourney(token: string): Promise<JourneyView> {
+    const res = await this.request('/api/journey/me', { token });
+    return (await res.json()) as JourneyView;
+  }
+
+  async fetchTournaments(): Promise<TournamentInfo[]> {
+    const res = await this.request('/api/tournaments');
+    const body = (await res.json()) as { tournaments: TournamentInfo[] };
+    return body.tournaments;
+  }
+
+  async fetchSignals(): Promise<ActivitySignals> {
+    const res = await this.request('/api/signals');
+    return (await res.json()) as ActivitySignals;
   }
 
   async fetchCert(slug: string): Promise<CertView | null> {

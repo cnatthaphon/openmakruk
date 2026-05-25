@@ -21,7 +21,15 @@ import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
-import type { MatchLeaderboardEntry, BotCharacter, BadgeDef, UserBadge } from '../lib/backend';
+import type {
+  MatchLeaderboardEntry,
+  BotCharacter,
+  BadgeDef,
+  UserBadge,
+  JourneyView,
+  TournamentInfo,
+  ActivitySignals,
+} from '../lib/backend';
 import { findProvince, REGION_LABELS_TH } from '../lib/provinces';
 import {
   GAUNTLET_ORDER,
@@ -174,6 +182,12 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <AchievementsAndStreakSection />
 
       <MatchLeaderboardSection stats={stats} />
+
+      <SignalsSection />
+
+      <JourneySection />
+
+      <TournamentsSection />
 
       <GlobalMatchLeaderboardSection />
 
@@ -524,6 +538,213 @@ function HistorySection({ stats }: { stats: UserStats }) {
           <button onClick={() => setVisible((n) => n + 50)}>
             แสดงเพิ่มอีก 50 ({more} เกมเก่ากว่ารออยู่)
           </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SignalsSection() {
+  const backend = getBackend();
+  const supports = backend.isOnline() && backend.fetchSignals !== undefined;
+  const [data, setData] = useState<ActivitySignals | null>(null);
+
+  useEffect(() => {
+    if (!supports || !backend.fetchSignals) return;
+    let cancelled = false;
+    backend.fetchSignals()
+      .then((s) => !cancelled && setData(s))
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [supports, backend]);
+
+  if (!supports || !data) return null;
+
+  const ago = (at: number) => {
+    const mins = Math.floor((Date.now() - at) / 60_000);
+    if (mins < 1) return 'เมื่อกี้นี้';
+    if (mins < 60) return `${mins} นาทีก่อน`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} ชั่วโมงก่อน`;
+    return new Date(at).toLocaleDateString('th-TH');
+  };
+
+  return (
+    <section className="profile-section">
+      <h3>📊 Activity · วันนี้</h3>
+      <div className="profile-signals">
+        <div className="profile-signal">
+          <span className="profile-signal-value">{data.gamesToday}</span>
+          <span className="profile-signal-label">เกมเล่นวันนี้</span>
+        </div>
+        <div className="profile-signal">
+          <span className="profile-signal-value">{data.puzzlesToday}</span>
+          <span className="profile-signal-label">ปริศนาแก้วันนี้</span>
+        </div>
+        {data.lastGame && (
+          <div className="profile-signal-row">
+            <span className="label-aside">เกมล่าสุด:</span>{' '}
+            {data.lastGame.displayName} · {ago(data.lastGame.at)}
+          </div>
+        )}
+        {data.lastPuzzle && (
+          <div className="profile-signal-row">
+            <span className="label-aside">แก้ปริศนาล่าสุด:</span>{' '}
+            {data.lastPuzzle.displayName} · {ago(data.lastPuzzle.at)}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TournamentsSection() {
+  const backend = getBackend();
+  const supports = backend.isOnline() && backend.fetchTournaments !== undefined;
+  const [list, setList] = useState<TournamentInfo[] | null>(null);
+
+  useEffect(() => {
+    if (!supports || !backend.fetchTournaments) return;
+    let cancelled = false;
+    backend.fetchTournaments()
+      .then((t) => !cancelled && setList(t))
+      .catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [supports, backend]);
+
+  if (!supports || !list || list.length === 0) return null;
+
+  return (
+    <section className="profile-section">
+      <h3>🏆 Tournaments</h3>
+      <p className="label-aside">
+        เกมที่เล่นในช่วง active ได้คะแนน × multiplier บน match leaderboard
+      </p>
+      <div className="profile-tournaments">
+        {list.map((t) => (
+          <div key={t.id} className={`profile-tournament ${t.active ? 'is-active' : ''}`}>
+            <span className="profile-tournament-icon">{t.icon}</span>
+            <div className="profile-tournament-body">
+              <div className="profile-tournament-name">
+                {t.nameTh} · ×{t.multiplier}
+                {t.active && <span className="profile-tournament-live"> · LIVE</span>}
+              </div>
+              <div className="label-aside">{t.descTh}</div>
+              {t.active && t.activeUntil && (
+                <div className="label-aside">
+                  จบเมื่อ: {new Date(t.activeUntil).toLocaleString('th-TH')}
+                </div>
+              )}
+              {!t.active && t.upcomingStartsAt && (
+                <div className="label-aside">
+                  เริ่ม: {new Date(t.upcomingStartsAt).toLocaleString('th-TH')}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function JourneySection() {
+  const backend = getBackend();
+  const session = loadSession();
+  const supports =
+    backend.isOnline() && session.token.length > 0 && backend.fetchJourney !== undefined;
+  const [journey, setJourney] = useState<JourneyView | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supports || !backend.fetchJourney) return;
+    let cancelled = false;
+    backend.fetchJourney(session.token)
+      .then((j) => !cancelled && setJourney(j))
+      .catch((e: unknown) => !cancelled && setErr(String(e)));
+    return () => { cancelled = true; };
+  }, [supports, backend, session.token]);
+
+  if (!supports) return null;
+
+  return (
+    <section className="profile-section">
+      <h3>🛤️ Journey · ทางสู่ระดับถัดไป</h3>
+      <p className="label-aside">
+        ระดับเลื่อนตาม rating + checkpoints จริง · ผ่านครบ = ใกล้ขั้นต่อไปแน่นอน
+      </p>
+      {err && <p className="label-aside" style={{ color: '#c75555' }}>{err}</p>}
+      {!journey && !err && <p className="label-aside">กำลังโหลด…</p>}
+      {journey && (
+        <div className="profile-journey">
+          <div className="profile-journey-header">
+            <span className="profile-journey-current-icon">{journey.currentIcon}</span>
+            <div>
+              <div className="profile-journey-current-name">
+                {journey.currentNameTh}
+              </div>
+              <div className="label-aside">rating ปัจจุบัน {journey.rating}</div>
+            </div>
+            {journey.nextLevel && (
+              <>
+                <span className="profile-journey-arrow">→</span>
+                <span className="profile-journey-next-icon">{journey.nextIcon}</span>
+                <div>
+                  <div className="profile-journey-next-name">{journey.nextNameTh}</div>
+                  <div className="label-aside">ratingแตะ {journey.nextRatingFloor}</div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {journey.checkpoints.length === 0 ? (
+            <p className="label-aside">
+              🎉 คุณอยู่ระดับสูงสุดแล้ว · ปกป้องตำแหน่งให้นานที่สุด
+            </p>
+          ) : (
+            <div className="profile-journey-checks">
+              {journey.checkpoints.map((cp) => {
+                const pct = cp.neededCount > 0
+                  ? Math.min(100, (cp.doneCount / cp.neededCount) * 100)
+                  : 0;
+                return (
+                  <div
+                    key={cp.id}
+                    className={`profile-journey-check ${cp.complete ? 'done' : ''}`}
+                  >
+                    <div className="profile-journey-check-head">
+                      <span className="profile-journey-check-icon">
+                        {cp.complete ? '✅' : '⬜'}
+                      </span>
+                      <span className="profile-journey-check-label">{cp.labelTh}</span>
+                      <span className="profile-journey-check-count">
+                        {cp.doneCount} / {cp.neededCount}
+                      </span>
+                    </div>
+                    <div className="profile-journey-check-bar">
+                      <div
+                        className="profile-journey-check-fill"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="profile-journey-ladder">
+            {journey.levelLadder.map((l) => (
+              <div
+                key={l.id}
+                className={`profile-journey-step ${l.id === journey.currentLevel ? 'is-here' : ''}`}
+                title={`${l.nameTh} · rating ${l.ratingFloor}+`}
+              >
+                <span>{l.icon}</span>
+                <span className="label-aside">{l.ratingFloor}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>

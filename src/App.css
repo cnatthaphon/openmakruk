@@ -4722,6 +4722,145 @@ footer a:hover {
   vertical-align: middle;
 }
 
+/* Activity signals ------------------------------------------------ */
+.profile-signals {
+  display: flex; flex-wrap: wrap; gap: 0.8rem;
+  margin-top: 0.5rem;
+}
+.profile-signal {
+  display: flex; flex-direction: column;
+  padding: 0.6rem 1rem;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  min-width: 120px;
+}
+.profile-signal-value {
+  font-size: 1.5rem; font-weight: 700; color: var(--accent, #d4a23c);
+}
+.profile-signal-label {
+  font-size: 0.75rem; color: rgba(255,255,255,0.65);
+}
+.profile-signal-row {
+  width: 100%;
+  font-size: 0.85rem; color: rgba(255,255,255,0.8);
+  padding-top: 0.3rem;
+}
+
+/* Tournaments ----------------------------------------------------- */
+.profile-tournaments {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.profile-tournament {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+}
+.profile-tournament.is-active {
+  background: rgba(212, 162, 60, 0.12);
+  border-color: rgba(212, 162, 60, 0.55);
+}
+.profile-tournament-icon { font-size: 1.8rem; }
+.profile-tournament-body { flex: 1; }
+.profile-tournament-name { font-weight: 600; }
+.profile-tournament-live {
+  color: #4ea36c;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  margin-left: 0.2rem;
+}
+
+/* Counting trainer banner (flagship) ----------------------------- */
+.puzzles-counting-banner {
+  display: flex; align-items: center; gap: 0.8rem;
+  width: 100%;
+  margin-top: 0.8rem;
+  padding: 0.9rem 1.1rem;
+  background: linear-gradient(135deg, rgba(212, 162, 60, 0.25), rgba(212, 162, 60, 0.08));
+  border: 1px solid rgba(212, 162, 60, 0.5);
+  border-radius: 10px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.puzzles-counting-banner:hover {
+  transform: translateY(-1px);
+  border-color: rgba(212, 162, 60, 0.8);
+}
+.puzzles-counting-icon { font-size: 2.2rem; line-height: 1; }
+.puzzles-counting-text { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.puzzles-counting-text strong { font-size: 1.05rem; }
+.puzzles-counting-cta {
+  font-weight: 600;
+  color: var(--accent, #d4a23c);
+  white-space: nowrap;
+}
+
+/* Journey path --------------------------------------------------- */
+.profile-journey { display: flex; flex-direction: column; gap: 0.8rem; }
+.profile-journey-header {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.7rem 0.9rem;
+  background: rgba(212, 162, 60, 0.08);
+  border-radius: 8px;
+}
+.profile-journey-current-icon, .profile-journey-next-icon {
+  font-size: 2rem; line-height: 1;
+}
+.profile-journey-arrow { font-size: 1.3rem; opacity: 0.5; }
+.profile-journey-current-name, .profile-journey-next-name {
+  font-weight: 600; font-size: 1rem;
+}
+.profile-journey-checks {
+  display: flex; flex-direction: column; gap: 0.4rem;
+}
+.profile-journey-check {
+  padding: 0.5rem 0.7rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+}
+.profile-journey-check.done {
+  background: rgba(78, 163, 108, 0.12);
+  border-color: rgba(78, 163, 108, 0.4);
+}
+.profile-journey-check-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.88rem;
+}
+.profile-journey-check-icon { font-size: 1rem; }
+.profile-journey-check-label { flex: 1; }
+.profile-journey-check-count {
+  font-size: 0.78rem; color: rgba(255,255,255,0.6);
+}
+.profile-journey-check-bar {
+  margin-top: 0.4rem; height: 4px; background: rgba(255,255,255,0.06);
+  border-radius: 2px; overflow: hidden;
+}
+.profile-journey-check-fill {
+  height: 100%; background: var(--accent, #d4a23c);
+  transition: width 0.4s ease;
+}
+.profile-journey-ladder {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.6rem 0.4rem; margin-top: 0.5rem;
+  background: rgba(255,255,255,0.02);
+  border-radius: 6px;
+}
+.profile-journey-step {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 0.15rem;
+  opacity: 0.4;
+  font-size: 1.2rem;
+}
+.profile-journey-step.is-here {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
 /* Badge tier ladder ----------------------------------------------- */
 .profile-badges {
   display: flex;

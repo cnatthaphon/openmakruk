@@ -197,6 +197,28 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
         {loadError && (
           <p className="puzzles-error">⚠ โหลด content ไม่สำเร็จ: {loadError}</p>
         )}
+
+        {/* Counting trainer banner — Makruk-specific flagship.
+            Surfaces the counting category prominently because the
+            rule is unique to Thai chess and most newcomers don't
+            even know it exists. */}
+        <button
+          className="puzzles-counting-banner"
+          onClick={() => {
+            const first = puzzles?.find((p) => p.category === 'counting');
+            if (first) setActivePuzzleId(first.id);
+          }}
+          aria-label="ฝึกการนับ — กฎเฉพาะของหมากรุกไทย"
+        >
+          <span className="puzzles-counting-icon">🔢</span>
+          <div className="puzzles-counting-text">
+            <strong>การนับ trainer</strong>
+            <span className="label-aside">
+              · กฎเฉพาะหมากรุกไทย · K+X vs K มีกรอบเวลา · ใครรู้กฎจริงคือเก่งจริง
+            </span>
+          </div>
+          <span className="puzzles-counting-cta">เริ่มฝึก →</span>
+        </button>
       </header>
 
       {!puzzles && !loadError && (

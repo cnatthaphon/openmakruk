@@ -103,6 +103,51 @@ export type CertView = {
   unlockedAt: number;
 };
 
+/** Tournament window — recurring (e.g. Sunday Showdown) or one-off. */
+export type TournamentInfo = {
+  id: string;
+  nameTh: string;
+  descTh: string;
+  icon: string;
+  multiplier: number;
+  active: boolean;
+  activeUntil: number | null;
+  upcomingStartsAt: number | null;
+  upcomingEndsAt: number | null;
+};
+
+/** Real engagement signals — every number comes from a DB count. */
+export type ActivitySignals = {
+  gamesToday: number;
+  puzzlesToday: number;
+  lastGame: { at: number; displayName: string } | null;
+  lastPuzzle: { at: number; displayName: string } | null;
+};
+
+/** Server-computed journey state for the authenticated user. Each
+ *  checkpoint carries its own progress numbers so the UI can render
+ *  a progress bar without re-running the logic locally. */
+export type JourneyView = {
+  currentLevel: 'beginner' | 'apprentice' | 'player' | 'veteran' | 'champion' | 'master';
+  currentNameTh: string;
+  currentIcon: string;
+  nextLevel: string | null;
+  nextNameTh: string | null;
+  nextIcon: string | null;
+  nextRatingFloor: number | null;
+  checkpoints: Array<{
+    id: string;
+    kind: string;
+    value: string;
+    labelTh: string;
+    complete: boolean;
+    doneCount: number;
+    neededCount: number;
+  }>;
+  levelLadder: Array<{ id: string; nameTh: string; icon: string; ratingFloor: number }>;
+  rating: number;
+};
+
 /** Bot character profile + denormalized stats from games vs humans. */
 export type BotCharacter = {
   id: string;
@@ -303,6 +348,20 @@ export type BackendAdapter = {
 
   /** Public cert page lookup. No auth required. */
   fetchCert?(slug: string): Promise<CertView | null>;
+
+  // ----- Journey (Phase 9H-4) --------------------------------------
+
+  /** The user's level + next-level checkpoints. Cheap aggregate read. */
+  fetchJourney?(token: string): Promise<JourneyView>;
+
+  // ----- Tournaments + activity signals (Phase 9H-6/7) -------------
+
+  /** Active + upcoming tournament windows. */
+  fetchTournaments?(): Promise<TournamentInfo[]>;
+
+  /** Honest engagement signals — games/puzzles played today + last
+   *  player display name. All from real DB counts, no fakes. */
+  fetchSignals?(): Promise<ActivitySignals>;
 
   // ----- Puzzle catalog ---------------------------------------------
 

@@ -25,6 +25,9 @@ import { gamesRoute } from './routes/games';
 import { leaderboardRoute } from './routes/leaderboard';
 import { botsRoute } from './routes/bots';
 import { badgesRoute, certRoute } from './routes/badges';
+import { journeyRoute } from './routes/journey';
+import { tournamentsRoute } from './routes/tournaments';
+import { signalsRoute } from './routes/signals';
 
 /** Cloudflare bindings configured in wrangler.toml. */
 export type Env = {
@@ -75,6 +78,9 @@ app.route('/api/leaderboard', leaderboardRoute);
 app.route('/api/bots', botsRoute);
 app.route('/api/badges', badgesRoute);
 app.route('/api/cert', certRoute);
+app.route('/api/journey', journeyRoute);
+app.route('/api/tournaments', tournamentsRoute);
+app.route('/api/signals', signalsRoute);
 
 /** DB readiness — separate from /health because hitting D1 costs a
  *  read and we don't want every monitoring probe to drive that bill. */
