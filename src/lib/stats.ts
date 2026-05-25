@@ -1,11 +1,16 @@
-// User rating + per-level record persisted in localStorage via the
-// versioned stores module.
+// User rating + per-level record persisted via the versioned stores
+// module. Backed by IndexedDB (durable storage; see stores.ts) so
+// history grows without the 5MB localStorage ceiling.
 //
 // Goals:
 //   1. Give the user a single number that says "you're roughly at this
 //      strength" so they can pick a sensible difficulty.
 //   2. Track win/loss/draw per CPU level for self-awareness.
-//   3. Keep it pure localStorage — no backend, PDPA-free.
+//   3. Default is offline-only — no data leaves the device. When the
+//      user enables ☁️ Cloud Sync, recordGame() also POSTs to the
+//      worker so leaderboard + multi-device sync work. PDPA scope
+//      stays minimal: only display name + game outcomes leave; no
+//      email / phone / IP retention.
 //
 // Rating model: vanilla Elo with K=32 and a starting rating of 1000.
 // CPU ratings are calibrated against typical chess Elo (rough mapping):
