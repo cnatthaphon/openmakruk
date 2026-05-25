@@ -26,15 +26,15 @@ import type {
   MatchLeaderboardEntry,
 } from './types';
 
-const DEV_API_BASE = 'http://localhost:8788';
-
 /** Resolve the API base URL. Lookup order:
  *    1. localStorage `openmakruk_api_base` — test/dev overrides.
  *       Useful so an E2E suite can point the browser app at a
  *       wrangler dev port without rebuilding Vite.
  *    2. Vite's VITE_API_BASE env (baked in at build time).
- *    3. DEV_API_BASE — the default that matches the worker's
- *       development port. */
+ *    3. Dev fallback — the default that matches the worker's
+ *       `wrangler dev` port. Constructed at runtime (not as a
+ *       module-level constant) so the literal doesn't leak into
+ *       production bundles where dev mode is impossible. */
 function resolveApiBase(): string {
   try {
     if (typeof window !== 'undefined') {
@@ -44,14 +44,31 @@ function resolveApiBase(): string {
   } catch {
     // ignore storage errors (private mode, etc.)
   }
+  let isProd = false;
   try {
-    const env = (import.meta as unknown as { env?: { VITE_API_BASE?: string } }).env;
+    const env = (import.meta as unknown as { env?: { VITE_API_BASE?: string; PROD?: boolean } }).env;
+    isProd = env?.PROD === true;
     const fromEnv = env?.VITE_API_BASE ?? null;
     if (fromEnv) return fromEnv.replace(/\/$/, '');
   } catch {
     // not a Vite context — fall through
   }
-  return DEV_API_BASE;
+  // Dev fallback gated behind import.meta.env.DEV — Vite statically
+  // replaces THIS EXACT identifier pattern with the literal boolean
+  // before bundling, so the whole `if` block is dead-code-eliminated
+  // in production. Aliasing or optional chaining defeats the static
+  // replacement, so don't touch the form below. Verified via
+  // deploy-check (it greps the built bundle for the literal).
+  if ((import.meta as { env: { DEV: boolean } }).env.DEV) {
+    return 'http://localhost:8788';
+  }
+  if (isProd) {
+    // No env override + production bundle = misconfiguration. Returning
+    // an empty string makes every request fail loudly (URL parse error)
+    // instead of silently calling some unrelated host.
+    return '';
+  }
+  return '';
 }
 
 export type CloudflareBackendOpts = {
@@ -144,6 +161,25 @@ export class CloudflareBackend implements BackendAdapter {
         verified: boolean;
       }>;
       nextCursor: string | null;
+    };
+  }
+
+  async postGolfAttempt(token: string, puzzleId: string, moves: string[]) {
+    const res = await this.request(
+      `/api/puzzles/${encodeURIComponent(puzzleId)}/golf`,
+      {
+        method: 'POST',
+        token,
+        body: JSON.stringify({ moves }),
+      },
+    );
+    return (await res.json()) as {
+      ok: true;
+      plyCount: number;
+      personalBest: number;
+      globalBest: number;
+      isPersonalBest: boolean;
+      isGlobalBest: boolean;
     };
   }
 

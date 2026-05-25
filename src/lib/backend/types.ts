@@ -219,6 +219,22 @@ export type BackendAdapter = {
   /** Submit a puzzle the user crafted. Returns the server-assigned id. */
   submitPuzzle?(draft: PuzzleDraft): Promise<string>;
 
+  /** Submit a code-golf attempt for a mate puzzle. Server replays the
+   *  move sequence; accepts only if it ends in checkmate. Returns the
+   *  user's personal best + the global best after this attempt. */
+  postGolfAttempt?(
+    token: string,
+    puzzleId: string,
+    moves: string[],
+  ): Promise<{
+    ok: true;
+    plyCount: number;
+    personalBest: number;
+    globalBest: number;
+    isPersonalBest: boolean;
+    isGlobalBest: boolean;
+  }>;
+
   /** Submit a puzzle by raw shape (no schema wrapper) — used by the
    *  auto-miner and the user-puzzle author UI when they already have
    *  the canonical fields ready. Returns the server id. */

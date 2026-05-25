@@ -107,6 +107,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { toast } from './components/Toast';
 import { OnboardingModal } from './components/OnboardingModal';
 import { hasOnboarded } from './lib/onboarding';
+import { haptic } from './lib/haptic';
 import {
   enableCloud,
   hasStoredSession,
@@ -725,7 +726,21 @@ export default function App() {
     const advanced = newLen > prevLen;
     prevHistoryLenRef.current = newLen;
     prevPieceCountRef.current = pieceCount;
-    if (!advanced || !settings.soundsEnabled) return;
+    if (!advanced) return;
+    // Haptic always fires (no setting gate) — it costs nothing on
+    // platforms without vibrate, and the rare device with vibrate
+    // enabled and sounds disabled (e.g. quiet train commute) is
+    // exactly when haptic carries the signal.
+    if (state.isGameOver || forcedResult) {
+      haptic('mate');
+    } else if (state.isCheck) {
+      haptic('check');
+    } else if (prevCount !== null && pieceCount < prevCount) {
+      haptic('capture');
+    } else {
+      haptic('move');
+    }
+    if (!settings.soundsEnabled) return;
     const userSide = mode === 'play-white' ? 'white' : mode === 'play-black' ? 'black' : null;
     const vol = settings.soundsVolume;
     if (state.isGameOver || forcedResult) {

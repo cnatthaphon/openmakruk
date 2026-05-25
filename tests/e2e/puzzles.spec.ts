@@ -16,9 +16,9 @@ test.describe('puzzles', () => {
     await waitForContentReady(page);
     const cards = page.locator('.puzzle-category-card');
     await expect(cards).toHaveCount(5);
-    // v6 manifest: mate-1=14, mate-2=5, tactic=17, counting=13, defense=5
+    // v7 manifest: mate-1=14, mate-2=25, tactic=17, counting=13, defense=5
     await expect(cards.nth(0)).toContainText('0 / 14');
-    await expect(cards.nth(1)).toContainText('0 / 5');
+    await expect(cards.nth(1)).toContainText('0 / 25');
     await expect(cards.nth(2)).toContainText('0 / 17');
     await expect(cards.nth(3)).toContainText('0 / 13');
     await expect(cards.nth(4)).toContainText('0 / 5');

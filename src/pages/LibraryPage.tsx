@@ -77,8 +77,8 @@ export function LibraryPage({ onLoad, initialPositionId }: Props) {
       <header className="library-header">
         <h2>📚 คลังตำแหน่ง</h2>
         <p>
-          ตำแหน่งที่บันทึกจาก Custom / Play / ปริศนา · เก็บใน browser เท่านั้น ·
-          ทั้งหมด: <strong>{library.length}</strong> / 200
+          ตำแหน่งที่บันทึกจาก Custom / Play / ปริศนา · เก็บใน IndexedDB ของ browser ·
+          ทั้งหมด: <strong>{library.length}</strong>
         </p>
         {library.length > 0 && (
           <input

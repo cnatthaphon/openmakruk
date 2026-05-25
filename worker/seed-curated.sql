@@ -387,3 +387,143 @@ INSERT OR REPLACE INTO puzzles
              '["f4f7","a8b8","f7f8"]', 'white', 1150,
              'ขาวเดิน · รุกจน 2 ตา (a8 corner · เรือเริ่ม f4)', '["k-and-rook","ladder-mate","corner-mate"]',
              'curated', NULL, 'curator', 1736309790261);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-006', 'mate-2', '7k/8/6K1/8/8/R7/8/1R6 w - - 0 1',
+             '["g6f7","h8h7","a3h3"]', 'white', 1226,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790262);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-007', 'mate-2', '6k1/8/5K2/8/8/R7/8/1R6 w - - 0 1',
+             '["a3g3","g8f8","b1b8"]', 'white', 1265,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790263);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-008', 'mate-2', '5k2/8/4K3/8/8/R7/8/1R6 w - - 0 1',
+             '["a3g3","f8e8","b1b8"]', 'white', 1180,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790264);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-009', 'mate-2', '4k3/8/3K4/8/8/R7/8/1R6 w - - 0 1',
+             '["a3f3","e8d8","b1b8"]', 'white', 1284,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790265);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-010', 'mate-2', 'k7/8/1K6/8/8/8/8/R3R3 w - - 0 1',
+             '["b6c6","a8b8","e1e8"]', 'white', 1276,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790287);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-011', 'mate-2', '1k6/8/2K5/8/8/8/8/R3R3 w - - 0 1',
+             '["c6d7","b8b7","e1b1"]', 'white', 1181,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790288);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-012', 'mate-2', '7k/R7/6K1/8/8/8/8/3R4 w - - 0 1',
+             '["a7b7","h8g8","d1d8"]', 'white', 1215,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790289);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-013', 'mate-2', '7k/8/R7/6K1/8/8/8/3R4 w - - 0 1',
+             '["a6g6","h8h7","d1h1"]', 'white', 1176,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790290);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-014', 'mate-2', 'k7/R7/2K5/8/8/8/8/3R4 w - - 0 1',
+             '["a7c7","a8b8","d1d8"]', 'white', 1124,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790291);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-015', 'mate-2', '1k6/R7/2K5/8/8/8/8/3R4 w - - 0 1',
+             '["a7c7","b8a8","d1d8"]', 'white', 1160,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790292);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-016', 'mate-2', '7k/6KN/8/8/8/8/R7/8 w - - 0 1',
+             '["g7f7","h8h7","a2h2"]', 'white', 1113,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790293);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-017', 'mate-2', '6k1/5K1N/8/8/8/8/R7/8 w - - 0 1',
+             '["f7g6","g8h8","a2a8"]', 'white', 1119,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790294);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-018', 'mate-2', '7k/7N/5K2/8/8/8/8/R7 w - - 0 1',
+             '["h7g5","h8g8","a1a8"]', 'white', 1208,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790295);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-019', 'mate-2', '7k/R7/5KM1/8/8/8/8/8 w - - 0 1',
+             '["a7b7","h8g8","b7b8"]', 'white', 1192,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790296);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-020', 'mate-2', '7k/8/6K1/8/8/8/8/R3M3 w - - 0 1',
+             '["a1b1","h8g8","b1b8"]', 'white', 1290,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790318);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-021', 'mate-2', '7k/8/8/8/8/6K1/R7/3R4 w - - 0 1',
+             '["a2a7","h8g8","d1d8"]', 'white', 1170,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790319);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-022', 'mate-2', '6k1/8/8/8/8/5K2/R7/3R4 w - - 0 1',
+             '["a2a7","g8f8","d1d8"]', 'white', 1126,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790320);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-023', 'mate-2', '7k/8/8/6K1/8/8/R7/R7 w - - 0 1',
+             '["g5g6","h8g8","a2a8"]', 'white', 1103,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790321);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-024', 'mate-2', '7k/8/5K2/8/8/8/R7/R7 w - - 0 1',
+             '["f6f7","h8h7","a2h2"]', 'white', 1177,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790322);
+INSERT OR REPLACE INTO puzzles
+       (id, category, fen, solution_json, to_move, rating, prompt,
+        themes_json, source, author_id, verified_by, created_at)
+     VALUES ('mate2-025', 'mate-2', '6k1/8/4K3/8/8/8/R7/R7 w - - 0 1',
+             '["a2g2","g8f8","a1a8"]', 'white', 1139,
+             'ขาวเดิน · รุกจน 2 ตา', '["mate-in-2","auto-generated"]',
+             'curated', NULL, 'curator', 1736309790323);

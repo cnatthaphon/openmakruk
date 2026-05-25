@@ -51,3 +51,4 @@ worker/.wrangler/
 worker/.dev.vars
 worker/dist/
 worker/.miniflare/
+worker/candidate-puzzles.json

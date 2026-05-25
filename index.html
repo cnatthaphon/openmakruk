@@ -41,7 +41,26 @@
     <title>OpenMakruk · หมากรุกไทย</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-React boot splash. React replaces this on mount; until
+           then the user sees something other than a blank page during
+           IndexedDB hydration + JS chunk load. Critical CSS inline so
+           the splash works before the stylesheet downloads. -->
+      <div style="
+        position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 0.8rem;
+        background: #1a1816; color: rgba(255,255,255,0.75);
+        font-family: -apple-system, system-ui, sans-serif;">
+        <div style="
+          width: 36px; height: 36px;
+          border: 3px solid rgba(255,255,255,0.15);
+          border-top-color: #d4a23c;
+          border-radius: 50%;
+          animation: openmakruk-spin 0.9s linear infinite;"></div>
+        <div style="font-size: 0.9rem;">กำลังโหลด OpenMakruk…</div>
+        <style>@keyframes openmakruk-spin { to { transform: rotate(360deg); } }</style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
       // Register the service worker once the page is loaded so the

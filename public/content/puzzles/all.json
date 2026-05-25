@@ -1002,5 +1002,385 @@
       "corner-mate"
     ],
     "source": "OpenMakruk starter set"
+  },
+  {
+    "id": "mate2-006",
+    "fen": "7k/8/6K1/8/8/R7/8/1R6 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1226,
+    "toMove": "white",
+    "solution": [
+      "g6f7",
+      "h8h7",
+      "a3h3"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-007",
+    "fen": "6k1/8/5K2/8/8/R7/8/1R6 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1265,
+    "toMove": "white",
+    "solution": [
+      "a3g3",
+      "g8f8",
+      "b1b8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-008",
+    "fen": "5k2/8/4K3/8/8/R7/8/1R6 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1180,
+    "toMove": "white",
+    "solution": [
+      "a3g3",
+      "f8e8",
+      "b1b8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-009",
+    "fen": "4k3/8/3K4/8/8/R7/8/1R6 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1284,
+    "toMove": "white",
+    "solution": [
+      "a3f3",
+      "e8d8",
+      "b1b8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-010",
+    "fen": "k7/8/1K6/8/8/8/8/R3R3 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1276,
+    "toMove": "white",
+    "solution": [
+      "b6c6",
+      "a8b8",
+      "e1e8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-011",
+    "fen": "1k6/8/2K5/8/8/8/8/R3R3 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1181,
+    "toMove": "white",
+    "solution": [
+      "c6d7",
+      "b8b7",
+      "e1b1"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-012",
+    "fen": "7k/R7/6K1/8/8/8/8/3R4 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1215,
+    "toMove": "white",
+    "solution": [
+      "a7b7",
+      "h8g8",
+      "d1d8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-013",
+    "fen": "7k/8/R7/6K1/8/8/8/3R4 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1176,
+    "toMove": "white",
+    "solution": [
+      "a6g6",
+      "h8h7",
+      "d1h1"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-014",
+    "fen": "k7/R7/2K5/8/8/8/8/3R4 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1124,
+    "toMove": "white",
+    "solution": [
+      "a7c7",
+      "a8b8",
+      "d1d8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-015",
+    "fen": "1k6/R7/2K5/8/8/8/8/3R4 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1160,
+    "toMove": "white",
+    "solution": [
+      "a7c7",
+      "b8a8",
+      "d1d8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-016",
+    "fen": "7k/6KN/8/8/8/8/R7/8 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1113,
+    "toMove": "white",
+    "solution": [
+      "g7f7",
+      "h8h7",
+      "a2h2"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-017",
+    "fen": "6k1/5K1N/8/8/8/8/R7/8 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1119,
+    "toMove": "white",
+    "solution": [
+      "f7g6",
+      "g8h8",
+      "a2a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-018",
+    "fen": "7k/7N/5K2/8/8/8/8/R7 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1208,
+    "toMove": "white",
+    "solution": [
+      "h7g5",
+      "h8g8",
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-019",
+    "fen": "7k/R7/5KM1/8/8/8/8/8 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1192,
+    "toMove": "white",
+    "solution": [
+      "a7b7",
+      "h8g8",
+      "b7b8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-020",
+    "fen": "7k/8/6K1/8/8/8/8/R3M3 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1290,
+    "toMove": "white",
+    "solution": [
+      "a1b1",
+      "h8g8",
+      "b1b8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-021",
+    "fen": "7k/8/8/8/8/6K1/R7/3R4 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1170,
+    "toMove": "white",
+    "solution": [
+      "a2a7",
+      "h8g8",
+      "d1d8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-022",
+    "fen": "6k1/8/8/8/8/5K2/R7/3R4 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1126,
+    "toMove": "white",
+    "solution": [
+      "a2a7",
+      "g8f8",
+      "d1d8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-023",
+    "fen": "7k/8/8/6K1/8/8/R7/R7 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1103,
+    "toMove": "white",
+    "solution": [
+      "g5g6",
+      "h8g8",
+      "a2a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-024",
+    "fen": "7k/8/5K2/8/8/8/R7/R7 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1177,
+    "toMove": "white",
+    "solution": [
+      "f6f7",
+      "h8h7",
+      "a2h2"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
+  },
+  {
+    "id": "mate2-025",
+    "fen": "6k1/8/4K3/8/8/8/R7/R7 w - - 0 1",
+    "category": "mate-2",
+    "rating": 1139,
+    "toMove": "white",
+    "solution": [
+      "a2g2",
+      "g8f8",
+      "a1a8"
+    ],
+    "prompt": "ขาวเดิน · รุกจน 2 ตา",
+    "hint": "หาตาที่บังคับสีดำเข้าตำแหน่งโดนรุก",
+    "themes": [
+      "mate-in-2",
+      "auto-generated"
+    ],
+    "source": "OpenMakruk generator"
   }
 ]

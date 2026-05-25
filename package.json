@@ -31,6 +31,7 @@
     "preview": "node node_modules/vite/bin/vite.js preview",
     "typecheck": "node node_modules/typescript/bin/tsc -b --noEmit",
     "test:e2e": "node node_modules/@playwright/test/cli.js test --project=chromium",
+    "deploy:check": "node scripts/deploy-check.mjs",
     "postinstall": "node scripts/copy-wasm.mjs"
   },
   "dependencies": {

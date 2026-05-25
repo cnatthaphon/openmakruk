@@ -4703,6 +4703,25 @@ footer a:hover {
   font-size: 0.85rem;
 }
 
+/* Code-golf toggle ------------------------------------------------ */
+.puzzle-golf-toggle {
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  background: rgba(212, 162, 60, 0.08);
+  border: 1px solid rgba(212, 162, 60, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.puzzle-golf-toggle label {
+  cursor: pointer;
+  display: block;
+}
+.puzzle-golf-toggle input[type="checkbox"] {
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
+
 /* Global match leaderboard ---------------------------------------- */
 .profile-global-lb {
   display: flex;

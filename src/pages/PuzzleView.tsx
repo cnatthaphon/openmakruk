@@ -12,6 +12,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board } from '../components/Board';
+import { haptic } from '../lib/haptic';
+import { getBackend } from '../lib/backend';
+import { loadSession } from '../lib/backend/cloudSession';
+import { toast } from '../components/Toast';
 import {
   loadFfish,
   parseLegalMoves,
@@ -60,6 +64,50 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
   const ffishRef = useRef<Awaited<ReturnType<typeof loadFfish>> | null>(null);
   const boardRef = useRef<any | null>(null);
   const [showHint, setShowHint] = useState(false);
+
+  // Code-golf mode — user plays ANY legal move, scored by ply count.
+  // Available only on mate-1/mate-2 puzzles when cloud sync is on, so
+  // the server can verify the attempt + track the leaderboard.
+  const golfEligible =
+    (puzzle.category === 'mate-1' || puzzle.category === 'mate-2') &&
+    getBackend().isOnline() &&
+    getBackend().postGolfAttempt !== undefined;
+  const [golfMode, setGolfMode] = useState(false);
+  /** UCI moves the user has made in golf mode, in order. We submit
+   *  the whole list to the server when their last move delivers
+   *  checkmate; until then it just accumulates locally. */
+  const golfMovesRef = useRef<string[]>([]);
+
+  /** Submit a code-golf attempt to the server and surface the result
+   *  as a toast. Fire-and-forget — we don't block the UI on the
+   *  network round-trip. */
+  const submitGolfAttempt = useCallback(
+    async (puzzleId: string, moves: string[]) => {
+      const backend = getBackend();
+      if (!backend.postGolfAttempt) return;
+      const session = loadSession();
+      if (!session.token) return;
+      try {
+        const res = await backend.postGolfAttempt(session.token, puzzleId, moves);
+        if (res.isGlobalBest) {
+          toast.success(
+            `🥇 สถิติโลกใหม่! ${res.plyCount} ตา · เป็นที่ 1 บนกระดาน global`,
+          );
+        } else if (res.isPersonalBest) {
+          toast.success(
+            `🎯 personal best ใหม่! ${res.plyCount} ตา (เร็วสุดของโลก: ${res.globalBest})`,
+          );
+        } else {
+          toast.info(
+            `✓ บันทึก ${res.plyCount} ตา · personal best ${res.personalBest} · global ${res.globalBest}`,
+          );
+        }
+      } catch (err) {
+        toast.error(`บันทึก code-golf ไม่สำเร็จ: ${String(err).slice(0, 80)}`);
+      }
+    },
+    [],
+  );
   /** ms epoch when the puzzle first rendered — used to compute the
    * timeToSolveMs metric saved with the solve record. */
   const startedAtRef = useRef<number>(Date.now());
@@ -116,6 +164,70 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
       const board = boardRef.current;
       if (!ffish || !board || !state || state.status !== 'playing') return;
 
+      // ── Code-golf branch ─────────────────────────────────────────
+      // In golf mode, we don't validate against the canonical solution
+      // — any legal move is accepted; success is "did the user deliver
+      // checkmate, and in how few plies?". Server verifies the full
+      // sequence on submit, so client-side legality is only a UX
+      // shortcut to avoid useless round-trips.
+      if (golfMode) {
+        const userUci = `${from}${to}`;
+        const isLegal = state.legalMoves.some((m) => m.startsWith(userUci));
+        if (!isLegal) {
+          haptic('wrong');
+          setState((s) =>
+            !s ? s : { ...s, feedback: 'เดินผิดกฎ · ลองใหม่' },
+          );
+          setTimeout(() => {
+            setState((s) => (!s ? s : { ...s, feedback: null }));
+          }, 900);
+          return;
+        }
+        // Resolve to the full UCI (with promotion suffix if any) so the
+        // server replay agrees with us.
+        const fullUci = state.legalMoves.find((m) => m.startsWith(userUci)) ?? userUci;
+        board.push(fullUci);
+        golfMovesRef.current = [...golfMovesRef.current, fullUci];
+        const gameOver = board.isGameOver();
+        const result = gameOver ? board.result() : null;
+        const deliveredMate =
+          gameOver &&
+          ((userSide === 'white' && result === '1-0') ||
+            (userSide === 'black' && result === '0-1'));
+        if (deliveredMate) {
+          haptic('mate');
+          submitGolfAttempt(puzzle.id, golfMovesRef.current);
+          setState({
+            fen: board.fen(),
+            legalMoves: [],
+            isCheck: board.isCheck(),
+            step: state.step,
+            attempts: state.attempts + 1,
+            wrongStreak: 0,
+            status: 'won',
+            feedback: `🏆 รุกจน · ${golfMovesRef.current.length} ตา · กำลังส่งคะแนน…`,
+            lastMove: { from, to },
+          });
+          return;
+        }
+        // Move accepted but mate not yet — show progress
+        setState({
+          fen: board.fen(),
+          legalMoves: parseLegalMoves(board.legalMoves()),
+          isCheck: board.isCheck(),
+          step: state.step,
+          attempts: state.attempts + 1,
+          wrongStreak: 0,
+          status: 'playing',
+          feedback: `🏌️ ${golfMovesRef.current.length} ตาแล้ว · เดินต่อ`,
+          lastMove: { from, to },
+        });
+        setTimeout(() => {
+          setState((s) => (!s ? s : { ...s, feedback: null }));
+        }, 1500);
+        return;
+      }
+
       const expectedUci = puzzle.solution[state.step];
       const userUci = `${from}${to}`;
       // Allow promotion suffix — Makruk auto-promotes to Met (m) so the
@@ -125,6 +237,9 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
 
       if (!isCorrect) {
         // Wrong: don't advance the ffish board, just flash feedback.
+        // Haptic "wrong" pattern so touch users get the same urgency
+        // signal the desktop user gets from the red flash.
+        haptic('wrong');
         // Also record the wrong move (capped to last 5) so we can
         // show the user their own pattern.
         if (wrongMovesRef.current.length >= 5) wrongMovesRef.current.shift();
@@ -200,7 +315,7 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
         }, 1200);
       }
     },
-    [puzzle, state, showHint],
+    [puzzle, state, showHint, golfMode, userSide],
   );
 
   const resetPuzzle = () => {
@@ -209,6 +324,7 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
     boardRef.current?.delete();
     const board = new ffish.Board('makruk', puzzle.fen);
     boardRef.current = board;
+    golfMovesRef.current = [];
     setState({
       fen: puzzle.fen,
       legalMoves: parseLegalMoves(board.legalMoves()),
@@ -284,6 +400,22 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
           </span>
           <PuzzleTimer running={state.status === 'playing'} startedAt={startedAtRef.current} />
         </div>
+        {golfEligible && (
+          <div className="puzzle-golf-toggle">
+            <label>
+              <input
+                type="checkbox"
+                checked={golfMode}
+                onChange={(e) => {
+                  setGolfMode(e.target.checked);
+                  golfMovesRef.current = [];
+                  resetPuzzle();
+                }}
+              />{' '}
+              🏌️ <strong>Code-golf mode</strong> — เดินยังไงก็ได้ที่ legal · ใครรุกจนน้อยตาที่สุดชนะ · ส่ง server เก็บคะแนน
+            </label>
+          </div>
+        )}
       </header>
 
       <div className="puzzle-main">
