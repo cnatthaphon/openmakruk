@@ -54,6 +54,10 @@ leaderboardRoute.get('/match', async (c) => {
   const limit = clampLimit(c.req.query('limit'));
   const provinceFilter = c.req.query('province');
   const regionFilter = c.req.query('region') as Region | undefined;
+  // 'mixed' (default) shows humans + bots together. 'humans' hides bots
+  // for users who want a "who's the best person on the board?" view.
+  // 'bots' shows only bot characters (Bot Hall of Fame).
+  const include = c.req.query('include') ?? 'mixed';
 
   // Build VALUES clause for the weight join. Inline the literal numbers
   // since they're constants from this module (no user input).
@@ -82,6 +86,9 @@ leaderboardRoute.get('/match', async (c) => {
     whereExtras.push(`u.province IN (${placeholders})`);
     extraParams.push(...codes);
   }
+  if (include === 'humans') whereExtras.push('u.is_bot = 0');
+  else if (include === 'bots') whereExtras.push('u.is_bot = 1');
+  // 'mixed' (default) = no extra filter — humans and bots share the board.
   const whereClause = ['g.mode = \'rated\'', 'g.verified = 1', ...whereExtras].join(' AND ');
 
   // Score per user = Σ (wins × weight + draws × weight/2). We compute
@@ -92,6 +99,7 @@ leaderboardRoute.get('/match', async (c) => {
            u.display_name AS display_name,
            u.rating AS rating,
            u.province AS province,
+           u.is_bot AS is_bot,
            CAST(SUM(
              CASE WHEN g.outcome = 'win'  THEN w.weight
                   WHEN g.outcome = 'draw' THEN w.weight * 0.5
@@ -123,6 +131,7 @@ leaderboardRoute.get('/match', async (c) => {
       displayName: r.display_name,
       rating: r.rating,
       province: r.province,
+      isBot: r.is_bot === 1,
       score: r.score,
       wins: r.wins,
       losses: r.losses,
@@ -182,22 +191,59 @@ leaderboardRoute.get('/match/by-province', async (c) => {
   });
 });
 
-/** Rating leaderboard — purely by users.rating descending. Cheap. */
+/** Rating leaderboard — purely by users.rating descending. Cheap.
+ *
+ *  Unlike /match (which scores by weighted wins and so only surfaces
+ *  users with games as user_id), this view includes anyone with a
+ *  rating row — humans AND bot characters. The mixed result mirrors
+ *  the strategy goal: bots compete on the leaderboard alongside
+ *  humans transparently, never hidden. */
 leaderboardRoute.get('/rating', async (c) => {
   const limit = clampLimit(c.req.query('limit'));
+  const include = c.req.query('include') ?? 'mixed';
+  const provinceFilter = c.req.query('province');
+  const regionFilter = c.req.query('region') as Region | undefined;
+
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (include === 'humans') where.push('is_bot = 0');
+  else if (include === 'bots') where.push('is_bot = 1');
+  // 'mixed' (default) leaves both visible.
+
+  if (provinceFilter) {
+    where.push('province = ?');
+    params.push(provinceFilter);
+  } else if (regionFilter) {
+    if (!VALID_REGIONS.has(regionFilter)) {
+      return c.json({ error: 'bad_request', reason: 'unknown_region' }, 400);
+    }
+    const codes = PROVINCE_CODES_BY_REGION[regionFilter];
+    if (codes.length === 0) return c.json({ entries: [] });
+    where.push(`province IN (${codes.map(() => '?').join(', ')})`);
+    params.push(...codes);
+  }
+
+  // Exclude users still at the default rating 1000 with no activity —
+  // they're noise for the leaderboard. Bots are seeded with non-default
+  // ratings so they survive this filter; humans need to play a game.
+  where.push('(rating != 1000 OR is_bot = 1)');
+
   const sql = `
-    SELECT id, display_name, rating, last_seen_at
+    SELECT id, display_name, rating, province, is_bot, last_seen_at
     FROM users
+    ${where.length > 0 ? 'WHERE ' + where.join(' AND ') : ''}
     ORDER BY rating DESC, last_seen_at DESC
     LIMIT ?
   `;
-  const result = await c.env.DB.prepare(sql).bind(limit).all<RatingRow>();
+  const result = await c.env.DB.prepare(sql).bind(...params, limit).all<RatingRow>();
   const rows = result.results ?? [];
   return c.json({
     entries: rows.map((r, i) => ({
       rank: i + 1,
       userId: r.id,
       displayName: r.display_name,
+      province: r.province,
+      isBot: r.is_bot === 1,
       rating: r.rating,
       lastSeenAt: r.last_seen_at,
     })),
@@ -217,6 +263,7 @@ type MatchRow = {
   display_name: string;
   rating: number;
   province: string | null;
+  is_bot: number;
   score: number;
   wins: number;
   losses: number;
@@ -229,5 +276,7 @@ type RatingRow = {
   id: string;
   display_name: string;
   rating: number;
+  province: string | null;
+  is_bot: number;
   last_seen_at: number;
 };

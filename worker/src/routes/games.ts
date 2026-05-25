@@ -77,6 +77,21 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   }
   const mode = body.mode === 'casual' ? 'casual' : 'rated';
 
+  // ── resolve bot opponent (if any) BEFORE verification, so an
+  //    unknown-bot fast-fails with 400 instead of getting masked by
+  //    a 422 from the verifier. ─────────────────────────────────────
+  let botRow: { id: string; rating: number } | null = null;
+  if (body.opponent.startsWith('bot:')) {
+    botRow = await c.env.DB.prepare(
+      'SELECT id, rating FROM users WHERE id = ? AND is_bot = 1',
+    )
+      .bind(body.opponent)
+      .first<{ id: string; rating: number }>();
+    if (!botRow) {
+      return c.json({ error: 'bad_request', reason: 'unknown_bot' }, 400);
+    }
+  }
+
   // ── verify by replaying moves (rated only) ───────────────────────
   // Casual games skip verification — they don't affect the leaderboard
   // and the user is being honest with themselves. Rated games MUST
@@ -107,13 +122,25 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   }
 
   // ── compute rating change (rated only) ───────────────────────────
-  const opponentR = opponentRating(body.opponent);
+  //
+  // Bot opponent: use the LIVE rating from users (looked up above),
+  // so bot Elo moves dynamically with each human game.
+  const opponentR = botRow ? botRow.rating : opponentRating(body.opponent);
+
   let newRating = user.rating;
   let delta = 0;
+  let botNewRating: number | null = null;
   if (mode === 'rated') {
     const result = applyElo(user.rating, opponentR, body.outcome);
     newRating = result.newRating;
     delta = result.delta;
+    if (botRow) {
+      // Bot side: opposite outcome from the human's POV.
+      const botOutcome: Outcome =
+        body.outcome === 'win' ? 'loss' : body.outcome === 'loss' ? 'win' : 'draw';
+      const botResult = applyElo(botRow.rating, user.rating, botOutcome);
+      botNewRating = botResult.newRating;
+    }
   }
 
   // ── persist ──────────────────────────────────────────────────────
@@ -124,7 +151,7 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   // D1 doesn't have explicit BEGIN/COMMIT in the JS driver; we issue
   // batched statements via `batch()` which runs them as one
   // transaction at the storage layer.
-  await c.env.DB.batch([
+  const statements: D1PreparedStatement[] = [
     c.env.DB.prepare(
       `INSERT INTO games
          (id, user_id, opponent, user_side, outcome, ply_count, moves_json,
@@ -153,7 +180,17 @@ gamesRoute.post('/', authMiddleware, async (c) => {
       now,
       user.id,
     ),
-  ]);
+  ];
+  if (botRow && botNewRating !== null) {
+    statements.push(
+      c.env.DB.prepare('UPDATE users SET rating = ?, last_seen_at = ? WHERE id = ?').bind(
+        botNewRating,
+        now,
+        botRow.id,
+      ),
+    );
+  }
+  await c.env.DB.batch(statements);
 
   return c.json({
     id,

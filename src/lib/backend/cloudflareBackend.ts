@@ -25,6 +25,8 @@ import type {
   GameSubmitResult,
   MatchLeaderboardEntry,
   ProvinceLeaderboardEntry,
+  RatingLeaderboardEntry,
+  BotCharacter,
 } from './types';
 
 /** Resolve the API base URL. Lookup order:
@@ -228,6 +230,41 @@ export class CloudflareBackend implements BackendAdapter {
     const res = await this.request('/api/leaderboard/match/by-province');
     const body = (await res.json()) as { entries: ProvinceLeaderboardEntry[] };
     return body.entries;
+  }
+
+  async fetchRatingLeaderboard(
+    opts: {
+      limit?: number;
+      province?: string;
+      region?: string;
+      include?: 'mixed' | 'humans' | 'bots';
+    } = {},
+  ): Promise<RatingLeaderboardEntry[]> {
+    const q = new URLSearchParams();
+    q.set('limit', String(opts.limit ?? 100));
+    if (opts.province) q.set('province', opts.province);
+    if (opts.region) q.set('region', opts.region);
+    if (opts.include) q.set('include', opts.include);
+    const res = await this.request(`/api/leaderboard/rating?${q}`);
+    const body = (await res.json()) as { entries: RatingLeaderboardEntry[] };
+    return body.entries;
+  }
+
+  async fetchBots(): Promise<BotCharacter[]> {
+    const res = await this.request('/api/bots');
+    const body = (await res.json()) as { bots: BotCharacter[] };
+    return body.bots;
+  }
+
+  async fetchBot(id: string): Promise<BotCharacter | null> {
+    try {
+      const res = await this.request(`/api/bots/${encodeURIComponent(id)}`, { allow401: true });
+      if (res.status === 404 || res.status === 400) return null;
+      return (await res.json()) as BotCharacter;
+    } catch (err) {
+      if (err instanceof BackendError && (err.status === 404 || err.status === 400)) return null;
+      throw err;
+    }
   }
 
   // ─── puzzles ─────────────────────────────────────────────────────

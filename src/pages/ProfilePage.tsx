@@ -21,7 +21,7 @@ import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
-import type { MatchLeaderboardEntry } from '../lib/backend';
+import type { MatchLeaderboardEntry, BotCharacter } from '../lib/backend';
 import { findProvince, REGION_LABELS_TH } from '../lib/provinces';
 import {
   GAUNTLET_ORDER,
@@ -176,6 +176,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <MatchLeaderboardSection stats={stats} />
 
       <GlobalMatchLeaderboardSection />
+
+      <BotHallOfFameSection />
 
       <GauntletSection />
 
@@ -526,6 +528,93 @@ function HistorySection({ stats }: { stats: UserStats }) {
   );
 }
 
+function BotHallOfFameSection() {
+  const backend = getBackend();
+  const supports = backend.isOnline() && backend.fetchBots !== undefined;
+  const [bots, setBots] = useState<BotCharacter[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [tierFilter, setTierFilter] = useState<'all' | 'rookie' | 'veteran' | 'master'>('all');
+
+  useEffect(() => {
+    if (!supports || !backend.fetchBots) return;
+    let cancelled = false;
+    backend.fetchBots()
+      .then((b) => {
+        if (!cancelled) setBots(b);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setErr(String(e));
+      });
+    return () => { cancelled = true; };
+  }, [supports, backend]);
+
+  if (!supports) return null;
+
+  const filtered = bots
+    ? tierFilter === 'all'
+      ? bots
+      : bots.filter((b) => b.tier === tierFilter)
+    : null;
+
+  return (
+    <section className="profile-section">
+      <h3>🤖 Bot Hall of Fame · 22 characters · live rating</h3>
+      <p className="label-aside">
+        Bots ที่คุณแข่งด้วย · rating ขยับจริงตามทุกเกม · ทุกคนเริ่มฝึกที่ Rookie แล้วเอาชนะ Master ก่อนจะปะทะ 👑 boss
+      </p>
+
+      <div className="profile-bots-tabs" role="tablist">
+        {(['all', 'rookie', 'veteran', 'master'] as const).map((t) => (
+          <button
+            key={t}
+            role="tab"
+            aria-selected={tierFilter === t}
+            className={tierFilter === t ? 'is-active' : ''}
+            onClick={() => setTierFilter(t)}
+          >
+            {t === 'all' ? '🌐 ทุกระดับ' : t === 'rookie' ? '🥉 Rookie' : t === 'veteran' ? '🥈 Veteran' : '🥇 Master'}
+          </button>
+        ))}
+      </div>
+
+      {err && <p className="label-aside" style={{ color: '#c75555' }}>{err}</p>}
+      {!bots && !err && <p className="label-aside">กำลังโหลด…</p>}
+      {filtered && (
+        <div className="profile-bots-grid">
+          {filtered.map((b) => (
+            <button
+              key={b.id}
+              className={`profile-bot-card ${expanded === b.id ? 'is-expanded' : ''}`}
+              onClick={() => setExpanded((cur) => (cur === b.id ? null : b.id))}
+            >
+              <div className="profile-bot-card-head">
+                <span className="profile-bot-avatar">{b.avatar}</span>
+                <div className="profile-bot-id">
+                  <strong>{b.displayName}</strong>
+                  <span className="label-aside">{b.rating}</span>
+                </div>
+                <span className="profile-bot-tier" data-tier={b.tier}>
+                  {b.tier === 'rookie' ? '🥉' : b.tier === 'veteran' ? '🥈' : '🥇'}
+                </span>
+              </div>
+              {expanded === b.id && (
+                <div className="profile-bot-detail">
+                  <p>{b.lore}</p>
+                  <p className="label-aside">
+                    🤝 ผู้ใช้ vs {b.displayName}: {b.losses}W (มนุษย์ชนะ) · {b.draws}D · {b.wins}L (bot ชนะ){' '}
+                    · รวม {b.gamesPlayed} เกม
+                  </p>
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 type LbScope = 'global' | 'region' | 'province';
 
 function GlobalMatchLeaderboardSection() {
@@ -635,6 +724,7 @@ function GlobalMatchLeaderboardSection() {
                 <span className="profile-global-lb-rank">#{e.rank}</span>
                 <span className="profile-global-lb-name">
                   {e.displayName}
+                  {e.isBot && <span className="profile-global-lb-bot-tag" title="bot character"> 🤖</span>}
                   {p && <span className="profile-global-lb-province"> · 📍 {p.nameTh}</span>}
                 </span>
                 <span className="profile-global-lb-meta">

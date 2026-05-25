@@ -576,6 +576,105 @@ describe('province + region (regional leaderboards)', () => {
   });
 });
 
+describe('bot character system', () => {
+  test('GET /api/bots lists all 22 seeded bots', async () => {
+    const res = await fetch(`${baseUrl()}/api/bots`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as {
+      bots: Array<{ id: string; displayName: string; rating: number; personality: string; tier: string }>;
+    };
+    // 7 personalities × 3 tiers + 1 Fairy-Stockfish boss = 22
+    expect(body.bots.length).toBe(22);
+    // Spot-check one — Bangkok-style ⚔️ นักบุก Master is rating 2000
+    const nakkrubMaster = body.bots.find((b) => b.id === 'bot:attacker-master');
+    expect(nakkrubMaster).toBeDefined();
+    expect(nakkrubMaster!.rating).toBe(2000);
+    expect(nakkrubMaster!.tier).toBe('master');
+    // Boss exists at 2200
+    const boss = body.bots.find((b) => b.id === 'bot:fairy-stockfish-boss');
+    expect(boss).toBeDefined();
+    expect(boss!.rating).toBe(2200);
+  });
+
+  test('GET /api/bots/:id returns single bot profile', async () => {
+    const res = await fetch(`${baseUrl()}/api/bots/bot:defender-veteran`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as { id: string; personality: string; tier: string };
+    expect(body.id).toBe('bot:defender-veteran');
+    expect(body.personality).toBe('defender');
+    expect(body.tier).toBe('veteran');
+  });
+
+  test('GET /api/bots/:id non-bot id → 400', async () => {
+    const res = await fetch(`${baseUrl()}/api/bots/some-uuid-not-bot`);
+    expect(res.status).toBe(400);
+  });
+
+  test('recordGame against a bot bumps the bot rating too', async () => {
+    const user = await createAnonUser('BotFighter');
+    const before = await fetch(`${baseUrl()}/api/bots/bot:wanderer-rookie`);
+    const beforeBot = await before.json() as { rating: number };
+
+    // Beat the wanderer-rookie. As the higher-rated win path, the bot
+    // should LOSE elo and the user GAIN it.
+    await recordGame(user.token, {
+      opponent: 'bot:wanderer-rookie',
+      outcome: 'win',
+    });
+
+    const after = await fetch(`${baseUrl()}/api/bots/bot:wanderer-rookie`);
+    const afterBot = await after.json() as { rating: number };
+    expect(afterBot.rating).toBeLessThan(beforeBot.rating);
+  });
+
+  test('recordGame against an unknown bot id → 400', async () => {
+    const user = await createAnonUser('BogusBotChallenger');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+      body: JSON.stringify({
+        opponent: 'bot:does-not-exist',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 1,
+        moves: ['a1a2'],
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        mode: 'rated',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { reason: string };
+    expect(body.reason).toBe('unknown_bot');
+  });
+
+  test('rating leaderboard includes bots by default (mixed)', async () => {
+    const res = await fetch(`${baseUrl()}/api/leaderboard/rating?limit=200`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as {
+      entries: Array<{ userId: string; isBot: boolean; rating: number }>;
+    };
+    const botEntries = body.entries.filter((e) => e.isBot);
+    expect(botEntries.length).toBeGreaterThan(0);
+    // Boss should be #1 (or near top — only humans with rating > 2200
+    // could outrank it).
+    const boss = body.entries.find((e) => e.userId === 'bot:fairy-stockfish-boss');
+    expect(boss).toBeDefined();
+  });
+
+  test('rating leaderboard humans-only filter excludes bots', async () => {
+    const res = await fetch(`${baseUrl()}/api/leaderboard/rating?include=humans`);
+    const body = await res.json() as { entries: Array<{ isBot: boolean }> };
+    expect(body.entries.every((e) => !e.isBot)).toBe(true);
+  });
+
+  test('rating leaderboard bots-only filter shows only bots', async () => {
+    const res = await fetch(`${baseUrl()}/api/leaderboard/rating?include=bots&limit=50`);
+    const body = await res.json() as { entries: Array<{ isBot: boolean }> };
+    expect(body.entries.length).toBeGreaterThan(0);
+    expect(body.entries.every((e) => e.isBot)).toBe(true);
+  });
+});
+
 describe('input validation', () => {
   test('missing opponent → 400 opponent_required', async () => {
     const u = await createAnonUser('Validator');

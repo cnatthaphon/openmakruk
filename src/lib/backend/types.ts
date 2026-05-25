@@ -58,6 +58,7 @@ export type MatchLeaderboardEntry = {
   displayName: string;
   rating: number;
   province: string | null;
+  isBot: boolean;
   score: number;
   wins: number;
   losses: number;
@@ -73,6 +74,32 @@ export type ProvinceLeaderboardEntry = {
   score: number;
   playerCount: number;
   gamesPlayed: number;
+};
+
+/** Bot character profile + denormalized stats from games vs humans. */
+export type BotCharacter = {
+  id: string;
+  displayName: string;
+  rating: number;
+  personality: string;
+  tier: 'rookie' | 'veteran' | 'master';
+  lore: string;
+  avatar: string;
+  wins: number;
+  losses: number;
+  draws: number;
+  gamesPlayed: number;
+};
+
+/** Rating-leaderboard row — mixes humans + bots, sorted by users.rating. */
+export type RatingLeaderboardEntry = {
+  rank: number;
+  userId: string;
+  displayName: string;
+  province: string | null;
+  isBot: boolean;
+  rating: number;
+  lastSeenAt: number;
 };
 
 /** Anonymous user account returned by registerAnon. `token` is the
@@ -215,6 +242,22 @@ export type BackendAdapter = {
 
   /** Province-vs-province summary (rank by aggregate score). */
   fetchProvinceLeaderboard?(): Promise<ProvinceLeaderboardEntry[]>;
+
+  /** Rating leaderboard — humans + bots mixed by users.rating column.
+   *  Supports the same province/region filters as match LB plus an
+   *  `include` filter ('mixed' | 'humans' | 'bots'). */
+  fetchRatingLeaderboard?(opts?: {
+    limit?: number;
+    province?: string;
+    region?: string;
+    include?: 'mixed' | 'humans' | 'bots';
+  }): Promise<RatingLeaderboardEntry[]>;
+
+  /** Bot Hall of Fame — every bot character with their lore + stats. */
+  fetchBots?(): Promise<BotCharacter[]>;
+
+  /** Single bot by id (e.g. 'bot:attacker-master'). */
+  fetchBot?(id: string): Promise<BotCharacter | null>;
 
   // ----- Puzzle catalog ---------------------------------------------
 

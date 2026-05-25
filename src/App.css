@@ -4722,6 +4722,75 @@ footer a:hover {
   vertical-align: middle;
 }
 
+/* Bot Hall of Fame ------------------------------------------------ */
+.profile-bots-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.8rem 0;
+  flex-wrap: wrap;
+}
+.profile-bots-tabs button {
+  padding: 0.35rem 0.8rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.profile-bots-tabs button.is-active {
+  background: rgba(212, 162, 60, 0.2);
+  border-color: rgba(212, 162, 60, 0.6);
+  color: rgba(255,255,255,0.95);
+}
+.profile-bots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.profile-bot-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.8rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.profile-bot-card:hover { background: rgba(255,255,255,0.06); }
+.profile-bot-card.is-expanded {
+  background: rgba(212, 162, 60, 0.08);
+  border-color: rgba(212, 162, 60, 0.4);
+}
+.profile-bot-card-head {
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.profile-bot-avatar {
+  font-size: 1.5rem; width: 36px; text-align: center;
+}
+.profile-bot-id {
+  flex: 1; display: flex; flex-direction: column; min-width: 0;
+}
+.profile-bot-id strong {
+  font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.profile-bot-tier { font-size: 1rem; }
+.profile-bot-detail {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.profile-bot-detail p {
+  margin: 0.3rem 0; font-size: 0.85rem; line-height: 1.5;
+}
+.profile-global-lb-bot-tag {
+  margin-left: 0.2rem;
+}
+
 /* LB scope tabs (global/region/province) -------------------------- */
 .profile-lb-scope-tabs {
   display: flex;
