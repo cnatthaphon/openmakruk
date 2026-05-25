@@ -8,10 +8,14 @@
 // suggested best move.
 
 import type { Board as FfishBoard } from 'ffish-es6';
-import { searchBestMove } from './engine';
+import { getActiveEngine, searchBestMove } from './engine';
 import { log } from './log';
 
-const ANALYSIS_DEPTH = 12;
+// Fallback only — every registered engine declares `analysisDefaults`
+// in its capabilities. Used when the active engine somehow surfaces
+// without that field (shouldn't happen for registered engines; this
+// is belt-and-braces).
+const FALLBACK_ANALYSIS = { depth: 12 } as const;
 
 export type Classification =
   | 'best'        // played the engine's #1 move (or delta ≤ 10cp)
@@ -109,7 +113,17 @@ export async function analyzeGame(
   moves: string[],
   onProgress?: ProgressCallback,
 ): Promise<AnnotatedMove[]> {
-  log('review.analyze.start', { moves: moves.length, depth: ANALYSIS_DEPTH });
+  // Read the analysis search opts from the active engine's capability
+  // descriptor. Lets a future MCTS-based engine pass `{nodes: 4000}`
+  // instead of `{depth: 12}` without touching this caller.
+  const engine = await getActiveEngine();
+  const searchOpts = engine.capabilities.analysisDefaults ?? FALLBACK_ANALYSIS;
+
+  log('review.analyze.start', {
+    moves: moves.length,
+    engine: engine.id,
+    searchOpts,
+  });
   const result: AnnotatedMove[] = [];
 
   for (let i = 0; i < moves.length; i++) {
@@ -117,12 +131,12 @@ export async function analyzeGame(
     const fenBefore = board.fen();
     const sideToMove: 'white' | 'black' = board.turn() ? 'white' : 'black';
 
-    const before = await searchBestMove(fenBefore, { depth: ANALYSIS_DEPTH });
+    const before = await searchBestMove(fenBefore, searchOpts);
 
     board.push(move);
     const fenAfter = board.fen();
 
-    const afterOpp = await searchBestMove(fenAfter, { depth: ANALYSIS_DEPTH });
+    const afterOpp = await searchBestMove(fenAfter, searchOpts);
 
     // afterOpp is from the OPPONENT's POV. Flip sign for the side that
     // just moved so we can compare apples to apples with `before`.

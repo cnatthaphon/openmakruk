@@ -38,6 +38,11 @@ const CAPS: EngineCapabilities = {
   multiPV: false,
   network: null,
   difficulty: DEFAULT_DIFFICULTY_PRESETS,
+  // ScoredBot evaluates each legal move with its personality weights;
+  // there's no tree search. Depth has no meaning here but is required
+  // by the contract — declare 1 so analysis callers don't crash on
+  // an undefined.
+  analysisDefaults: { depth: 1 },
 };
 
 class ScoredBot implements MakrukEngine {

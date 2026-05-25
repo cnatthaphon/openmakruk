@@ -2,8 +2,9 @@
 //
 // Positions can be created from anywhere (Custom editor, Play tab
 // after a game, Analysis panel) and replayed/studied later. Stored
-// in localStorage via the versioned stores module; capped at
-// MAX_ENTRIES so quota stays healthy.
+// in IndexedDB via the durable backend of the versioned stores
+// module — no entry cap, scales to thousands of saves without
+// localStorage's 5MB ceiling.
 //
 // IDs are stable random strings so multiple positions can be edited
 // or shared via URL.
@@ -11,7 +12,6 @@
 import { defineStore } from './stores';
 
 const LIBRARY_VERSION = 1;
-const MAX_ENTRIES = 200;
 
 export type SavedPosition = {
   id: string;
@@ -26,6 +26,7 @@ export type SavedPosition = {
 const store = defineStore<SavedPosition[]>({
   key: 'openmakruk_library',
   version: LIBRARY_VERSION,
+  storage: 'durable',
   default: () => [],
   migrate: (raw) => {
     if (!Array.isArray(raw)) return [];
@@ -68,8 +69,8 @@ export function savePosition(
     id: `pos_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
     createdAt: Date.now(),
   };
-  // Newest first; cap to MAX_ENTRIES to prevent unbounded growth.
-  const next = [entry, ...lib].slice(0, MAX_ENTRIES);
+  // Newest first; unbounded since storage moved to durable IDB.
+  const next = [entry, ...lib];
   persist(next);
   return entry;
 }

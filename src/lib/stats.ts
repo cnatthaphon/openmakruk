@@ -90,6 +90,12 @@ function initialStats(): UserStats {
 const store = defineStore<UserStats>({
   key: 'openmakruk_stats',
   version: STATS_VERSION,
+  // Durable storage — game history is the largest growing thing in
+  // the user's local state. Past releases capped history at 50 to fit
+  // localStorage; that's data loss for power users. IDB-backed storage
+  // removes the ceiling. Migration from prior localStorage entries
+  // happens transparently on first boot (see stores.ts `hydrateKey`).
+  storage: 'durable',
   default: initialStats,
   migrate: (raw) => {
     // v0 legacy: unwrapped object with its own embedded `version`
@@ -197,7 +203,11 @@ export function recordGame(
     rating: newRating,
     totalGames: stats.totalGames + 1,
     byLevel,
-    history: [record, ...stats.history].slice(0, 50),
+    // History is unbounded since stats.ts moved to durable (IDB-backed)
+    // storage. Power users no longer lose their 51st game forever; the
+    // UI is responsible for its own pagination (Profile shows the last
+    // 50, but the data behind it is the full record).
+    history: [record, ...stats.history],
   };
 }
 

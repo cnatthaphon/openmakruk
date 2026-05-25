@@ -23,6 +23,10 @@ const CAPS: EngineCapabilities = {
   // Difficulty is a no-op for random — present for contract conformance
   // so the difficulty UI still renders something sane.
   difficulty: DEFAULT_DIFFICULTY_PRESETS,
+  // Analysis depth is meaningless for a random mover; surface 1 so
+  // contract consumers don't accidentally infer "as strong as
+  // Fairy-Stockfish depth 12".
+  analysisDefaults: { depth: 1 },
 };
 
 class RandomBot implements MakrukEngine {

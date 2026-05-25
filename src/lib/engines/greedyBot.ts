@@ -26,6 +26,11 @@ const CAPS: EngineCapabilities = {
   multiPV: false,
   network: null,
   difficulty: DEFAULT_DIFFICULTY_PRESETS,
+  // Greedy doesn't have a "depth" concept — it scans 1-ply captures
+  // and returns instantly. Analysis-callers should not use it for
+  // review (Fairy-Stockfish is better), but if they do, we just
+  // pass a depth that the heuristic ignores.
+  analysisDefaults: { depth: 1 },
 };
 
 class GreedyBot implements MakrukEngine {

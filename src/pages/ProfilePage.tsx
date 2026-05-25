@@ -215,37 +215,7 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
         </div>
       </section>
 
-      <section className="profile-section">
-        <h3>ประวัติเกม ({stats.history.length})</h3>
-        {stats.history.length === 0 ? (
-          <p className="label-aside">ยังไม่มีเกมที่บันทึก — เล่นโหมด Rated ก่อน</p>
-        ) : (
-          <>
-            <div className="profile-history-actions">
-              <button
-                onClick={() => {
-                  const pgn = gamesToPgn(stats.history, { whiteName: stats.displayName });
-                  downloadPgn(pgn, `openmakruk-${stats.displayName}-history.pgn`);
-                }}
-              >
-                📥 Download ทั้งหมด (.pgn)
-              </button>
-              <span className="label-aside">
-                Tip: เปิดด้วย lichess.org analysis board หรือ ChessTempo
-              </span>
-            </div>
-            <div className="profile-history">
-              {stats.history.map((g, i) => (
-                <ProfileHistoryRow
-                  key={g.id ?? i}
-                  record={g}
-                  userName={stats.displayName}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </section>
+      <HistorySection stats={stats} />
 
       <section className="profile-section">
         <h3>จัดการข้อมูล</h3>
@@ -501,6 +471,54 @@ function GauntletSection() {
           {lastRun.outcome === 'completed'
             ? '🏆 ชนะหมด!'
             : `❌ จบที่ ${DIFFICULTY_LABELS[lastRun.reachedLevel]}`}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HistorySection({ stats }: { stats: UserStats }) {
+  const [visible, setVisible] = useState(50);
+  if (stats.history.length === 0) {
+    return (
+      <section className="profile-section">
+        <h3>ประวัติเกม (0)</h3>
+        <p className="label-aside">ยังไม่มีเกมที่บันทึก — เล่นโหมด Rated ก่อน</p>
+      </section>
+    );
+  }
+  const shown = stats.history.slice(0, visible);
+  const more = stats.history.length - shown.length;
+  return (
+    <section className="profile-section">
+      <h3>ประวัติเกม ({stats.history.length})</h3>
+      <div className="profile-history-actions">
+        <button
+          onClick={() => {
+            const pgn = gamesToPgn(stats.history, { whiteName: stats.displayName });
+            downloadPgn(pgn, `openmakruk-${stats.displayName}-history.pgn`);
+          }}
+        >
+          📥 Download ทั้งหมด (.pgn)
+        </button>
+        <span className="label-aside">
+          Tip: เปิดด้วย lichess.org analysis board หรือ ChessTempo
+        </span>
+      </div>
+      <div className="profile-history">
+        {shown.map((g, i) => (
+          <ProfileHistoryRow
+            key={g.id ?? i}
+            record={g}
+            userName={stats.displayName}
+          />
+        ))}
+      </div>
+      {more > 0 && (
+        <div className="profile-history-more">
+          <button onClick={() => setVisible((n) => n + 50)}>
+            แสดงเพิ่มอีก 50 ({more} เกมเก่ากว่ารออยู่)
+          </button>
         </div>
       )}
     </section>

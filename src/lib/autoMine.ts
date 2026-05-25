@@ -26,8 +26,15 @@ import { verifyAndAnnotate } from './puzzleVerifier';
 import { log } from './log';
 
 const MAX_PLIES_PER_GAME = 60;
-const ANALYSIS_DEPTH = 10;
 const BLUNDER_THRESHOLD_CP = 200;
+// Fallback used only if the strong engine somehow surfaces without
+// declaring `analysisDefaults`. Registered engines all declare this.
+const FALLBACK_STRONG = { depth: 10 } as const;
+// Weak side gets a shallower budget so it produces blunders we can
+// actually mine. Hardcoded here (rather than read from the weak
+// engine's capabilities) because the whole point of mining is to
+// make the weak side play worse than its full strength.
+const WEAK_DEPTH = 4;
 
 export type MineProgress = {
   game: number;
@@ -68,6 +75,13 @@ export async function autoMineFromBots(
   let totalPlies = 0;
   const skipped: string[] = [];
 
+  // Discover the strong engine's preferred analysis budget. This
+  // replaces the hardcoded `{ depth: 10 }` so a future MCTS engine
+  // chosen as the "strong" side can request `{ nodes: N }` instead.
+  await setActiveEngine(strongBotId);
+  const strongEngine = await getActiveEngine();
+  const strongOpts = strongEngine.capabilities.analysisDefaults ?? FALLBACK_STRONG;
+
   try {
     for (let gameIdx = 0; gameIdx < numGames; gameIdx++) {
       onProgress?.({ game: gameIdx + 1, totalGames: numGames, ply: 0, status: 'simulating', minedCount });
@@ -87,7 +101,7 @@ export async function autoMineFromBots(
           const engineId = useWeak ? weakBotId : strongBotId;
           await setActiveEngine(engineId);
           const engine = await getActiveEngine();
-          const result = await engine.search(board.fen(), { depth: useWeak ? 4 : ANALYSIS_DEPTH });
+          const result = await engine.search(board.fen(), useWeak ? { depth: WEAK_DEPTH } : strongOpts);
           if (!result.bestMove || result.bestMove === '(none)' || result.bestMove === '0000') break;
           const legal = board.legalMoves().split(' ');
           if (!legal.includes(result.bestMove)) break;
@@ -99,7 +113,7 @@ export async function autoMineFromBots(
             // weak bot is about to play. Get strong-engine eval of
             // the position BEFORE the weak move.
             await setActiveEngine(strongBotId);
-            const baseline = await searchBestMove(board.fen(), { depth: ANALYSIS_DEPTH });
+            const baseline = await searchBestMove(board.fen(), strongOpts);
             evalBefore.push({ scoreCp: baseline.scoreCp, mateIn: baseline.mateIn });
             await setActiveEngine(weakBotId);
           } else {
@@ -144,7 +158,7 @@ export async function autoMineFromBots(
           // We need: fen, bestMove (engine's #1), the optimal line.
           const fenBeforeBlunder = fenHistory[i];
           await setActiveEngine(strongBotId);
-          const analysis = await searchBestMove(fenBeforeBlunder, { depth: ANALYSIS_DEPTH });
+          const analysis = await searchBestMove(fenBeforeBlunder, strongOpts);
           if (!analysis.bestMove || analysis.bestMove === '(none)') continue;
 
           const tmp = new ffish.Board('makruk', fenBeforeBlunder);

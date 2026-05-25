@@ -80,6 +80,15 @@ export type EngineCapabilities = {
   };
   /** Mapping from UX difficulty level → engine SearchOpts. */
   difficulty: Record<DifficultyLevel, SearchOpts>;
+  /**
+   * SearchOpts used by post-game analysis + auto-mine. Different
+   * engines parameterise differently: alpha-beta engines use `depth`;
+   * MCTS engines use `nodes`. Declaring these here lets callers
+   * (review.ts, autoMine.ts) stay engine-agnostic — they ask the
+   * active engine "how deep should we look?" instead of hardcoding
+   * a depth that only makes sense for Fairy-Stockfish.
+   */
+  analysisDefaults?: SearchOpts;
 };
 
 /**

@@ -51,6 +51,10 @@ export type AnalysisStore = {
 const store = defineStore<AnalysisStore>({
   key: 'openmakruk_game_analyses',
   version: ANALYSIS_VERSION,
+  // Each analysis is large (move-by-move eval + PV) — easily kilobytes
+  // per game. localStorage would silently fail past ~50 stored
+  // analyses; durable IDB has effectively no ceiling at this scale.
+  storage: 'durable',
   default: () => ({ analyses: {} }),
   migrate: (raw) => {
     const obj = (raw && typeof raw === 'object' ? raw : {}) as Partial<AnalysisStore>;

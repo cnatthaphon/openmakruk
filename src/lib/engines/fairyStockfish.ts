@@ -64,6 +64,11 @@ const CAPABILITIES: EngineCapabilities = {
     attribution: "belzedar_'s makruk NNUE (CC BY-SA 4.0)",
   },
   difficulty: DEFAULT_DIFFICULTY_PRESETS,
+  // Post-game review + bot-vs-bot mining default to depth 12 — same
+  // strength as the previous hardcoded constant in review.ts, now
+  // declared by the engine itself so non-depth engines (MCTS) can
+  // override.
+  analysisDefaults: { depth: 12 },
 };
 
 export class FairyStockfishEngine implements MakrukEngine {
