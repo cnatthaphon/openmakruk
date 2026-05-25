@@ -4722,7 +4722,29 @@ footer a:hover {
   vertical-align: middle;
 }
 
-/* Activity signals ------------------------------------------------ */
+/* Activity ticker (under-header strip) --------------------------- */
+.activity-ticker {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.35rem 1rem;
+  background: rgba(212, 162, 60, 0.06);
+  border-bottom: 1px solid rgba(212, 162, 60, 0.15);
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.75);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: none;
+}
+.activity-ticker::-webkit-scrollbar { display: none; }
+.activity-ticker-item {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Activity signals (Profile) -------------------------------------- */
 .profile-signals {
   display: flex; flex-wrap: wrap; gap: 0.8rem;
   margin-top: 0.5rem;

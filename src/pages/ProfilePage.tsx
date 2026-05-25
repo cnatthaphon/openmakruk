@@ -546,7 +546,9 @@ function HistorySection({ stats }: { stats: UserStats }) {
 
 function SignalsSection() {
   const backend = getBackend();
-  const supports = backend.isOnline() && backend.fetchSignals !== undefined;
+  // Public read — no token required. Anonymous visitors see today's
+  // activity counts too; engagement signal is a top-of-funnel asset.
+  const supports = backend.fetchSignals !== undefined;
   const [data, setData] = useState<ActivitySignals | null>(null);
 
   useEffect(() => {
@@ -600,7 +602,8 @@ function SignalsSection() {
 
 function TournamentsSection() {
   const backend = getBackend();
-  const supports = backend.isOnline() && backend.fetchTournaments !== undefined;
+  // Public read — tournament catalog is the same for everyone.
+  const supports = backend.fetchTournaments !== undefined;
   const [list, setList] = useState<TournamentInfo[] | null>(null);
 
   useEffect(() => {
@@ -861,7 +864,11 @@ function BadgesSection() {
 
 function BotHallOfFameSection() {
   const backend = getBackend();
-  const supports = backend.isOnline() && backend.fetchBots !== undefined;
+  // Public read — Bot Hall of Fame is part of the brand surface, not
+  // gated behind cloud sync. Strategy goal: show the 22-character
+  // cast to first-time visitors so they understand what they can
+  // play against before being asked to sign anything.
+  const supports = backend.fetchBots !== undefined;
   const [bots, setBots] = useState<BotCharacter[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -950,7 +957,10 @@ type LbScope = 'global' | 'region' | 'province';
 
 function GlobalMatchLeaderboardSection() {
   const backend = getBackend();
-  const supports = backend.isOnline() && backend.fetchMatchLeaderboard !== undefined;
+  // Public read — leaderboards are public. The only thing cloud sync
+  // gates is the "📍 จังหวัดของฉัน" tab (needs the user's stored
+  // province); the LB itself shows up regardless.
+  const supports = backend.fetchMatchLeaderboard !== undefined;
   const session = loadSession();
   const myProvinceObj = session.province ? findProvince(session.province) : null;
   const myRegion = myProvinceObj?.region ?? null;

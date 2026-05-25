@@ -4,7 +4,19 @@ import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 import { hydrateDurableStores } from './lib/stores';
+import { setBackend } from './lib/backend';
+import { cloudflareBackend } from './lib/backend/cloudflareBackend';
 import './App.css';
+
+// Register the Cloudflare adapter as the active backend at boot —
+// BEFORE any UI mounts. Public-read endpoints (Bot Hall of Fame,
+// Tournaments, Activity Signals, leaderboards) work without a bearer
+// token, so anonymous visitors see them too. The token is attached
+// separately by enableCloud() when the user opts in to sync.
+//
+// NoOpBackend stays as the test default and as the fallback when the
+// adapter is explicitly disabled.
+setBackend(cloudflareBackend);
 
 // Hydrate durable (IndexedDB-backed) stores BEFORE React mounts so
 // every component's first render sees real data, not the default()

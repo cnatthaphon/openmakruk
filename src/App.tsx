@@ -109,6 +109,7 @@ import { GameReport } from './components/GameReport';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { toast } from './components/Toast';
 import { OnboardingModal } from './components/OnboardingModal';
+import { ActivityTicker } from './components/ActivityTicker';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
 import {
@@ -1593,6 +1594,8 @@ export default function App() {
           <span className="app-profile-rating">{stats.rating}</span>
         </button>
       </header>
+      <ActivityTicker />
+
       <Suspense
         fallback={
           <div className="page-loading" role="status" aria-live="polite">
