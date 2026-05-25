@@ -179,6 +179,42 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     expect(me!.score).toBeGreaterThan(0);
   });
 
+  test('Profile shows the global match leaderboard once cloud sync is on', async ({ page }) => {
+    await page.goto('/#/settings');
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Record a rated win against master so we have something to show
+    // on the leaderboard when Profile mounts. recordGame from inside
+    // the page bundle is the same path the real game-end effect uses.
+    await page.evaluate(async () => {
+      // @ts-expect-error dynamic ESM
+      const backendMod = await import('/src/lib/backend/index.ts');
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const backend = backendMod.getBackend();
+      const session = sessionMod.loadSession();
+      await backend.recordGame(session.token, {
+        opponent: 'master',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 50,
+        moves: Array.from({ length: 50 }, () => 'e2e4'),
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        mode: 'rated',
+      });
+    });
+
+    // Navigate to Profile. The Global section only renders when
+    // backend.isOnline() (which we just enabled).
+    await page.goto('/#/profile');
+    await expect(page.getByRole('heading', { name: /Global Match Leaderboard/ })).toBeVisible({
+      timeout: 10_000,
+    });
+    // Our row should be present and highlighted via .is-me.
+    await expect(page.locator('.profile-global-lb-row.is-me')).toBeVisible({ timeout: 10_000 });
+  });
+
   test('disable clears the session + reverts to offline', async ({ page }) => {
     await page.goto('/#/settings');
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();

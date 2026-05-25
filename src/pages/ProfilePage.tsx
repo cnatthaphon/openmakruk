@@ -2,7 +2,7 @@
 // Username editable, rating panel, recent games list, achievements
 // scaffolding, export/import buttons. No graph yet (Phase 1.x adds D3).
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CPU_RATINGS,
   exportStatsJSON,
@@ -19,6 +19,9 @@ import { toast } from '../components/Toast';
 import { loadStreak } from '../lib/streak';
 import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
+import { getBackend } from '../lib/backend';
+import { loadSession } from '../lib/backend/cloudSession';
+import type { MatchLeaderboardEntry } from '../lib/backend';
 import {
   GAUNTLET_ORDER,
   loadGauntlet,
@@ -170,6 +173,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <AchievementsAndStreakSection />
 
       <MatchLeaderboardSection stats={stats} />
+
+      <GlobalMatchLeaderboardSection />
 
       <GauntletSection />
 
@@ -496,6 +501,68 @@ function GauntletSection() {
           {lastRun.outcome === 'completed'
             ? '🏆 ชนะหมด!'
             : `❌ จบที่ ${DIFFICULTY_LABELS[lastRun.reachedLevel]}`}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function GlobalMatchLeaderboardSection() {
+  // Only mount when cloud sync is online — keeps the leaderboard hidden
+  // for offline users so they don't see a perpetual "loading" or
+  // "enable cloud sync" empty state in the middle of their profile.
+  const backend = getBackend();
+  const supports = backend.isOnline() && backend.fetchMatchLeaderboard !== undefined;
+
+  const [entries, setEntries] = useState<MatchLeaderboardEntry[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supports || !backend.fetchMatchLeaderboard) return;
+    let cancelled = false;
+    backend
+      .fetchMatchLeaderboard(50)
+      .then((rows) => {
+        if (!cancelled) setEntries(rows);
+      })
+      .catch((e: unknown) => {
+        if (!cancelled) setErr(String(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supports, backend]);
+
+  if (!supports) return null;
+
+  const myId = loadSession().userId;
+
+  return (
+    <section className="profile-section">
+      <h3>🌍 Global Match Leaderboard · server-verified</h3>
+      <p className="label-aside">
+        เปรียบเทียบกับผู้เล่นทั่วโลก · คะแนนคำนวณฝั่ง server · แก้ localStorage ของตัวเองไม่ขึ้นบอร์ดนี้
+      </p>
+      {err && <p className="label-aside" style={{ color: '#c75555' }}>เชื่อมต่อล้มเหลว: {err}</p>}
+      {!entries && !err && <p className="label-aside">กำลังโหลด…</p>}
+      {entries && entries.length === 0 && (
+        <p className="label-aside">ยังไม่มีผู้เล่นบนบอร์ด · ลองชนะ master 1 เกมก่อน</p>
+      )}
+      {entries && entries.length > 0 && (
+        <div className="profile-global-lb">
+          {entries.map((e) => (
+            <div
+              key={e.userId}
+              className={`profile-global-lb-row ${e.userId === myId ? 'is-me' : ''}`}
+            >
+              <span className="profile-global-lb-rank">#{e.rank}</span>
+              <span className="profile-global-lb-name">{e.displayName}</span>
+              <span className="profile-global-lb-meta">
+                {e.wins}W · {e.draws}D · {e.losses}L
+              </span>
+              <span className="profile-global-lb-score">{formatScore(e.score)} pt</span>
+            </div>
+          ))}
         </div>
       )}
     </section>

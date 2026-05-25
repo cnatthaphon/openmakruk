@@ -35,6 +35,13 @@ export async function setup(): Promise<void> {
   // Apply schema synchronously via a one-shot wrangler invocation.
   await runWrangler(['d1', 'execute', 'openmakruk-db', '--local', '--file=./schema.sql']);
 
+  // Seed curated puzzles so scenario tests that probe /api/puzzles get
+  // realistic data without each spec having to insert its own rows.
+  // The seed file is regenerated on every test run from the JSON source
+  // so we never test against a stale snapshot.
+  await runNode([resolve(WORKER_DIR, 'scripts/seed-curated.mjs')]);
+  await runWrangler(['d1', 'execute', 'openmakruk-db', '--local', '--file=./seed-curated.sql']);
+
   // Spawn the long-running dev server. Pin port via `--port` so the
   // test client knows where to connect without parsing wrangler's
   // stdout.
@@ -111,6 +118,22 @@ async function runWrangler(args: string[]): Promise<void> {
     child.on('exit', (code) => {
       if (code === 0) resolveP();
       else rejectP(new Error(`wrangler ${args.join(' ')} exited with code ${code}`));
+    });
+    child.on('error', rejectP);
+  });
+}
+
+/** Run any node script with the worker as cwd and exit-code as success
+ *  signal. Used for the seed generator. */
+async function runNode(args: string[]): Promise<void> {
+  return new Promise((resolveP, rejectP) => {
+    const child = spawn('node', args, {
+      cwd: WORKER_DIR,
+      stdio: 'ignore',
+    });
+    child.on('exit', (code) => {
+      if (code === 0) resolveP();
+      else rejectP(new Error(`node ${args.join(' ')} exited with code ${code}`));
     });
     child.on('error', rejectP);
   });

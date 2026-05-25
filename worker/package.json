@@ -13,6 +13,9 @@
     "db:apply": "node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --file=./schema.sql",
     "db:apply:remote": "node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --remote --file=./schema.sql",
     "db:reset:local": "rm -rf .wrangler/state/v3/d1 && node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --local --file=./schema.sql",
+    "seed:generate": "node scripts/seed-curated.mjs",
+    "seed:local": "npm run seed:generate && node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --local --file=./seed-curated.sql",
+    "seed:remote": "npm run seed:generate && node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --remote --file=./seed-curated.sql",
     "test": "node node_modules/vitest/dist/cli.js run",
     "test:watch": "node node_modules/vitest/dist/cli.js"
   },

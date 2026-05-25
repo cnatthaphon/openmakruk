@@ -4703,6 +4703,60 @@ footer a:hover {
   font-size: 0.85rem;
 }
 
+/* Global match leaderboard ---------------------------------------- */
+.profile-global-lb {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.6rem;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.profile-global-lb-row {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255,255,255,0.03);
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+.profile-global-lb-row.is-me {
+  background: rgba(212, 162, 60, 0.18);
+  border: 1px solid rgba(212, 162, 60, 0.5);
+  font-weight: 600;
+}
+.profile-global-lb-rank {
+  color: rgba(255,255,255,0.55);
+  font-weight: 600;
+}
+.profile-global-lb-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-global-lb-meta {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.6);
+}
+.profile-global-lb-score {
+  font-weight: 600;
+  color: var(--accent, #d4a23c);
+}
+
+/* Lazy-route Suspense fallback ------------------------------------ */
+.page-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 4rem 1rem;
+  color: rgba(255,255,255,0.7);
+}
+
 /* Cloud sync settings --------------------------------------------- */
 .settings-cloud-status {
   background: rgba(255,255,255,0.04);

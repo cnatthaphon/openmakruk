@@ -253,6 +253,44 @@ describe('global match leaderboard', () => {
   });
 });
 
+describe('curated puzzle catalog', () => {
+  test('GET /api/puzzles returns the seeded curated pool', async () => {
+    const res = await fetch(`${baseUrl()}/api/puzzles`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as {
+      puzzles: Array<{ id: string; category: string; source: string }>;
+      nextCursor: string | null;
+    };
+    expect(body.puzzles.length).toBeGreaterThan(0);
+    // All page entries must be 'curated' since that's the default
+    // source filter.
+    for (const p of body.puzzles) expect(p.source).toBe('curated');
+  });
+
+  test('category filter narrows to one category', async () => {
+    const res = await fetch(`${baseUrl()}/api/puzzles?category=mate-1`);
+    const body = await res.json() as {
+      puzzles: Array<{ category: string }>;
+    };
+    expect(body.puzzles.length).toBeGreaterThan(0);
+    for (const p of body.puzzles) expect(p.category).toBe('mate-1');
+  });
+
+  test('GET /api/puzzles/:id returns a single curated puzzle', async () => {
+    // First fetch the list, then probe one entry by id. Doing it this
+    // way (instead of hardcoding an id) keeps the test resilient to
+    // catalog edits.
+    const list = await fetch(`${baseUrl()}/api/puzzles?category=mate-1`);
+    const body = await list.json() as { puzzles: Array<{ id: string }> };
+    const first = body.puzzles[0];
+    const res = await fetch(`${baseUrl()}/api/puzzles/${first.id}`);
+    expect(res.ok).toBe(true);
+    const detail = await res.json() as { id: string; fen: string };
+    expect(detail.id).toBe(first.id);
+    expect(detail.fen.length).toBeGreaterThan(0);
+  });
+});
+
 describe('input validation', () => {
   test('missing opponent → 400 opponent_required', async () => {
     const u = await createAnonUser('Validator');
