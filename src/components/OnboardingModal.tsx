@@ -102,7 +102,7 @@ export function OnboardingModal({ onClose }: Props) {
               <li>👑 จบเกมด้วยรุกฆาตหรือ <strong>การนับ</strong> (counting)</li>
             </ul>
             <p className="onboarding-meta">
-              ระบบฝึก รวบรวมปริศนา ฝึกเปิดเกม จบเกม · เล่นกับ bot หลายสไตล์ · ฟรี ไม่มี backend ทุกอย่างเก็บใน browser ของคุณ
+              ระบบฝึก รวบรวมปริศนา ฝึกเปิดเกม จบเกม · เล่นกับ bot หลายสไตล์ · ฟรีทั้งหมด · เล่นออฟไลน์ได้ทุกฟีเจอร์ · เปิด ☁️ cloud sync ใน Settings ถ้าอยากเทียบคะแนนกับคนอื่น (anonymous · ไม่ต้องสมัคร)
             </p>
             <div className="onboarding-buttons">
               <button className="primary" onClick={() => setStep('name')}>ต่อไป →</button>

@@ -1,0 +1,90 @@
+# Auto-deploy the Cloudflare Worker on every main-branch push that
+# touches worker code. Apply pending D1 migrations first, deploy
+# second, smoke-test third. If any step fails, the job aborts; the
+# previous worker version stays in production.
+#
+# Triggers:
+#   - push to main with changes under worker/
+#   - manual via the Actions tab (workflow_dispatch) for force-deploy
+#
+# Secrets required (set in repo Settings → Secrets and variables → Actions):
+#   - CLOUDFLARE_API_TOKEN — scope: Workers Scripts (Edit) + D1 (Edit)
+#                            for the openmakruk account
+#   - CLOUDFLARE_ACCOUNT_ID — 32-char hex account id (already known:
+#                             5997a6f4cc3c1e67dfb61a7ec432066c)
+
+name: deploy-worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker/**'
+      - '.github/workflows/deploy-worker.yml'
+  workflow_dispatch:
+
+# Prevent concurrent deploys racing each other to the same D1
+# (migrations could collide). Cancels in-flight on new push.
+concurrency:
+  group: deploy-worker-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: worker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install worker dependencies
+        run: npm install --no-save
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Integration tests
+        # vitest spawns wrangler dev with the LOCAL D1; production
+        # credentials are not touched here. Fails the deploy if any
+        # scenario regressed.
+        run: npm run test
+
+      - name: Apply pending D1 migrations
+        # `wrangler d1 migrations apply` is idempotent — it consults
+        # the d1_migrations system table and only runs entries that
+        # aren't recorded as applied. Schema changes go through here.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node node_modules/wrangler/bin/wrangler.js d1 migrations apply openmakruk-db --remote
+
+      - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: node node_modules/wrangler/bin/wrangler.js deploy
+
+      - name: Smoke test against production
+        # Cloudflare can take a few seconds to roll the new version to
+        # every edge; retry the full suite up to 6 times before failing.
+        working-directory: .
+        run: |
+          for i in 1 2 3 4 5 6; do
+            if node scripts/smoke.mjs https://openmakruk-api.cnatthaphon.workers.dev; then
+              echo "✓ smoke suite passed on attempt $i"
+              exit 0
+            fi
+            echo "smoke attempt $i failed, retrying in 5s..."
+            sleep 5
+          done
+          echo "smoke suite failed after 6 attempts — production is in a degraded state"
+          exit 1

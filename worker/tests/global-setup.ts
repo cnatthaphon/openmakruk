@@ -33,7 +33,7 @@ export async function setup(): Promise<void> {
   await rm(resolve(WORKER_DIR, '.wrangler/state/v3/d1'), { recursive: true, force: true });
 
   // Apply schema synchronously via a one-shot wrangler invocation.
-  await runWrangler(['d1', 'execute', 'openmakruk-db', '--local', '--file=./schema.sql']);
+  await runWrangler(['d1', 'migrations', 'apply', 'openmakruk-db', '--local']);
 
   // Seed curated puzzles so scenario tests that probe /api/puzzles get
   // realistic data without each spec having to insert its own rows.

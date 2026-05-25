@@ -18,11 +18,35 @@ compatibility_flags = ["nodejs_compat"]
 # D1 database binding — filled in after first `wrangler d1 create`.
 # The id is safe to commit; it's not a secret (auth lives in token hashes
 # inside the db, not in this binding).
+#
+# `migrations_dir` enables `wrangler d1 migrations apply` to track which
+# .sql files have been applied via a `d1_migrations` system table. Files
+# in the dir are run in lexicographic order; once applied, they're
+# never re-run. Replaces the manual `--file=schema.sql` workflow.
 [[d1_databases]]
 binding = "DB"
 database_name = "openmakruk-db"
-database_id = "PLACEHOLDER_FILL_AFTER_D1_CREATE"
+database_id = "b921805b-5668-4a04-b7d8-07f6d5752d74"
+migrations_dir = "./migrations"
 
 # Observability — surface logs in `wrangler tail` and the dashboard.
 [observability]
 enabled = true
+
+# ─── Staging environment ──────────────────────────────────────────
+# Deployed via `wrangler deploy --env staging`. Lives at a separate
+# workers.dev subdomain (`openmakruk-api-staging.<account>.workers.dev`)
+# with its own D1 binding. Used by:
+#   - GitHub Actions on `develop` branch (when wired)
+#   - manual smoke testing of risky migrations before prod
+#
+# database_id is left as a placeholder; the user fills it after running
+# `wrangler d1 create openmakruk-db-staging`.
+[env.staging]
+name = "openmakruk-api-staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "openmakruk-db-staging"
+database_id = "STAGING_PLACEHOLDER_FILL_AFTER_D1_CREATE_STAGING"
+migrations_dir = "./migrations"

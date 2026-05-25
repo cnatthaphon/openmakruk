@@ -32,6 +32,8 @@
     "typecheck": "node node_modules/typescript/bin/tsc -b --noEmit",
     "test:e2e": "node node_modules/@playwright/test/cli.js test --project=chromium",
     "deploy:check": "node scripts/deploy-check.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "smoke:prod": "node scripts/smoke.mjs https://openmakruk-api.cnatthaphon.workers.dev",
     "postinstall": "node scripts/copy-wasm.mjs"
   },
   "dependencies": {
