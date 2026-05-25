@@ -49,17 +49,31 @@ if (!existsSync(sqlPath)) {
   );
 }
 
-// 3. Production build with VITE_API_BASE injected
-const apiBase = process.env.VITE_API_BASE ?? 'https://example-api.workers.dev';
-try {
-  execSync('npm run build', {
-    cwd: ROOT,
-    env: { ...process.env, VITE_API_BASE: apiBase },
-    stdio: 'pipe',
-  });
-  check('frontend build succeeds with VITE_API_BASE', true);
-} catch (err) {
-  check('frontend build succeeds', false, String(err).slice(0, 200));
+// 3. Production build with VITE_API_BASE injected.
+//    Hard-fail if the env var is missing — a build without it ships
+//    a bundle that uses relative /api/* paths which Cloudflare Pages
+//    SPA-fallbacks to index.html, breaking every cloud-sync section.
+//    Past incident: Phase 9I production deploy 2026-05-26 needed
+//    re-build after this exact regression slipped through.
+const apiBase = process.env.VITE_API_BASE;
+if (!apiBase) {
+  check(
+    'VITE_API_BASE set for build',
+    false,
+    'export VITE_API_BASE before running deploy:check — without it the bundle uses relative /api/* paths',
+  );
+} else {
+  check('VITE_API_BASE set for build', true);
+  try {
+    execSync('npm run build', {
+      cwd: ROOT,
+      env: { ...process.env, VITE_API_BASE: apiBase },
+      stdio: 'pipe',
+    });
+    check('frontend build succeeds with VITE_API_BASE', true);
+  } catch (err) {
+    check('frontend build succeeds', false, String(err).slice(0, 200));
+  }
 }
 
 // 4. Built JS embeds the configured API base (so production frontends

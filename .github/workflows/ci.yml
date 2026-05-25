@@ -65,6 +65,15 @@ jobs:
         run: cd worker && npm run typecheck
 
       - name: Build (root)
+        # VITE_API_BASE must be set at build time — Vite inlines it
+        # via import.meta.env.VITE_API_BASE into the production
+        # bundle. Missing → relative /api/* fetches resolve against
+        # openmakruk.com → SPA fallback returns HTML → JSON parse
+        # errors in every cloud-sync section. Pinned here so CI
+        # builds always carry it; the Cloudflare Pages "Connect to
+        # Git" build needs the same env var set in its own dashboard.
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || 'https://openmakruk-api.cnatthaphon.workers.dev' }}
         run: npm run build
 
       - name: Worker integration tests
