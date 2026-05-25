@@ -76,6 +76,33 @@ export type ProvinceLeaderboardEntry = {
   gamesPlayed: number;
 };
 
+/** Badge catalog entry. Mirrors worker/src/badges.ts BadgeDef. */
+export type BadgeDef = {
+  id: string;
+  category: 'rating' | 'puzzles' | 'streak' | 'bot-conqueror' | 'region';
+  tier: 'bronze' | 'silver' | 'gold' | 'diamond';
+  icon: string;
+  nameTh: string;
+  descTh: string;
+  threshold: number;
+};
+
+/** A badge the current user has unlocked. */
+export type UserBadge = {
+  badgeId: string;
+  unlockedAt: number;
+  shareableSlug: string;
+  def: BadgeDef | null;
+};
+
+/** Public cert page payload — no auth required to fetch. */
+export type CertView = {
+  badge: BadgeDef;
+  displayName: string;
+  province: string | null;
+  unlockedAt: number;
+};
+
 /** Bot character profile + denormalized stats from games vs humans. */
 export type BotCharacter = {
   id: string;
@@ -146,6 +173,9 @@ export type GameSubmitResult = {
   ratingDelta: number;
   verified: boolean;
   createdAt: number;
+  /** Badge ids the server unlocked as a side-effect of this game.
+   *  Empty array when nothing new triggered. */
+  newBadges?: string[];
 };
 
 /** Draft of a puzzle the user wants to submit for community review. */
@@ -258,6 +288,21 @@ export type BackendAdapter = {
 
   /** Single bot by id (e.g. 'bot:attacker-master'). */
   fetchBot?(id: string): Promise<BotCharacter | null>;
+
+  // ----- Badges (Phase 9H-3) ---------------------------------------
+
+  /** Public badge catalog. Cached aggressively by the browser. */
+  fetchBadgeCatalog?(): Promise<BadgeDef[]>;
+
+  /** The current user's unlocked badges, newest first. */
+  fetchMyBadges?(token: string): Promise<UserBadge[]>;
+
+  /** Force-re-evaluate (rare; used after solving a puzzle to surface
+   *  the just-earned badge without waiting for the next game). */
+  evaluateMyBadges?(token: string): Promise<string[]>;
+
+  /** Public cert page lookup. No auth required. */
+  fetchCert?(slug: string): Promise<CertView | null>;
 
   // ----- Puzzle catalog ---------------------------------------------
 

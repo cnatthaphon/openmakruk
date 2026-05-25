@@ -27,6 +27,9 @@ import type {
   ProvinceLeaderboardEntry,
   RatingLeaderboardEntry,
   BotCharacter,
+  BadgeDef,
+  UserBadge,
+  CertView,
 } from './types';
 
 /** Resolve the API base URL. Lookup order:
@@ -261,6 +264,37 @@ export class CloudflareBackend implements BackendAdapter {
       const res = await this.request(`/api/bots/${encodeURIComponent(id)}`, { allow401: true });
       if (res.status === 404 || res.status === 400) return null;
       return (await res.json()) as BotCharacter;
+    } catch (err) {
+      if (err instanceof BackendError && (err.status === 404 || err.status === 400)) return null;
+      throw err;
+    }
+  }
+
+  // ─── Badges ─────────────────────────────────────────────────────
+
+  async fetchBadgeCatalog(): Promise<BadgeDef[]> {
+    const res = await this.request('/api/badges');
+    const body = (await res.json()) as { badges: BadgeDef[] };
+    return body.badges;
+  }
+
+  async fetchMyBadges(token: string): Promise<UserBadge[]> {
+    const res = await this.request('/api/badges/me', { token });
+    const body = (await res.json()) as { badges: UserBadge[] };
+    return body.badges;
+  }
+
+  async evaluateMyBadges(token: string): Promise<string[]> {
+    const res = await this.request('/api/badges/me/evaluate', { method: 'POST', token });
+    const body = (await res.json()) as { newBadges: string[] };
+    return body.newBadges;
+  }
+
+  async fetchCert(slug: string): Promise<CertView | null> {
+    try {
+      const res = await this.request(`/api/cert/${encodeURIComponent(slug)}`, { allow401: true });
+      if (res.status === 404 || res.status === 400) return null;
+      return (await res.json()) as CertView;
     } catch (err) {
       if (err instanceof BackendError && (err.status === 404 || err.status === 400)) return null;
       throw err;

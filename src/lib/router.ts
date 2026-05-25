@@ -33,6 +33,9 @@ export const TAB_IDS = [
   'profile',
   'settings',
   'about',
+  // Public cert page — not in the tab nav but a valid route id so
+  // `/#/cert/<slug>` resolves cleanly.
+  'cert',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];

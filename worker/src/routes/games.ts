@@ -20,6 +20,7 @@ import type { Env } from '../index';
 import { authMiddleware, getUser, newId, type AuthVars } from '../auth';
 import { applyElo, opponentRating, type Outcome } from '../elo';
 import { verifyGame } from '../verifier';
+import { evaluateBadges } from '../badgeEvaluator';
 
 const PAGE_SIZE = 50;
 const VALID_OUTCOMES = new Set<Outcome>(['win', 'loss', 'draw']);
@@ -192,6 +193,17 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   }
   await c.env.DB.batch(statements);
 
+  // Server-side badge evaluation. Cheap (handful of aggregates) and
+  // runs only after a successful game write. Newly-unlocked ids
+  // surface in the response so the client can toast them.
+  let newBadges: string[] = [];
+  try {
+    newBadges = await evaluateBadges(c.env.DB, user.id);
+  } catch (err) {
+    // Badge eval errors shouldn't break the game write. Log + swallow.
+    console.warn('badge.evaluate.failed', { userId: user.id, error: String(err) });
+  }
+
   return c.json({
     id,
     ratingBefore: user.rating,
@@ -199,6 +211,7 @@ gamesRoute.post('/', authMiddleware, async (c) => {
     ratingDelta: delta,
     verified,
     createdAt: now,
+    newBadges,
   });
 });
 

@@ -70,6 +70,9 @@ const SettingsPage = lazy(() =>
 const LibraryPage = lazy(() =>
   import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })),
 );
+const CertPage = lazy(() =>
+  import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
+);
 import { loadSettings, type Settings } from './lib/settings';
 import {
   playCapture,
@@ -138,6 +141,8 @@ import { loadPuzzles } from './lib/content';
 import { loadPuzzleProgress } from './lib/puzzleProgress';
 import { loadLessonProgress } from './lib/learnProgress';
 
+// Visible-in-nav tabs only. `cert` is a route but doesn't show in the
+// tab bar (filtered out below); the type still covers it.
 const TAB_LABELS: Record<Tab, string> = {
   play:     '♔ เล่น',
   learn:    '🎓 ฝึก',
@@ -148,7 +153,11 @@ const TAB_LABELS: Record<Tab, string> = {
   profile:  '👤 โปรไฟล์',
   settings: '⚙️ ตั้งค่า',
   about:    'ℹ️ เกี่ยวกับ',
+  cert:     '', // hidden — visited via shareable URL only
 };
+const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
+  (t) => TAB_LABELS[t] !== '',
+);
 
 type BoardState = {
   turn: 'white' | 'black';
@@ -642,7 +651,16 @@ export default function App() {
                 id: res.id,
                 ratingDelta: res.ratingDelta,
                 ratingAfter: res.ratingAfter,
+                newBadges: res.newBadges,
               });
+              // Toast each newly-earned badge. Tier-aware emoji so
+              // the user sees if it was a small bronze or a heavyweight
+              // diamond.
+              if (res.newBadges && res.newBadges.length > 0) {
+                for (const id of res.newBadges) {
+                  toast.success(`🏅 ปลดล็อก badge: ${id}`);
+                }
+              }
             })
             .catch((err) => {
               log('cloud.gameRecord.failed', { error: String(err) });
@@ -1544,7 +1562,7 @@ export default function App() {
           <span className="app-header-version">v0.1</span>
         </div>
         <nav className="tabs" role="tablist">
-          {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
+          {VISIBLE_TABS.map((t) => (
             <button
               key={t}
               role="tab"
@@ -1672,6 +1690,9 @@ export default function App() {
       )}
       {currentTab === 'about' && (
         <ErrorBoundary scope="about"><AboutPage /></ErrorBoundary>
+      )}
+      {currentTab === 'cert' && (
+        <ErrorBoundary scope="cert"><CertPage slug={route.id} /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (

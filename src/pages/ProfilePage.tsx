@@ -21,7 +21,7 @@ import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
-import type { MatchLeaderboardEntry, BotCharacter } from '../lib/backend';
+import type { MatchLeaderboardEntry, BotCharacter, BadgeDef, UserBadge } from '../lib/backend';
 import { findProvince, REGION_LABELS_TH } from '../lib/provinces';
 import {
   GAUNTLET_ORDER,
@@ -178,6 +178,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <GlobalMatchLeaderboardSection />
 
       <BotHallOfFameSection />
+
+      <BadgesSection />
 
       <GauntletSection />
 
@@ -522,6 +524,114 @@ function HistorySection({ stats }: { stats: UserStats }) {
           <button onClick={() => setVisible((n) => n + 50)}>
             แสดงเพิ่มอีก 50 ({more} เกมเก่ากว่ารออยู่)
           </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function BadgesSection() {
+  const backend = getBackend();
+  const session = loadSession();
+  const supports =
+    backend.isOnline() &&
+    session.token.length > 0 &&
+    backend.fetchBadgeCatalog !== undefined &&
+    backend.fetchMyBadges !== undefined;
+
+  const [catalog, setCatalog] = useState<BadgeDef[] | null>(null);
+  const [mine, setMine] = useState<UserBadge[] | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supports || !backend.fetchBadgeCatalog || !backend.fetchMyBadges) return;
+    let cancelled = false;
+    Promise.all([
+      backend.fetchBadgeCatalog(),
+      backend.fetchMyBadges(session.token),
+    ])
+      .then(([cat, badges]) => {
+        if (cancelled) return;
+        setCatalog(cat);
+        setMine(badges);
+      })
+      .catch((e: unknown) => !cancelled && setErr(String(e)));
+    return () => { cancelled = true; };
+  }, [supports, backend, session.token]);
+
+  if (!supports) return null;
+
+  const unlockedSet = new Set((mine ?? []).map((b) => b.badgeId));
+  const unlockedById = new Map((mine ?? []).map((b) => [b.badgeId, b]));
+
+  const byCategory: Record<string, BadgeDef[]> = {};
+  for (const b of catalog ?? []) {
+    if (!byCategory[b.category]) byCategory[b.category] = [];
+    byCategory[b.category].push(b);
+  }
+  // Sort tiers within a category from low (bronze) to high (diamond).
+  const tierOrder = { bronze: 0, silver: 1, gold: 2, diamond: 3 };
+  for (const cat of Object.keys(byCategory)) {
+    byCategory[cat].sort((a, b) => tierOrder[a.tier] - tierOrder[b.tier]);
+  }
+  const categoryLabels: Record<string, string> = {
+    rating: '⭐ Rating ladder',
+    puzzles: '🧩 Puzzle solver',
+    streak: '🔥 Daily streak',
+    'bot-conqueror': '⚔️ Bot conqueror',
+    region: '📍 ภูมิภาค',
+  };
+
+  return (
+    <section className="profile-section">
+      <h3>
+        🏅 Badges{' '}
+        <span className="label-aside">
+          · {mine?.length ?? 0} / {catalog?.length ?? 0} ปลดล็อก
+        </span>
+      </h3>
+      <p className="label-aside">
+        Tier ladder — bronze → silver → gold → diamond · ปลดล็อกอัตโนมัติเมื่อผ่านเงื่อนไข · share ผ่าน
+        cert link ที่ <code>/#/cert/&lt;slug&gt;</code>
+      </p>
+      {err && <p className="label-aside" style={{ color: '#c75555' }}>{err}</p>}
+      {!catalog && !err && <p className="label-aside">กำลังโหลด…</p>}
+      {catalog && (
+        <div className="profile-badges">
+          {Object.entries(byCategory).map(([cat, list]) => (
+            <div key={cat} className="profile-badges-cat">
+              <h4>{categoryLabels[cat] ?? cat}</h4>
+              <div className="profile-badges-row">
+                {list.map((b) => {
+                  const got = unlockedSet.has(b.id);
+                  const userBadge = unlockedById.get(b.id);
+                  return (
+                    <div
+                      key={b.id}
+                      className={`profile-badge ${got ? 'unlocked' : 'locked'} tier-${b.tier}`}
+                      title={`${b.nameTh} · ${b.descTh}${got && userBadge?.unlockedAt ? ` · ปลดล็อก ${new Date(userBadge.unlockedAt).toLocaleDateString('th-TH')}` : ''}`}
+                    >
+                      <span className="profile-badge-icon">{got ? b.icon : '🔒'}</span>
+                      <div>
+                        <div className="profile-badge-name">{b.nameTh}</div>
+                        <div className="profile-badge-desc">{b.descTh}</div>
+                        {got && userBadge && (
+                          <a
+                            className="profile-badge-cert-link"
+                            href={`/#/cert/${userBadge.shareableSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            🔗 share cert
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </section>

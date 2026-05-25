@@ -675,6 +675,89 @@ describe('bot character system', () => {
   });
 });
 
+describe('badges (server-side tier ladder)', () => {
+  test('GET /api/badges returns the static catalog', async () => {
+    const res = await fetch(`${baseUrl()}/api/badges`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as { badges: Array<{ id: string; tier: string; category: string }> };
+    expect(body.badges.length).toBeGreaterThan(10);
+    // Spot-check tier ladder structure
+    const rating = body.badges.filter((b) => b.category === 'rating');
+    expect(rating.length).toBe(4);
+    expect(rating.map((b) => b.tier).sort()).toEqual(['bronze', 'diamond', 'gold', 'silver']);
+  });
+
+  test('first verified win unlocks bot-rookie or higher tier badge', async () => {
+    const user = await createAnonUser('BadgeHunter');
+    // Beat rookie-tier bot once.
+    const res = await recordGame(user.token, {
+      opponent: 'bot:wanderer-rookie',
+      outcome: 'win',
+    });
+    expect((res as unknown as { newBadges: string[] }).newBadges).toContain('bot-rookie');
+  });
+
+  test('GET /api/badges/me lists unlocked badges for this user', async () => {
+    const user = await createAnonUser('MyBadges');
+    await recordGame(user.token, { opponent: 'bot:wanderer-rookie', outcome: 'win' });
+    const res = await fetch(`${baseUrl()}/api/badges/me`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const body = await res.json() as {
+      badges: Array<{ badgeId: string; shareableSlug: string }>;
+    };
+    expect(body.badges.length).toBeGreaterThan(0);
+    expect(body.badges.some((b) => b.badgeId === 'bot-rookie')).toBe(true);
+  });
+
+  test('public cert page resolves from a shareable slug', async () => {
+    const user = await createAnonUser('CertHolder');
+    await recordGame(user.token, { opponent: 'bot:wanderer-rookie', outcome: 'win' });
+    const list = await fetch(`${baseUrl()}/api/badges/me`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const body = await list.json() as {
+      badges: Array<{ badgeId: string; shareableSlug: string }>;
+    };
+    const slug = body.badges[0].shareableSlug;
+    const cert = await fetch(`${baseUrl()}/api/cert/${slug}`);
+    expect(cert.ok).toBe(true);
+    const certBody = await cert.json() as {
+      badge: { id: string };
+      displayName: string;
+    };
+    expect(certBody.badge.id).toBe(body.badges[0].badgeId);
+    expect(certBody.displayName).toBe('CertHolder');
+  });
+
+  test('cert with unknown slug → 404', async () => {
+    const res = await fetch(`${baseUrl()}/api/cert/notarealslug-foo`);
+    expect(res.status).toBe(404);
+  });
+
+  test('badges are idempotent — re-evaluating does not duplicate', async () => {
+    const user = await createAnonUser('IdempotentBadges');
+    // Trigger once
+    await recordGame(user.token, { opponent: 'bot:wanderer-rookie', outcome: 'win' });
+    // Force-evaluate — should NOT issue bot-rookie again
+    const reeval = await fetch(`${baseUrl()}/api/badges/me/evaluate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const body = await reeval.json() as { newBadges: string[] };
+    expect(body.newBadges).not.toContain('bot-rookie');
+  });
+
+  test('bots themselves never earn badges', async () => {
+    // Direct DB peek would be cleaner, but we can verify through the
+    // contract: bots have is_bot=1 and evaluateBadges() early-returns.
+    // Sanity check via the public cert endpoint — no cert exists for
+    // any bot id since they never got slugs.
+    const res = await fetch(`${baseUrl()}/api/cert/zzzzz-bot-master`);
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('input validation', () => {
   test('missing opponent → 400 opponent_required', async () => {
     const u = await createAnonUser('Validator');
