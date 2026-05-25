@@ -453,6 +453,129 @@ describe('server-side game verification', () => {
   });
 });
 
+describe('province + region (regional leaderboards)', () => {
+  test('register with province persists it on the user', async () => {
+    const res = await fetch(`${baseUrl()}/api/users/anon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'BkkPlayer', province: '10' }),
+    });
+    expect(res.ok).toBe(true);
+    const body = await res.json() as { province: string; region: string };
+    expect(body.province).toBe('10');
+    expect(body.region).toBe('central'); // Bangkok → central
+  });
+
+  test('invalid province code → 400', async () => {
+    const res = await fetch(`${baseUrl()}/api/users/anon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'Hacker', province: 'XX99' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test('PATCH /me can update province', async () => {
+    const user = await createAnonUser('PatchProvince');
+    const res = await fetch(`${baseUrl()}/api/users/me`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+      body: JSON.stringify({ province: '50' }), // Chiang Mai
+    });
+    expect(res.ok).toBe(true);
+    const body = await res.json() as { province: string; region: string };
+    expect(body.province).toBe('50');
+    expect(body.region).toBe('north');
+  });
+
+  test('GET /me echoes the stored province + region', async () => {
+    const user = await createAnonUser('GetMe');
+    await fetch(`${baseUrl()}/api/users/me`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` },
+      body: JSON.stringify({ province: '83' }), // Phuket
+    });
+    const res = await fetch(`${baseUrl()}/api/users/me`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    const body = await res.json() as { province: string; region: string };
+    expect(body.province).toBe('83');
+    expect(body.region).toBe('south');
+  });
+
+  test('leaderboard filtered by province surfaces only that province', async () => {
+    // Three users in different provinces, each posts a verified win.
+    const bkk = await fetch(`${baseUrl()}/api/users/anon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'BKK_Alice', province: '10' }),
+    });
+    const bkkUser = await bkk.json() as { id: string; token: string };
+    const cmi = await fetch(`${baseUrl()}/api/users/anon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'CMI_Bob', province: '50' }),
+    });
+    const cmiUser = await cmi.json() as { id: string; token: string };
+
+    await recordGame(bkkUser.token, { opponent: 'medium', outcome: 'win' });
+    await recordGame(cmiUser.token, { opponent: 'medium', outcome: 'win' });
+
+    const bkkLb = await fetch(`${baseUrl()}/api/leaderboard/match?province=10`);
+    const bkkBody = await bkkLb.json() as { entries: Array<{ userId: string; province: string }> };
+    expect(bkkBody.entries.some((e) => e.userId === bkkUser.id)).toBe(true);
+    expect(bkkBody.entries.every((e) => e.province === '10')).toBe(true);
+
+    const cmiLb = await fetch(`${baseUrl()}/api/leaderboard/match?province=50`);
+    const cmiBody = await cmiLb.json() as { entries: Array<{ userId: string }> };
+    expect(cmiBody.entries.some((e) => e.userId === cmiUser.id)).toBe(true);
+    expect(cmiBody.entries.every((e) => e.userId !== bkkUser.id)).toBe(true);
+  });
+
+  test('leaderboard filtered by region rolls up provinces', async () => {
+    // Two users in different north-region provinces.
+    const cmi = await fetch(`${baseUrl()}/api/users/anon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'NorthA', province: '50' }), // Chiang Mai
+    });
+    const cmiUser = await cmi.json() as { id: string; token: string };
+    const cri = await fetch(`${baseUrl()}/api/users/anon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: 'NorthB', province: '57' }), // Chiang Rai
+    });
+    const criUser = await cri.json() as { id: string; token: string };
+
+    await recordGame(cmiUser.token, { opponent: 'hard', outcome: 'win' });
+    await recordGame(criUser.token, { opponent: 'hard', outcome: 'win' });
+
+    const lb = await fetch(`${baseUrl()}/api/leaderboard/match?region=north&limit=200`);
+    const body = await lb.json() as {
+      entries: Array<{ userId: string; province: string }>;
+      scope: { region: string; regionLabelTh: string };
+    };
+    const ids = new Set(body.entries.map((e) => e.userId));
+    expect(ids.has(cmiUser.id)).toBe(true);
+    expect(ids.has(criUser.id)).toBe(true);
+    expect(body.scope.regionLabelTh).toBe('ภาคเหนือ');
+  });
+
+  test('GET /match/by-province aggregates one row per province', async () => {
+    const res = await fetch(`${baseUrl()}/api/leaderboard/match/by-province`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as {
+      entries: Array<{ province: string; score: number; playerCount: number }>;
+    };
+    // Each entry has a non-null province + non-zero score (HAVING+WHERE
+    // would filter out empty provinces, but defensive).
+    for (const e of body.entries) {
+      expect(e.province).toBeTruthy();
+      expect(e.playerCount).toBeGreaterThan(0);
+    }
+  });
+});
+
 describe('input validation', () => {
   test('missing opponent → 400 opponent_required', async () => {
     const u = await createAnonUser('Validator');

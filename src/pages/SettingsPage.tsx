@@ -22,8 +22,15 @@ import {
   enableCloud,
   hasStoredSession,
   loadSession,
+  saveSession,
 } from '../lib/backend/cloudSession';
 import { getBackend } from '../lib/backend';
+import {
+  PROVINCES_BY_REGION,
+  REGION_LABELS_TH,
+  findProvince,
+  type Region,
+} from '../lib/provinces';
 
 type Props = {
   onSettingsChange?: (s: Settings) => void;
@@ -280,7 +287,9 @@ function CloudSyncSection() {
     if (busy) return;
     setBusy(true);
     try {
-      await enableCloud();
+      // Use the session's stored province (set during onboarding) so
+      // the user doesn't have to re-pick it when enabling cloud sync.
+      await enableCloud({ province: loadSession().province });
       toast.success('เปิด cloud sync แล้ว · เกมจะ sync ไป server โดยอัตโนมัติ');
     } catch (err) {
       toast.error(`เปิด cloud sync ไม่สำเร็จ: ${String(err)}`);
@@ -318,6 +327,10 @@ function CloudSyncSection() {
             <div>
               <strong>เชื่อมต่อแล้ว</strong>{' '}
               · {session.displayName || 'ผู้เล่น'}
+              {session.province && (() => {
+                const p = findProvince(session.province);
+                return p ? <> · <span className="label-aside">📍 {p.nameTh}</span></> : null;
+              })()}
             </div>
             <div className="label-aside">
               user id: <code>{session.userId.slice(0, 8)}…</code>{' '}
@@ -327,6 +340,7 @@ function CloudSyncSection() {
                 : '—'}
             </div>
           </div>
+          <ProvincePicker token={session.token} currentProvince={session.province} onChange={refresh} />
           <button className="settings-reset-button" onClick={handleDisable}>
             🔌 ปิด cloud sync
           </button>
@@ -341,5 +355,64 @@ function CloudSyncSection() {
         </button>
       )}
     </section>
+  );
+}
+
+function ProvincePicker({
+  token,
+  currentProvince,
+  onChange,
+}: {
+  token: string;
+  currentProvince: string | null;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(currentProvince);
+
+  const dirty = pending !== currentProvince;
+
+  const save = async () => {
+    if (!dirty || busy) return;
+    setBusy(true);
+    try {
+      const backend = getBackend();
+      if (!backend.updateProfile) throw new Error('no updateProfile');
+      const profile = await backend.updateProfile(token, { province: pending });
+      const sess = loadSession();
+      saveSession({ ...sess, province: profile.province, region: profile.region });
+      toast.success('บันทึกจังหวัดแล้ว');
+      onChange();
+    } catch (err) {
+      toast.error(`บันทึกไม่สำเร็จ: ${String(err).slice(0, 80)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="settings-province-picker">
+      <label className="label-aside" htmlFor="settings-province-select">📍 จังหวัด (สำหรับ leaderboard ภูมิภาค):</label>
+      <select
+        id="settings-province-select"
+        value={pending ?? ''}
+        onChange={(e) => setPending(e.target.value || null)}
+        disabled={busy}
+      >
+        <option value="">— ไม่ระบุ —</option>
+        {(Object.keys(REGION_LABELS_TH) as Region[]).map((r) => (
+          <optgroup key={r} label={REGION_LABELS_TH[r]}>
+            {PROVINCES_BY_REGION[r].map((p) => (
+              <option key={p.code} value={p.code}>{p.nameTh}</option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      {dirty && (
+        <button onClick={save} disabled={busy} className="settings-province-save">
+          {busy ? '⏳…' : '💾 บันทึก'}
+        </button>
+      )}
+    </div>
   );
 }

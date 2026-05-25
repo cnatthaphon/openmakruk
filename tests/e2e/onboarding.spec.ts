@@ -17,7 +17,7 @@ test.describe('onboarding modal', () => {
     await expect(page.getByText('ยินดีต้อนรับสู่ OpenMakruk')).toBeVisible();
   });
 
-  test('full flow: welcome → name → opponent → finish', async ({ page }) => {
+  test('full flow: welcome → name → region → opponent → finish', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByText('ยินดีต้อนรับสู่ OpenMakruk')).toBeVisible();
 
@@ -25,12 +25,17 @@ test.describe('onboarding modal', () => {
     await page.getByRole('button', { name: /ต่อไป/ }).click();
 
     // Step 2: name input → next
-    const nameInput = page.locator('.onboarding-name-input');
+    const nameInput = page.locator('.onboarding-name-input').first();
     await expect(nameInput).toBeVisible();
     await nameInput.fill('TestPlayer');
     await page.getByRole('button', { name: /ต่อไป/ }).click();
 
-    // Step 3: opponent picker → finish
+    // Step 3: region picker — leave as "ไม่ระบุ" to verify the
+    // optional path works (Phase 9H-1)
+    await expect(page.getByText('คุณอยู่จังหวัดไหน')).toBeVisible();
+    await page.getByRole('button', { name: /ต่อไป/ }).click();
+
+    // Step 4: opponent picker → finish
     await expect(page.getByText('เลือกคู่ต่อสู้คนแรก')).toBeVisible();
     // Pick the second option (wanderer) to exercise non-default path.
     await page.locator('.onboarding-opponent').nth(1).click();

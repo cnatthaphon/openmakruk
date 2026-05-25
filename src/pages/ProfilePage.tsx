@@ -22,6 +22,7 @@ import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
 import type { MatchLeaderboardEntry } from '../lib/backend';
+import { findProvince, REGION_LABELS_TH } from '../lib/provinces';
 import {
   GAUNTLET_ORDER,
   loadGauntlet,
@@ -525,21 +526,32 @@ function HistorySection({ stats }: { stats: UserStats }) {
   );
 }
 
+type LbScope = 'global' | 'region' | 'province';
+
 function GlobalMatchLeaderboardSection() {
-  // Only mount when cloud sync is online — keeps the leaderboard hidden
-  // for offline users so they don't see a perpetual "loading" or
-  // "enable cloud sync" empty state in the middle of their profile.
   const backend = getBackend();
   const supports = backend.isOnline() && backend.fetchMatchLeaderboard !== undefined;
+  const session = loadSession();
+  const myProvinceObj = session.province ? findProvince(session.province) : null;
+  const myRegion = myProvinceObj?.region ?? null;
 
+  // Scope selector. Defaults to global when the user hasn't set a
+  // province; pre-selects region/province when they have, since
+  // that's the more interesting "fight your neighbors" framing.
+  const [scope, setScope] = useState<LbScope>(myRegion ? 'region' : 'global');
   const [entries, setEntries] = useState<MatchLeaderboardEntry[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supports || !backend.fetchMatchLeaderboard) return;
     let cancelled = false;
+    setEntries(null);
+    setErr(null);
+    const opts: { limit: number; province?: string; region?: string } = { limit: 100 };
+    if (scope === 'province' && session.province) opts.province = session.province;
+    if (scope === 'region' && myRegion) opts.region = myRegion;
     backend
-      .fetchMatchLeaderboard(50)
+      .fetchMatchLeaderboard(opts)
       .then((rows) => {
         if (!cancelled) setEntries(rows);
       })
@@ -549,38 +561,89 @@ function GlobalMatchLeaderboardSection() {
     return () => {
       cancelled = true;
     };
-  }, [supports, backend]);
+  }, [supports, backend, scope, session.province, myRegion]);
 
   if (!supports) return null;
 
-  const myId = loadSession().userId;
+  const myId = session.userId;
+  const scopeHeader =
+    scope === 'province'
+      ? `📍 จังหวัด ${myProvinceObj?.nameTh ?? '—'}`
+      : scope === 'region'
+        ? `🗺️ ภูมิภาค ${myRegion ? REGION_LABELS_TH[myRegion] : '—'}`
+        : '🌍 ทั่วประเทศ';
 
   return (
     <section className="profile-section">
-      <h3>🌍 Global Match Leaderboard · server-verified</h3>
+      <h3>🏆 Match Leaderboard · server-verified · {scopeHeader}</h3>
       <p className="label-aside">
-        เปรียบเทียบกับผู้เล่นทั่วโลก · คะแนนคำนวณฝั่ง server · แก้ localStorage ของตัวเองไม่ขึ้นบอร์ดนี้
+        คะแนนคำนวณฝั่ง server · แก้ localStorage ของตัวเองไม่ขึ้นบอร์ดนี้ · เกมต้องผ่าน engine verification
       </p>
+
+      <div className="profile-lb-scope-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={scope === 'global'}
+          className={scope === 'global' ? 'is-active' : ''}
+          onClick={() => setScope('global')}
+        >
+          🌍 ทั่วประเทศ
+        </button>
+        <button
+          role="tab"
+          aria-selected={scope === 'region'}
+          className={scope === 'region' ? 'is-active' : ''}
+          onClick={() => setScope('region')}
+          disabled={!myRegion}
+          title={myRegion ? undefined : 'เลือกจังหวัดของคุณก่อน · Settings → ☁️ Cloud Sync'}
+        >
+          🗺️ ภูมิภาคของฉัน
+        </button>
+        <button
+          role="tab"
+          aria-selected={scope === 'province'}
+          className={scope === 'province' ? 'is-active' : ''}
+          onClick={() => setScope('province')}
+          disabled={!session.province}
+          title={session.province ? undefined : 'เลือกจังหวัดของคุณก่อน · Settings → ☁️ Cloud Sync'}
+        >
+          📍 จังหวัดของฉัน
+        </button>
+      </div>
+
       {err && <p className="label-aside" style={{ color: '#c75555' }}>เชื่อมต่อล้มเหลว: {err}</p>}
       {!entries && !err && <p className="label-aside">กำลังโหลด…</p>}
       {entries && entries.length === 0 && (
-        <p className="label-aside">ยังไม่มีผู้เล่นบนบอร์ด · ลองชนะ master 1 เกมก่อน</p>
+        <p className="label-aside">
+          ยังไม่มีผู้เล่นบนบอร์ดนี้ ·{' '}
+          {scope === 'global'
+            ? 'ลองชนะ master 1 เกมก่อน'
+            : scope === 'region'
+              ? 'ภูมิภาคของคุณยังไม่มีคนแข่ง · เป็นคนแรก!'
+              : 'จังหวัดของคุณยังไม่มีคนแข่ง · เป็นคนแรก!'}
+        </p>
       )}
       {entries && entries.length > 0 && (
         <div className="profile-global-lb">
-          {entries.map((e) => (
-            <div
-              key={e.userId}
-              className={`profile-global-lb-row ${e.userId === myId ? 'is-me' : ''}`}
-            >
-              <span className="profile-global-lb-rank">#{e.rank}</span>
-              <span className="profile-global-lb-name">{e.displayName}</span>
-              <span className="profile-global-lb-meta">
-                {e.wins}W · {e.draws}D · {e.losses}L
-              </span>
-              <span className="profile-global-lb-score">{formatScore(e.score)} pt</span>
-            </div>
-          ))}
+          {entries.map((e) => {
+            const p = findProvince(e.province);
+            return (
+              <div
+                key={e.userId}
+                className={`profile-global-lb-row ${e.userId === myId ? 'is-me' : ''}`}
+              >
+                <span className="profile-global-lb-rank">#{e.rank}</span>
+                <span className="profile-global-lb-name">
+                  {e.displayName}
+                  {p && <span className="profile-global-lb-province"> · 📍 {p.nameTh}</span>}
+                </span>
+                <span className="profile-global-lb-meta">
+                  {e.wins}W · {e.draws}D · {e.losses}L
+                </span>
+                <span className="profile-global-lb-score">{formatScore(e.score)} pt</span>
+              </div>
+            );
+          })}
         </div>
       )}
     </section>

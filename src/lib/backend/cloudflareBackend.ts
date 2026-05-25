@@ -24,6 +24,7 @@ import type {
   GameSubmit,
   GameSubmitResult,
   MatchLeaderboardEntry,
+  ProvinceLeaderboardEntry,
 } from './types';
 
 /** Resolve the API base URL. Lookup order:
@@ -105,10 +106,15 @@ export class CloudflareBackend implements BackendAdapter {
 
   // ─── auth / profile ────────────────────────────────────────────────
 
-  async registerAnon(displayName?: string): Promise<AnonUser> {
+  async registerAnon(
+    opts: { displayName?: string; province?: string | null } = {},
+  ): Promise<AnonUser> {
+    const body: Record<string, unknown> = {};
+    if (opts.displayName) body.displayName = opts.displayName;
+    if (opts.province !== undefined) body.province = opts.province;
     const res = await this.request('/api/users/anon', {
       method: 'POST',
-      body: JSON.stringify(displayName ? { displayName } : {}),
+      body: JSON.stringify(body),
     });
     return (await res.json()) as AnonUser;
   }
@@ -121,7 +127,7 @@ export class CloudflareBackend implements BackendAdapter {
 
   async updateProfile(
     token: string,
-    changes: { displayName: string },
+    changes: { displayName?: string; province?: string | null },
   ): Promise<UserProfile> {
     const res = await this.request('/api/users/me', {
       method: 'PATCH',
@@ -206,9 +212,21 @@ export class CloudflareBackend implements BackendAdapter {
 
   // ─── leaderboards ─────────────────────────────────────────────────
 
-  async fetchMatchLeaderboard(limit = 100): Promise<MatchLeaderboardEntry[]> {
-    const res = await this.request(`/api/leaderboard/match?limit=${limit}`);
+  async fetchMatchLeaderboard(
+    opts: { limit?: number; province?: string; region?: string } = {},
+  ): Promise<MatchLeaderboardEntry[]> {
+    const q = new URLSearchParams();
+    q.set('limit', String(opts.limit ?? 100));
+    if (opts.province) q.set('province', opts.province);
+    if (opts.region) q.set('region', opts.region);
+    const res = await this.request(`/api/leaderboard/match?${q}`);
     const body = (await res.json()) as { entries: MatchLeaderboardEntry[] };
+    return body.entries;
+  }
+
+  async fetchProvinceLeaderboard(): Promise<ProvinceLeaderboardEntry[]> {
+    const res = await this.request('/api/leaderboard/match/by-province');
+    const body = (await res.json()) as { entries: ProvinceLeaderboardEntry[] };
     return body.entries;
   }
 

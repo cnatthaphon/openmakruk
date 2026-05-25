@@ -326,7 +326,7 @@ export default function App() {
   // "re-enable" button if the user notices.
   useEffect(() => {
     if (!hasStoredSession()) return;
-    enableCloud()
+    enableCloud({})
       .then(async () => {
         // After session activates, pull recent games from the server
         // and merge into local stats. Lets a user who plays on phone

@@ -57,12 +57,22 @@ export type MatchLeaderboardEntry = {
   userId: string;
   displayName: string;
   rating: number;
+  province: string | null;
   score: number;
   wins: number;
   losses: number;
   draws: number;
   gamesPlayed: number;
   lastActiveAt: number;
+};
+
+/** Province-rollup entry for the macro "ภาคเหนือ vs ภาคกลาง" view. */
+export type ProvinceLeaderboardEntry = {
+  rank: number;
+  province: string;
+  score: number;
+  playerCount: number;
+  gamesPlayed: number;
 };
 
 /** Anonymous user account returned by registerAnon. `token` is the
@@ -73,6 +83,8 @@ export type AnonUser = {
   displayName: string;
   token: string;
   rating: number;
+  province: string | null;
+  region: string | null;
   createdAt: number;
 };
 
@@ -82,6 +94,8 @@ export type UserProfile = {
   id: string;
   displayName: string;
   rating: number;
+  province: string | null;
+  region: string | null;
   createdAt: number;
   lastSeenAt: number;
 };
@@ -138,14 +152,17 @@ export type BackendAdapter = {
 
   /** Mint a new anonymous account. Returns id + bearer token. Token
    *  is returned ONCE — caller must persist it. */
-  registerAnon?(displayName?: string): Promise<AnonUser>;
+  registerAnon?(opts?: { displayName?: string; province?: string | null }): Promise<AnonUser>;
 
   /** Resolve an existing token to its profile. Returns null if the
    *  token is invalid / unknown (caller should re-register). */
   getProfile?(token: string): Promise<UserProfile | null>;
 
-  /** Update display name (only mutable field for anon accounts). */
-  updateProfile?(token: string, changes: { displayName: string }): Promise<UserProfile>;
+  /** Update mutable profile fields (displayName, province). */
+  updateProfile?(
+    token: string,
+    changes: { displayName?: string; province?: string | null },
+  ): Promise<UserProfile>;
 
   /**
    * Reconcile local stats against the server's copy. Caller hands in
@@ -187,8 +204,17 @@ export type BackendAdapter = {
     limit?: number,
   ): Promise<LeaderboardEntry[]>;
 
-  /** Global match leaderboard — weighted by CPU difficulty. */
-  fetchMatchLeaderboard?(limit?: number): Promise<MatchLeaderboardEntry[]>;
+  /** Global match leaderboard — weighted by CPU difficulty. Optional
+   *  province/region filters narrow the scope. Only one of the two
+   *  filters takes effect; province wins if both are supplied. */
+  fetchMatchLeaderboard?(opts?: {
+    limit?: number;
+    province?: string;
+    region?: string;
+  }): Promise<MatchLeaderboardEntry[]>;
+
+  /** Province-vs-province summary (rank by aggregate score). */
+  fetchProvinceLeaderboard?(): Promise<ProvinceLeaderboardEntry[]>;
 
   // ----- Puzzle catalog ---------------------------------------------
 

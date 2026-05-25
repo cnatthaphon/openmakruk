@@ -4722,6 +4722,37 @@ footer a:hover {
   vertical-align: middle;
 }
 
+/* LB scope tabs (global/region/province) -------------------------- */
+.profile-lb-scope-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.8rem 0;
+  flex-wrap: wrap;
+}
+.profile-lb-scope-tabs button {
+  padding: 0.35rem 0.8rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.profile-lb-scope-tabs button.is-active {
+  background: rgba(212, 162, 60, 0.2);
+  border-color: rgba(212, 162, 60, 0.6);
+  color: rgba(255,255,255,0.95);
+}
+.profile-lb-scope-tabs button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.profile-global-lb-province {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+  margin-left: 0.3rem;
+}
+
 /* Global match leaderboard ---------------------------------------- */
 .profile-global-lb {
   display: flex;
@@ -4802,6 +4833,29 @@ footer a:hover {
 .settings-cloud-enable:disabled {
   opacity: 0.65;
   cursor: not-allowed;
+}
+
+/* Province picker (Settings) -------------------------------------- */
+.settings-province-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.6rem 0;
+  flex-wrap: wrap;
+}
+.settings-province-picker select {
+  flex: 1 1 200px;
+  padding: 0.4rem;
+  min-width: 0;
+}
+.settings-province-save {
+  padding: 0.4rem 0.8rem;
+  background: var(--accent, #d4a23c);
+  color: #1c1f24;
+  border: 0;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 /* Onboarding modal ------------------------------------------------- */

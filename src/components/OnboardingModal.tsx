@@ -21,8 +21,10 @@ import { markOnboarded } from '../lib/onboarding';
 import { navigate } from '../lib/router';
 import { PERSONALITIES } from '../lib/personalities/personalities';
 import { personalityEngineId } from '../lib/personalities/scoredBot';
+import { PROVINCES_BY_REGION, REGION_LABELS_TH, type Region } from '../lib/provinces';
+import { loadSession, saveSession } from '../lib/backend/cloudSession';
 
-type Step = 'welcome' | 'name' | 'opponent';
+type Step = 'welcome' | 'name' | 'region' | 'opponent';
 
 type Props = {
   /** Called after the user finishes or skips. Parent unmounts the
@@ -64,11 +66,19 @@ export function OnboardingModal({ onClose }: Props) {
   const [step, setStep] = useState<Step>('welcome');
   const [name, setName] = useState(() => loadStats().displayName);
   const [engineId, setEngineId] = useState(STARTING_OPPONENTS[0].engineId);
+  // Province choice is optional — user can skip. We stash it in the
+  // cloud session store so when they later enable cloud sync, the
+  // value carries over without re-asking.
+  const [province, setProvince] = useState<string | null>(() => loadSession().province);
 
   const finish = () => {
     const stats = loadStats();
     saveStats({ ...stats, displayName: name.trim() || stats.displayName });
     saveSettings({ ...loadSettings(), engineId });
+    if (province !== loadSession().province) {
+      const sess = loadSession();
+      saveSession({ ...sess, province });
+    }
     markOnboarded();
     navigate({ tab: 'play', id: null });
     onClose();
@@ -125,6 +135,40 @@ export function OnboardingModal({ onClose }: Props) {
             />
             <div className="onboarding-buttons">
               <button onClick={() => setStep('welcome')}>← ย้อนกลับ</button>
+              <button className="primary" onClick={() => setStep('region')}>ต่อไป →</button>
+            </div>
+          </>
+        )}
+
+        {step === 'region' && (
+          <>
+            <h2>คุณอยู่จังหวัดไหน</h2>
+            <p>
+              เพื่อจัด leaderboard ต่อจังหวัด / ต่อภูมิภาค · ใช้แข่งกัน "กทม. vs เชียงใหม่"
+              · <strong>ไม่บังคับ</strong> · ข้ามได้ · เปลี่ยนใน Settings ภายหลัง
+            </p>
+            <select
+              className="onboarding-name-input"
+              value={province ?? ''}
+              onChange={(e) => setProvince(e.target.value || null)}
+              autoFocus
+            >
+              <option value="">— ไม่ระบุจังหวัด —</option>
+              {(Object.keys(REGION_LABELS_TH) as Region[]).map((r) => (
+                <optgroup key={r} label={REGION_LABELS_TH[r]}>
+                  {PROVINCES_BY_REGION[r].map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.nameTh}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="onboarding-meta">
+              👁️ ใช้แสดงในผลแข่งเท่านั้น · ไม่ใช่ข้อมูลส่วนตัว · ไม่ติด IP geolocation
+            </p>
+            <div className="onboarding-buttons">
+              <button onClick={() => setStep('name')}>← ย้อนกลับ</button>
               <button className="primary" onClick={() => setStep('opponent')}>ต่อไป →</button>
             </div>
           </>
@@ -153,7 +197,7 @@ export function OnboardingModal({ onClose }: Props) {
               อยากท้าทายมากขึ้น? ดู personality bots ทั้งหมด ({PERSONALITIES.length} สไตล์) ใน Settings → Engine
             </p>
             <div className="onboarding-buttons">
-              <button onClick={() => setStep('name')}>← ย้อนกลับ</button>
+              <button onClick={() => setStep('region')}>← ย้อนกลับ</button>
               <button className="primary" onClick={finish}>เริ่มเล่น 🎮</button>
             </div>
           </>

@@ -21,7 +21,10 @@ import { setBackend } from './index';
 import { cloudflareBackend, BackendError } from './cloudflareBackend';
 import { NoOpBackend } from './types';
 
-const SESSION_VERSION = 1;
+// Schema v2 — added province + region (Phase 9H-1). v1 stores migrate
+// with both fields null; the server is the source of truth so they
+// fill in on the next /me sync.
+const SESSION_VERSION = 2;
 
 type CloudSessionStore = {
   /** Bearer token returned by /api/users/anon. Empty string means
@@ -32,6 +35,11 @@ type CloudSessionStore = {
   userId: string;
   /** Display name as last seen from the server. */
   displayName: string;
+  /** ISO-3166-2:TH suffix (e.g. "10" for Bangkok). null = opted out. */
+  province: string | null;
+  /** Region rollup, denormalized for cheap UI without a province
+   *  lookup. Computed by the server from province; client trusts it. */
+  region: string | null;
   /** Unix ms — last successful /me call. Used by Settings to show
    *  "synced N minutes ago". */
   lastSyncAt: number;
@@ -44,6 +52,8 @@ const store = defineStore<CloudSessionStore>({
     token: '',
     userId: '',
     displayName: '',
+    province: null,
+    region: null,
     lastSyncAt: 0,
   }),
   migrate: (raw) => {
@@ -52,6 +62,8 @@ const store = defineStore<CloudSessionStore>({
       token: typeof obj.token === 'string' ? obj.token : '',
       userId: typeof obj.userId === 'string' ? obj.userId : '',
       displayName: typeof obj.displayName === 'string' ? obj.displayName : '',
+      province: typeof obj.province === 'string' ? obj.province : null,
+      region: typeof obj.region === 'string' ? obj.region : null,
       lastSyncAt: typeof obj.lastSyncAt === 'number' ? obj.lastSyncAt : 0,
     };
   },
@@ -79,16 +91,20 @@ export function disableCloud(): void {
  *
  *  Returns the synced profile (or throws if registration fails — UI
  *  should toast and offer retry). */
-export async function enableCloud(displayName?: string): Promise<CloudSessionStore> {
+export async function enableCloud(
+  opts: { displayName?: string; province?: string | null } = {},
+): Promise<CloudSessionStore> {
   let session = loadSession();
 
   if (!session.token) {
     // First-time enable — register a new anonymous user.
-    const user = await cloudflareBackend.registerAnon(displayName);
+    const user = await cloudflareBackend.registerAnon(opts);
     session = {
       token: user.token,
       userId: user.id,
       displayName: user.displayName,
+      province: user.province,
+      region: user.region,
       lastSyncAt: Date.now(),
     };
     saveSession(session);
@@ -101,11 +117,16 @@ export async function enableCloud(displayName?: string): Promise<CloudSessionSto
       if (!profile) {
         // Token rejected. Clear and re-register.
         store.clear();
-        const user = await cloudflareBackend.registerAnon(session.displayName);
+        const user = await cloudflareBackend.registerAnon({
+          displayName: session.displayName,
+          province: session.province,
+        });
         session = {
           token: user.token,
           userId: user.id,
           displayName: user.displayName,
+          province: user.province,
+          region: user.region,
           lastSyncAt: Date.now(),
         };
         saveSession(session);
@@ -114,6 +135,8 @@ export async function enableCloud(displayName?: string): Promise<CloudSessionSto
         session = {
           ...session,
           displayName: profile.displayName,
+          province: profile.province,
+          region: profile.region,
           lastSyncAt: Date.now(),
         };
         saveSession(session);

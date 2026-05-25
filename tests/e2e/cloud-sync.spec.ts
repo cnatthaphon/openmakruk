@@ -172,7 +172,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
       // @ts-expect-error dynamic
       const backendMod = await import('/src/lib/backend/index.ts');
       const backend = backendMod.getBackend();
-      const entries = await backend.fetchMatchLeaderboard(200);
+      const entries = await backend.fetchMatchLeaderboard({ limit: 200 });
       return entries;
     });
     const me = (lb as { userId: string; score: number }[]).find(
@@ -211,7 +211,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     // Navigate to Profile. The Global section only renders when
     // backend.isOnline() (which we just enabled).
     await page.goto('/#/profile');
-    await expect(page.getByRole('heading', { name: /Global Match Leaderboard/ })).toBeVisible({
+    await expect(page.getByRole('heading', { name: /Match Leaderboard/ })).toBeVisible({
       timeout: 10_000,
     });
     // Our row should be present and highlighted via .is-me.
