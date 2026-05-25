@@ -16,6 +16,7 @@
     "seed:generate": "node scripts/seed-curated.mjs",
     "seed:local": "npm run seed:generate && node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --local --file=./seed-curated.sql",
     "seed:remote": "npm run seed:generate && node node_modules/wrangler/bin/wrangler.js d1 execute openmakruk-db --remote --file=./seed-curated.sql",
+    "fixtures:generate": "node --experimental-strip-types --no-warnings scripts/generate-fixtures.mjs",
     "test": "node node_modules/vitest/dist/cli.js run",
     "test:watch": "node node_modules/vitest/dist/cli.js"
   },

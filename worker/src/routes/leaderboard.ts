@@ -64,7 +64,7 @@ leaderboardRoute.get('/match', async (c) => {
     FROM games g
     JOIN users   u ON u.id = g.user_id
     JOIN weights w ON w.opponent = g.opponent
-    WHERE g.mode = 'rated'
+    WHERE g.mode = 'rated' AND g.verified = 1
     GROUP BY u.id
     HAVING score > 0
     ORDER BY score DESC, u.rating DESC, last_active_at ASC

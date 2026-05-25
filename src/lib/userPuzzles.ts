@@ -53,6 +53,36 @@ export function saveUserPuzzle(p: UserPuzzle): void {
     ? current.map((x, i) => (i === idx ? p : x))
     : [p, ...current];
   store.save({ puzzles: next.slice(0, MAX_ENTRIES) });
+
+  // Mirror to server (fire-and-forget) when cloud sync is on, so
+  // user-mined puzzles enter the shared pool. Local save stays
+  // source of truth for the author's own copy.
+  void publishToServer(p);
+}
+
+async function publishToServer(p: UserPuzzle): Promise<void> {
+  // Dynamic import keeps the publish path off the critical bundle —
+  // the backend module loads only when this code path actually runs.
+  try {
+    const { getBackend } = await import('./backend');
+    const { loadSession } = await import('./backend/cloudSession');
+    const backend = getBackend();
+    if (!backend.isOnline() || !backend.postPuzzle) return;
+    const session = loadSession();
+    if (!session.token) return;
+    await backend.postPuzzle(session.token, {
+      fen: p.fen,
+      category: p.category,
+      solution: p.solution,
+      toMove: p.toMove,
+      rating: p.rating,
+      prompt: p.prompt,
+      themes: p.themes,
+    });
+  } catch {
+    // Swallowed — sharing failure shouldn't disrupt the author's
+    // local save. They can re-publish later by re-saving.
+  }
 }
 
 export function deleteUserPuzzle(id: string): void {

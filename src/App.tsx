@@ -107,7 +107,12 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { toast } from './components/Toast';
 import { OnboardingModal } from './components/OnboardingModal';
 import { hasOnboarded } from './lib/onboarding';
-import { enableCloud, hasStoredSession, loadSession } from './lib/backend/cloudSession';
+import {
+  enableCloud,
+  hasStoredSession,
+  loadSession,
+  syncHistoryFromServer,
+} from './lib/backend/cloudSession';
 import { getBackend } from './lib/backend';
 import { useRoute, navigate, type Tab } from './lib/router';
 import { thaiSquare, thaiUci } from './lib/thaiUci';
@@ -320,11 +325,24 @@ export default function App() {
   // "re-enable" button if the user notices.
   useEffect(() => {
     if (!hasStoredSession()) return;
-    enableCloud().catch(() => {
-      // Server unreachable or token rejected. We don't toast here
-      // because boot-time errors should be quiet; the user can
-      // re-enable explicitly from Settings.
-    });
+    enableCloud()
+      .then(async () => {
+        // After session activates, pull recent games from the server
+        // and merge into local stats. Lets a user who plays on phone
+        // and then opens laptop see those games immediately.
+        const local = loadStats();
+        const merged = await syncHistoryFromServer(local.history);
+        if (merged !== local.history) {
+          const next = { ...local, history: merged };
+          saveStats(next);
+          setStats(next);
+        }
+      })
+      .catch(() => {
+        // Server unreachable or token rejected. We don't toast here
+        // because boot-time errors should be quiet; the user can
+        // re-enable explicitly from Settings.
+      });
   }, []);
 
   // Daily streak — pulse on every app boot. recordActivity is

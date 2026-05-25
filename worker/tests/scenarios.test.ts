@@ -19,6 +19,7 @@ import {
   getMatchLeaderboard,
   getProfile,
   recordGame,
+  verifiedGameFor,
 } from './helpers';
 
 describe('infrastructure', () => {
@@ -288,6 +289,84 @@ describe('curated puzzle catalog', () => {
     const detail = await res.json() as { id: string; fen: string };
     expect(detail.id).toBe(first.id);
     expect(detail.fen.length).toBeGreaterThan(0);
+  });
+});
+
+describe('server-side game verification', () => {
+  test('rated win is marked verified=true after replay', async () => {
+    const u = await createAnonUser('Verifier');
+    const res = await recordGame(u.token, { opponent: 'medium', outcome: 'win' });
+    expect(res.verified).toBe(true);
+  });
+
+  test('rated game with junk moves is REJECTED 422', async () => {
+    const u = await createAnonUser('CheaterMoves');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({
+        opponent: 'master',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 3,
+        moves: ['a1a2', 'h1h2', 'a2a1'],  // legal moves but no checkmate
+        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',  // bogus
+        mode: 'rated',
+      }),
+    });
+    expect(res.status).toBe(422);
+    const body = await res.json() as { error: string; reason: string };
+    expect(body.error).toBe('verification_failed');
+  });
+
+  test('rated game claiming WIN but no checkmate is rejected', async () => {
+    const u = await createAnonUser('CheaterOutcome');
+    // Submit the draw fixture but claim it was a "win" — verifier must
+    // reject because the position isn't checkmate.
+    const drawFixture = verifiedGameFor('draw');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({
+        opponent: 'master',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: drawFixture.plyCount,
+        moves: drawFixture.moves,
+        finalFen: drawFixture.finalFen,
+        mode: 'rated',
+      }),
+    });
+    expect(res.status).toBe(422);
+    const body = await res.json() as { reason: string };
+    expect(body.reason).toMatch(/outcome_mismatch/);
+  });
+
+  test('UNVERIFIED game does NOT show up on the match leaderboard', async () => {
+    const u = await createAnonUser('GhostUser');
+    // Successfully record a rated win — verified=1.
+    await recordGame(u.token, { opponent: 'hard', outcome: 'win' });
+    // Try to slip in a cheat directly via the API with junk moves —
+    // server rejects, so no row gets in to begin with.
+    const cheat = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({
+        opponent: 'master',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 1,
+        moves: ['a1a8'],  // would need pieces cleared first; illegal
+        finalFen: '8/8/8/8/8/8/8/8 b - - 0 1',
+        mode: 'rated',
+      }),
+    });
+    expect(cheat.status).toBe(422);
+    // LB still contains the legitimate single-game record.
+    const lb = await getMatchLeaderboard(200);
+    const me = lb.entries.find((e) => e.userId === u.id);
+    expect(me).toBeDefined();
+    expect(me!.wins).toBe(1);
   });
 });
 

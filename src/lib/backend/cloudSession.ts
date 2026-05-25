@@ -140,3 +140,50 @@ export async function enableCloud(displayName?: string): Promise<CloudSessionSto
 export function hasStoredSession(): boolean {
   return loadSession().token.length > 0;
 }
+
+/** Fetch server-side game history and merge into the local UserStats.
+ *  Called after the cloud session activates so multi-device users see
+ *  yesterday's games on tomorrow's browser.
+ *
+ *  Merge strategy: union by `id`, with server entries authoritative
+ *  for fields like rating_after / verified. New-to-this-device games
+ *  are appended; locally-known games keep their existing position
+ *  (newest-first) but adopt the server's rating numbers. */
+export async function syncHistoryFromServer(
+  localHistory: import('../stats').GameRecord[],
+): Promise<import('../stats').GameRecord[]> {
+  const backend = cloudflareBackend;
+  if (!backend.isOnline()) return localHistory;
+  const session = loadSession();
+  if (!session.token) return localHistory;
+
+  try {
+    const { games } = await backend.fetchGameHistory(session.token, { limit: 50 });
+    const byId = new Map<string, import('../stats').GameRecord>();
+    for (const g of localHistory) byId.set(g.id, g);
+    for (const s of games) {
+      // Translate server shape → local GameRecord shape.
+      const local: import('../stats').GameRecord = {
+        id: s.id,
+        outcome: s.outcome as 'win' | 'loss' | 'draw',
+        opponent: s.opponent as import('../engine').Difficulty,
+        userSide: s.userSide,
+        date: s.createdAt,
+        plyCount: s.plyCount,
+        ratingBefore: s.ratingBefore,
+        ratingAfter: s.ratingAfter,
+        ratingDelta: s.ratingDelta,
+        moves: s.moves ?? [],
+        mode: s.mode as 'rated' | 'casual' | undefined,
+        timeControlId: s.timeControlId ?? undefined,
+        finalFen: s.finalFen,
+      };
+      byId.set(s.id, local);
+    }
+    // Sort newest-first to match the local history convention.
+    return Array.from(byId.values()).sort((a, b) => b.date - a.date).slice(0, 50);
+  } catch {
+    // Network blip — leave local history alone.
+    return localHistory;
+  }
+}

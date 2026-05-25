@@ -190,9 +190,50 @@ export type BackendAdapter = {
   /** Global match leaderboard — weighted by CPU difficulty. */
   fetchMatchLeaderboard?(limit?: number): Promise<MatchLeaderboardEntry[]>;
 
+  // ----- Puzzle catalog ---------------------------------------------
+
+  /** Server puzzle list. When `source` omitted, defaults to 'curated'
+   *  on the server. The returned shape mirrors the on-disk
+   *  /content/puzzles/all.json so existing UI code can render either
+   *  source uniformly. */
+  fetchPuzzles?(opts?: {
+    source?: 'curated' | 'user-mined' | 'auto-mined';
+    category?: string;
+    cursor?: string | null;
+  }): Promise<{
+    puzzles: Array<{
+      id: string;
+      category: string;
+      fen: string;
+      solution: string[];
+      toMove: 'white' | 'black';
+      rating: number;
+      prompt?: string;
+      themes?: string[];
+      source?: string;
+    }>;
+    nextCursor: string | null;
+  }>;
+
   // ----- User-submitted content --------------------------------------
   /** Submit a puzzle the user crafted. Returns the server-assigned id. */
   submitPuzzle?(draft: PuzzleDraft): Promise<string>;
+
+  /** Submit a puzzle by raw shape (no schema wrapper) — used by the
+   *  auto-miner and the user-puzzle author UI when they already have
+   *  the canonical fields ready. Returns the server id. */
+  postPuzzle?(
+    token: string,
+    puzzle: {
+      fen: string;
+      category: string;
+      solution: string[];
+      toMove: 'white' | 'black';
+      rating?: number;
+      prompt?: string;
+      themes?: string[];
+    },
+  ): Promise<{ id: string; verified: boolean }>;
 
   // ----- Multiplayer (Phase 10+) -------------------------------------
   /** Create a new multiplayer game lobby; returns a join id. */

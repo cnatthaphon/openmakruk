@@ -147,12 +147,62 @@ export class CloudflareBackend implements BackendAdapter {
     };
   }
 
+  async postPuzzle(
+    token: string,
+    puzzle: {
+      fen: string;
+      category: string;
+      solution: string[];
+      toMove: 'white' | 'black';
+      rating?: number;
+      prompt?: string;
+      themes?: string[];
+    },
+  ): Promise<{ id: string; verified: boolean }> {
+    const res = await this.request('/api/puzzles', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(puzzle),
+    });
+    const body = (await res.json()) as { id: string; status?: string; verified?: boolean };
+    return { id: body.id, verified: Boolean(body.verified) };
+  }
+
   // ─── leaderboards ─────────────────────────────────────────────────
 
   async fetchMatchLeaderboard(limit = 100): Promise<MatchLeaderboardEntry[]> {
     const res = await this.request(`/api/leaderboard/match?limit=${limit}`);
     const body = (await res.json()) as { entries: MatchLeaderboardEntry[] };
     return body.entries;
+  }
+
+  // ─── puzzles ─────────────────────────────────────────────────────
+
+  async fetchPuzzles(opts: {
+    source?: 'curated' | 'user-mined' | 'auto-mined';
+    category?: string;
+    cursor?: string | null;
+  } = {}) {
+    const q = new URLSearchParams();
+    if (opts.source) q.set('source', opts.source);
+    if (opts.category) q.set('category', opts.category);
+    if (opts.cursor) q.set('cursor', opts.cursor);
+    const path = `/api/puzzles${q.toString() ? `?${q}` : ''}`;
+    const res = await this.request(path);
+    return (await res.json()) as {
+      puzzles: Array<{
+        id: string;
+        category: string;
+        fen: string;
+        solution: string[];
+        toMove: 'white' | 'black';
+        rating: number;
+        prompt?: string;
+        themes?: string[];
+        source?: string;
+      }>;
+      nextCursor: string | null;
+    };
   }
 
   // ─── internals ────────────────────────────────────────────────────

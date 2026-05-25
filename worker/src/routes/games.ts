@@ -19,6 +19,7 @@ import { Hono } from 'hono';
 import type { Env } from '../index';
 import { authMiddleware, getUser, newId, type AuthVars } from '../auth';
 import { applyElo, opponentRating, type Outcome } from '../elo';
+import { verifyGame } from '../verifier';
 
 const PAGE_SIZE = 50;
 const VALID_OUTCOMES = new Set<Outcome>(['win', 'loss', 'draw']);
@@ -76,6 +77,35 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   }
   const mode = body.mode === 'casual' ? 'casual' : 'rated';
 
+  // ── verify by replaying moves (rated only) ───────────────────────
+  // Casual games skip verification — they don't affect the leaderboard
+  // and the user is being honest with themselves. Rated games MUST
+  // replay successfully or they're rejected outright; we'd rather
+  // refuse a legitimate edge case than store a cheat.
+  let verified = false;
+  if (mode === 'rated') {
+    if (!body.moves || !Array.isArray(body.moves) || body.moves.length === 0) {
+      return c.json({ error: 'bad_request', reason: 'moves_required_for_rated' }, 400);
+    }
+    const v = verifyGame({
+      moves: body.moves,
+      finalFen: body.finalFen,
+      outcome: body.outcome,
+      userSide: body.userSide,
+    });
+    if (!v.ok) {
+      return c.json(
+        {
+          error: 'verification_failed',
+          reason: v.reason,
+          failedAtPly: v.failedAtPly,
+        },
+        422,
+      );
+    }
+    verified = true;
+  }
+
   // ── compute rating change (rated only) ───────────────────────────
   const opponentR = opponentRating(body.opponent);
   let newRating = user.rating;
@@ -100,7 +130,7 @@ gamesRoute.post('/', authMiddleware, async (c) => {
          (id, user_id, opponent, user_side, outcome, ply_count, moves_json,
           final_fen, rating_before, rating_after, rating_delta,
           time_control_id, mode, created_at, verified)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       id,
       user.id,
@@ -116,6 +146,7 @@ gamesRoute.post('/', authMiddleware, async (c) => {
       body.timeControlId ?? null,
       mode,
       now,
+      verified ? 1 : 0,
     ),
     c.env.DB.prepare('UPDATE users SET rating = ?, last_seen_at = ? WHERE id = ?').bind(
       newRating,
@@ -129,7 +160,7 @@ gamesRoute.post('/', authMiddleware, async (c) => {
     ratingBefore: user.rating,
     ratingAfter: newRating,
     ratingDelta: delta,
-    verified: false,
+    verified,
     createdAt: now,
   });
 });

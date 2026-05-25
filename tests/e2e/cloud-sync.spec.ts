@@ -21,8 +21,15 @@
 //      has been recorded.
 
 import { test, expect } from '@playwright/test';
+import fixtures from '../../worker/tests/game-fixtures.json' with { type: 'json' };
 
 const API_BASE = 'http://localhost:8789';
+
+// Reuse the worker's pre-computed verified game so cloud-sync e2e
+// writes pass server-side verification. The fixture's "winner" tells
+// us which side the user must claim to play in order to claim a win.
+const MATE = fixtures.mate;
+const WINNER_SIDE = MATE.winner as 'white' | 'black';
 
 test.use({
   // Reset stored state so cloud-sync starts unauthenticated, and point
@@ -103,9 +110,10 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
-    // Drive the adapter from inside the page bundle — the only piece
-    // we're verifying here is the network plumbing.
-    const result = await page.evaluate(async () => {
+    // Drive the adapter from inside the page bundle. Move list comes
+    // from the verified-game fixture so the server-side verifier
+    // accepts the write (illegal-move sequences would be 422'd).
+    const result = await page.evaluate(async ({ mate, winnerSide }) => {
       // @ts-expect-error — dynamic ESM import resolved at runtime
       const backendMod = await import('/src/lib/backend/index.ts');
       // @ts-expect-error — dynamic
@@ -115,19 +123,20 @@ test.describe('cloud sync — frontend ↔ worker', () => {
       if (!backend.recordGame) throw new Error('recordGame not supported');
       const res = await backend.recordGame(session.token, {
         opponent: 'medium',
-        userSide: 'white',
+        userSide: winnerSide,
         outcome: 'win',
-        plyCount: 40,
-        moves: Array.from({ length: 40 }, () => 'e2e4'),
-        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
         timeControlId: null,
         mode: 'rated',
       });
       return res;
-    });
+    }, { mate: MATE, winnerSide: WINNER_SIDE });
     expect(result.ratingBefore).toBe(1000);
     expect(result.ratingDelta).toBeGreaterThan(0);
     expect(result.ratingAfter).toBeGreaterThan(1000);
+    expect(result.verified).toBe(true);
   });
 
   test('after a rated win, this user appears on the match leaderboard', async ({ page }) => {
@@ -135,35 +144,29 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
-    const userId = await page.evaluate(async () => {
+    const userId = await page.evaluate(async ({ mate, winnerSide }) => {
       // @ts-expect-error dynamic
       const backendMod = await import('/src/lib/backend/index.ts');
       // @ts-expect-error dynamic
       const sessionMod = await import('/src/lib/backend/cloudSession.ts');
       const backend = backendMod.getBackend();
       const session = sessionMod.loadSession();
-      // 2 wins vs hard so the user has a meaningful score (8 + 8 = 16
-      // points) — easier to find them on a populated board.
-      await backend.recordGame(session.token, {
-        opponent: 'hard',
-        userSide: 'white',
-        outcome: 'win',
-        plyCount: 50,
-        moves: Array.from({ length: 50 }, () => 'e2e4'),
-        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
-        mode: 'rated',
-      });
-      await backend.recordGame(session.token, {
-        opponent: 'hard',
-        userSide: 'black',
-        outcome: 'win',
-        plyCount: 60,
-        moves: Array.from({ length: 60 }, () => 'e2e4'),
-        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
-        mode: 'rated',
-      });
+      // Two wins vs hard (verified). Reusing the same fixture twice
+      // is fine — server only checks each game in isolation, not
+      // that the user has unique move sequences across games.
+      for (let i = 0; i < 2; i++) {
+        await backend.recordGame(session.token, {
+          opponent: 'hard',
+          userSide: winnerSide,
+          outcome: 'win',
+          plyCount: mate.moves.length,
+          moves: mate.moves,
+          finalFen: mate.finalFen,
+          mode: 'rated',
+        });
+      }
       return session.userId;
-    });
+    }, { mate: MATE, winnerSide: WINNER_SIDE });
 
     const lb = await page.evaluate(async () => {
       // @ts-expect-error dynamic
@@ -187,7 +190,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     // Record a rated win against master so we have something to show
     // on the leaderboard when Profile mounts. recordGame from inside
     // the page bundle is the same path the real game-end effect uses.
-    await page.evaluate(async () => {
+    await page.evaluate(async ({ mate, winnerSide }) => {
       // @ts-expect-error dynamic ESM
       const backendMod = await import('/src/lib/backend/index.ts');
       // @ts-expect-error dynamic
@@ -196,14 +199,14 @@ test.describe('cloud sync — frontend ↔ worker', () => {
       const session = sessionMod.loadSession();
       await backend.recordGame(session.token, {
         opponent: 'master',
-        userSide: 'white',
+        userSide: winnerSide,
         outcome: 'win',
-        plyCount: 50,
-        moves: Array.from({ length: 50 }, () => 'e2e4'),
-        finalFen: '8/8/8/8/8/8/8/4K3 b - - 0 1',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
         mode: 'rated',
       });
-    });
+    }, { mate: MATE, winnerSide: WINNER_SIDE });
 
     // Navigate to Profile. The Global section only renders when
     // backend.isOnline() (which we just enabled).

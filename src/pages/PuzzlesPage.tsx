@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadPuzzles } from '../lib/content';
 import { loadUserPuzzles } from '../lib/userPuzzles';
+import { getBackend } from '../lib/backend';
 import { isPuzzleSolved, loadPuzzleProgress, type PuzzleProgress } from '../lib/puzzleProgress';
 import { formatRating, loadPuzzleRating, type PuzzleRatingState } from '../lib/puzzleRating';
 import { loadSchedule, dueNow } from '../lib/spacedRepetition';
@@ -41,12 +42,55 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
   const [activePuzzleId, setActivePuzzleId] = useState<string | null>(initialPuzzleId);
 
   useEffect(() => {
-    loadPuzzles()
-      // Merge curated + user-created so both appear in the same
-      // category counts. User puzzles aren't filtered out — they're
-      // a first-class part of the catalog once verified.
-      .then((data) => setPuzzles([...data, ...loadUserPuzzles()]))
-      .catch((err) => setLoadError(String(err)));
+    // Catalog sources, in priority order:
+    //   1. Server (curated + user-mined) — when cloud sync is on,
+    //      this is authoritative and reflects new community content
+    //      without redeploying the static JSON.
+    //   2. Static /content/puzzles/all.json — offline fallback +
+    //      the seed source for what's in the server in the first place.
+    //   3. Local user puzzles (always merged; opt-in personal pool).
+    //
+    // We resolve server + static in parallel, then fall back to the
+    // first that succeeds. Deduplication is by id (server wins if both
+    // sources have the same id, since server may have updated metadata).
+    let cancelled = false;
+    const backend = getBackend();
+    const wantsServer = backend.isOnline() && backend.fetchPuzzles !== undefined;
+
+    const loadAll = async (): Promise<Puzzle[]> => {
+      const local = loadUserPuzzles();
+      if (wantsServer && backend.fetchPuzzles) {
+        try {
+          // Pull both sources in parallel so the user can solve a
+          // user-mined puzzle from someone else without enabling any
+          // extra filter.
+          const [curated, userMined] = await Promise.all([
+            backend.fetchPuzzles({ source: 'curated' }),
+            backend.fetchPuzzles({ source: 'user-mined' }),
+          ]);
+          const fromServer = [...curated.puzzles, ...userMined.puzzles] as Puzzle[];
+          return dedupeById([...fromServer, ...local]);
+        } catch (err) {
+          // server reachable but errored — fall through to static
+          // catalog. We surface the error in the load-error banner
+          // only if the static load ALSO fails.
+          console.warn('puzzles: server fetch failed, falling back to static', err);
+        }
+      }
+      const staticPool = await loadPuzzles();
+      return dedupeById([...staticPool, ...local]);
+    };
+
+    loadAll()
+      .then((data) => {
+        if (!cancelled) setPuzzles(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setLoadError(String(err));
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // React to route changes while the page is mounted (e.g. user pastes
@@ -237,4 +281,17 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
       </footer>
     </div>
   );
+}
+
+/** Drop duplicates keeping the FIRST occurrence (server entries come
+ *  before local user puzzles, so server metadata wins for collisions). */
+function dedupeById(puzzles: Puzzle[]): Puzzle[] {
+  const seen = new Set<string>();
+  const out: Puzzle[] = [];
+  for (const p of puzzles) {
+    if (seen.has(p.id)) continue;
+    seen.add(p.id);
+    out.push(p);
+  }
+  return out;
 }

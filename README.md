@@ -1,267 +1,243 @@
 # OpenMakruk
 
-> เว็บฝึก / เล่น / วิเคราะห์ **หมากรุกไทย** — เปิด source · 100% client-side app logic · ไม่มี account server · ไม่มี cookies · ไม่มี analytics · static asset เท่านั้น
+> เว็บฝึก / เล่น / วิเคราะห์ **หมากรุกไทย (Makruk)** — เปิด source · ทำงานออฟไลน์ครบทุกฟีเจอร์ · เปิด cloud sync เป็น opt-in เมื่ออยากเทียบกับคนอื่น
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![E2E: Playwright](https://img.shields.io/badge/tests-42_passing-brightgreen)](tests/e2e)
-[![Built with: Vite + React + TS](https://img.shields.io/badge/stack-vite_react_ts-blue)](#stack)
+[![E2E: Playwright](https://img.shields.io/badge/tests-99_passing-brightgreen)](tests/e2e)
+[![Worker: Vitest](https://img.shields.io/badge/worker-26_passing-brightgreen)](worker/tests)
+[![Stack](https://img.shields.io/badge/stack-vite_react_ts_cloudflare-blue)](#stack)
 
 ---
 
 ## วิสัยทัศน์
 
-นานมาแล้ว มีเด็กคนหนึ่งในไทยที่อยากเล่นหมากรุกไทยกับคอม อยากฝึก อยากเรียน — แต่หาในเน็ตเจอแต่เวอร์ชั่นโบราณ ไม่มี hint ไม่มี analyze ไม่มี puzzle ไม่มี learning path. 30 ปีต่อมายังไม่มีใครทำ.
-
-โปรเจกต์นี้คือเครื่องมือที่เด็กคนนั้นอยากได้ — สร้างโดยเด็กคนนั้นเอง · เปิด source ฟรีให้คนไทยและทั่วโลกใช้.
+มีเด็กคนหนึ่งในไทยอยากเล่นหมากรุกไทยกับคอม อยากฝึก อยากเรียน — แต่หาในเน็ตเจอแต่เวอร์ชั่นโบราณ ไม่มี hint ไม่มี analyze ไม่มี puzzle ไม่มี learning path. 30 ปีต่อมายังไม่มีใครทำ. โปรเจกต์นี้คือเครื่องมือที่เด็กคนนั้นอยากได้ — สร้างโดยเด็กคนนั้นเอง
 
 **ช่องว่างที่เติม:**
 - `pychess.org` รองรับหมากรุกไทยแต่เป็น variant-generalist (Makruk = 1 ใน 30+ variants), UI ภาษาอังกฤษ
-- เว็บไทย Makruk = multiplayer-only, ไม่มี training / analysis tools
-- ไม่มีที่ไหนรวม: hint + post-game analysis + puzzles ที่คัด + lesson curriculum + Thai UI
-
-OpenMakruk = lichess-style training platform สำหรับหมากรุกไทยโดยเฉพาะ, Thai-first, MIT open-source.
+- เว็บไทย Makruk = multiplayer-only ไม่มี training / analysis tools
+- ไม่มีที่ไหนรวม: hint + post-game analysis + puzzles + lessons + opening/endgame study + personality bots + Thai UI
 
 ---
 
-## ฟีเจอร์
+## คุณสมบัติหลัก (9 tabs)
 
-8 tabs · ทุกอย่างทำงาน 100% บน browser (PWA install-able)
-
-### ♔ เล่น
-- 4 ระดับ engine (easy / medium / hard / master) ผ่าน **Fairy-Stockfish** WASM
-- **NNUE network** เพิ่ม +248 Elo (optional one-time 46MB download)
-- Modes: play-white / play-black / self-play / manual
-- **Rated vs Casual** — Rated update Elo (K=32), Casual เปิด hint/undo
-- 💡 **Hint** + **Chess Coach** explanation (rule-based motif detector — capture/fork/check/hangingTarget/promotion/mate/develop)
-- 🔍 **Analyze position** — top-3 candidate moves + eval bar (Multi-PV)
-- 💾 **Save & resume** in-progress game across page reload
-- 🔊 Sound effects (move / capture / check / win / loss / draw)
-- 📜 Move log — click any past ply to inspect that position
-- 🤝 Draw offer + 🏳 Resign with confirmation
+### 🎮 เล่น
+- เล่นกับ Fairy-Stockfish (full strength) หรือเลือก engine อื่นใน Settings → Engine:
+  - **Random Bot** · **Greedy Bot** (baselines)
+  - **7 personality bots** — ⚔️ นักบุก · 🛡️ นักรับ · 🧭 ตามตำแหน่ง · 🦅 นักล่า · 🍃 นักเดิน · 💨 คล่องตัว · 🐢 ระวังตัว
+- Hint button · 💡 Chess Coach explanation · Eval bar · 🎯 Auto-analyze every move
+- 4 ระดับ CPU: easy / medium / hard / master
+- Time controls: unlimited / Blitz 5 / Blitz 5+3 / Rapid 10 / Rapid 15+10 / Classical 30
+- Resume in-progress game across reloads · PGN export
 
 ### 🎓 ฝึก
-- **29 บทเรียน** ใน 6 กลุ่ม (basics → pieces → rules → counting → strategy → endgame)
-- Multi-step lessons พร้อม **5 demo kinds**: piece-movement / position-viewer / position-quiz / try-move / replay / counting-demo
-- Progress + auto-next-lesson + resume-from-last-viewed
-- ก้าวหน้าเรียงตามลำดับ (lesson N ปลดล็อกเมื่อ N-1 จบ)
+29 lessons แบบ step-by-step + interactive board · piece-movement → tactics → endgame patterns
+
+### 📖 ศึกษา
+- **เปิดเกม** (5 verified openings · ขุนเบี้ย · เม็ดเดิน · โคน fianchetto · โคน line · เรือ line)
+- **จบเกม** (5 with commentary · K+R vs K corner · K+RR vs K ladder · K+R+M vs K · etc.)
+- **ธีมยุทธวิธี** (4 themes · hanging piece · fork · skewer · pawn capture)
+- Board stepper · click ใดก็เห็น mini-position
 
 ### 🧩 ปริศนา
-- **11 puzzles** ใน 4 categories (mate-1 / mate-2 / tactic / counting) — ทุก FEN verified by hand
-- 🎯 Drag-to-solve + ✗ wrong-move feedback + 💡 hint after retries
-- **⭐ Daily puzzle** — deterministic จากวันที่ (everyone same day)
-- 📈 **Personal puzzle rating** (Glicko-lite, K=24, start 1200)
-- 🔁 **Spaced repetition** (SM-2 algorithm) — ปริศนาที่ทำผิดกลับมาให้ทบทวน
+- **5 หมวด · 54 puzzles** seeded ใน server D1 และ static fallback
+  - ⚔️ รุกจน 1 ตา (14)
+  - ⚔️ รุกจน 2 ตา (5)
+  - 🎯 tactic (17)
+  - 🔢 counting (13)
+  - 🛡️ ป้องกัน (5)
+- Drag-to-solve · ✗ wrong-move feedback · 💡 hint after retries
+- **⭐ Daily puzzle** — deterministic จากวันที่
+- 📈 Personal puzzle rating (Glicko-lite) + 🔁 Spaced repetition (SM-2)
+- **3 content pipelines (engine-verified):**
+  - User puzzle authoring (Custom page)
+  - Puzzle miner จาก Game Report (extract blunder)
+  - Auto factory: bot-vs-bot mining (Profile page)
 
 ### 🎨 ออกแบบ → hub
-- Graphical position editor (HTML grid, click-to-place)
-- ▶ เล่นจาก position นี้
-- 🔍 วิเคราะห์ตำแหน่ง (auto-analyze on Play page)
-- 💾 บันทึกในคลัง (with title + note + tags)
-- 📋 คัดลอก FEN
+- Graphical position editor · ▶ เล่นจาก position · 💾 บันทึกคลัง · 📋 copy FEN
+- 🧩 บันทึกเป็น puzzle (engine-verified)
 
 ### 📚 คลัง
-- ตำแหน่งที่บันทึก (custom / play / puzzle / analysis sources)
-- Mini-board thumbnail + title + note + hashtags
-- Search + load → Play
-- Cap 200 entries · localStorage only
+- ตำแหน่งที่บันทึก · custom / play / puzzle / analysis sources · search + load
 
 ### 👤 โปรไฟล์
-- Username editable
-- Rating + per-difficulty win/loss/draw
-- Last 50 games history
-- 📥 **Export PGN** (per-game or bulk download) — opens in lichess analysis board / chess.com / ChessTempo
-- 📤 Export/Import profile JSON (data portability)
+- 🏆 Match Score · 🏰 Gauntlet · 🎯 Events/Tournaments
+- 🔥 Streak + 🏆 achievements
+- 🤖 Auto Content Factory (bot-vs-bot mining)
+- 📊 **Insights** — color split · level split · ความยาวเกม · ฟอร์มล่าสุด · streak · day-of-week activity
+- 🌍 **Global Match Leaderboard** (ปรากฏเมื่อเปิด cloud sync)
+- 📥 Export PGN per-game / bulk · 📤 Export/Import profile JSON
 
 ### ⚙️ ตั้งค่า
-- 🎨 Piece set: Fulmene (3D gradient) ↔ Yevrowl (flat silhouette)
-- Board theme: wood / green / blue
-- Show coordinates · Highlight last move · Show legal dots · Animation speed (0-500ms)
-- 🔊 Sounds on/off + volume + test tone
-- 📊 Eval bar toggle during games
-- ภาษา: ไทย (พร้อม) / English (coming)
+- Piece set · board theme · coordinates · last-move highlight · legal dots · animation speed
+- 🔊 Sounds · 📊 Eval bar toggle
+- **Engine selector** — ทุก engine ที่ register ปรากฏใน dropdown อัตโนมัติ
+- ☁️ **Cloud Sync** section (opt-in)
 
 ### ℹ️ เกี่ยวกับ
-- Origin story · privacy · full credits · MIT license
-
-### 📊 Game Report (post-game review)
-- **Accuracy %** ฝ่ายเรา vs ฝ่ายตรงข้าม (tier colors: gold ≥90, green ≥80, amber ≥60, red <60)
-- **ACPL** (Average Centipawn Loss)
-- Per-classification chip row (★ best · · good · ?! inaccuracy · ? mistake · ?? blunder)
-- **🎯 Key moments** — top 3 highest-delta moves with mini-board + best alternative
-- Verdict line — "เกมนี้พลาดมากที่สุดในตา X"
-- Full filterable move list (by side / by severity)
+- Origin story · privacy · credits · MIT
 
 ---
 
 ## Architecture
 
-**Static-first, content-driven, no backend.**
+โครงสร้าง 2 ชั้น · client-only mode + optional cloud:
 
 ```
-public/
-├── content/
-│   ├── manifest.json            ← version + URL of each content type
-│   ├── lessons/all.json         ← 29 lessons (multi-step + demos)
-│   ├── puzzles/all.json         ← 11 puzzles (verified)
-│   ├── openings/all.json        ← schema ready, content TBD
-│   ├── endgames/all.json
-│   ├── tactics-themes/all.json
-│   └── annotations/all.json
-├── pieces/                       ← Fulmene + Yevrowl piece SVGs
-├── manifest.webmanifest          ← PWA manifest
-├── sw.js                         ← Service Worker (cache-first shell, network-first content)
-└── icon.svg                      ← PWA icon
-
-src/
-├── App.tsx                       ← tab router + Play page (1900 LOC)
-├── components/
-│   ├── Board.tsx                 ← chessground wrapper
-│   ├── EvalBar.tsx               ← vertical eval bar
-│   ├── MultiPV.tsx               ← top-N candidate moves list
-│   ├── Clock.tsx                 ← time control display
-│   ├── DailyPuzzleCard.tsx
-│   └── GameReport.tsx            ← post-game accuracy + key moments
-├── pages/
-│   ├── LearnPage / LessonView    ← multi-step lessons
-│   ├── PuzzlesPage / PuzzleView  ← drag-to-solve
-│   ├── CustomPage                ← position editor + hub
-│   ├── LibraryPage               ← saved positions
-│   ├── ProfilePage               ← stats + history + PGN export
-│   ├── SettingsPage              ← user preferences
-│   └── AboutPage                 ← credits + privacy + license
-└── lib/                          ← 22 focused modules
-    ├── makruk.ts                 ← ffish loader + FEN parsing
-    ├── engine.ts                 ← Fairy-Stockfish UCI wrapper
-    ├── chessAttacks.ts           ← per-piece attack calc
-    ├── chessCoach.ts             ← rule-based motif explainer (Thai)
-    ├── review.ts                 ← post-game analysis + accuracy/ACPL/key moments
-    ├── content.ts                ← manifest-based loader (3-tier cache)
-    ├── contentCache.ts           ← IndexedDB content persistence
-    ├── settings.ts / audio.ts / clock.ts
-    ├── stats.ts / library.ts / gameState.ts
-    ├── puzzleRating.ts (Elo)
-    ├── spacedRepetition.ts (SM-2)
-    └── dailyPuzzle.ts (deterministic by date)
+┌───────────────────────────────────────────────────────────────┐
+│  Browser (React + Vite + TypeScript)                          │
+│                                                                │
+│  • UI · 8 tabs · onboarding · settings                         │
+│  • Engine registry contract (MakrukEngine)                     │
+│    - Fairy-Stockfish (WASM, full NNUE-ready)                   │
+│    - Random / Greedy baselines                                 │
+│    - 7 personality bots (score-based, mixable via weights)     │
+│  • Backend adapter contract (BackendAdapter)                   │
+│    - NoOpBackend by default → fully offline                    │
+│    - CloudflareBackend when user enables cloud sync            │
+│  • Versioned localStorage (defineStore wrapper {v, d})         │
+│  • PWA: manifest.webmanifest + sw.js · install on mobile       │
+└────────────────────────────┬──────────────────────────────────┘
+                             │  HTTPS · bearer token
+                             ▼
+┌───────────────────────────────────────────────────────────────┐
+│  Cloudflare Worker (worker/) — optional                       │
+│                                                                │
+│  Hono routing · D1 (SQLite at edge) · 8 endpoints              │
+│   /api/users · /api/games · /api/puzzles · /api/leaderboard    │
+│                                                                │
+│  • Anonymous bearer auth (SHA-256 hashed)                      │
+│  • Server-side Elo math (cheat-proof)                          │
+│  • Pure-JS Makruk rules engine (worker/src/rules.ts)           │
+│    REPLAYS submitted moves — illegal seq → 422, no rating      │
+│  • Leaderboard filters verified=1 only                         │
+│  • Curated puzzle pool seeded from public/content/puzzles/     │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-**Three-tier content fetch:** memory cache → IndexedDB → network (manifest version-keyed). Adding new lessons / puzzles / openings = JSON-only PR, no rebuild.
-
-**No backend.** All user state — Elo rating, game history, lesson progress, puzzle progress, library, settings — lives in `localStorage`. The NNUE network blob caches in IndexedDB after one-time download.
+**ที่สำคัญ:** all client code works without the backend. Cloud sync is purely opt-in for global leaderboards + multi-device sync. Single user → no server needed.
 
 ---
 
-## Stack
-
-| Layer | Choice | License |
-|-------|--------|---------|
-| Framework | React 18 + TypeScript 5 | MIT / Apache 2.0 |
-| Build | Vite 5 | MIT |
-| Rules + Engine | `ffish-es6` 0.7 (Fairy-Stockfish WASM bindings) | **GPL-3.0** |
-| Engine search | `fairy-stockfish-nnue.wasm` 1.1 | **GPL-3.0** |
-| Board UI | `chessground` 9 (Lichess) | **GPL-3.0** |
-| Piece artwork (default) | Fulmene's turned-wood SVGs | **CC BY-SA 4.0** |
-| Piece artwork (alt) | Yevrowl's silhouettes | **CC BY-SA 4.0** |
-| NNUE network | belzedar_'s makruk-a8c621e24a8c | **CC BY-SA 4.0** |
-| E2E test runner | Playwright | Apache 2.0 (devDep — not shipped) |
-
-OpenMakruk's own source code is licensed MIT. Bundled runtime dependencies retain their original licenses — GPL-3.0 deps (chessground, ffish-es6, fairy-stockfish-nnue.wasm) are used **unmodified** and loaded as static assets. Users and redistributors must comply with the GPL-3.0 and CC BY-SA 4.0 terms listed in [`NOTICE.md`](NOTICE.md).
-
-CC BY-SA 4.0 assets require **attribution visible to end users** — provided on the [About page](src/pages/AboutPage.tsx) at `/#/about` in the running app.
-
----
-
-## Local development
+## Quick start (dev)
 
 ```bash
-npm install --no-bin-links   # --no-bin-links for WSL on a Windows-mounted drive
-npm run dev                  # http://localhost:5173
-npm run build                # production bundle in dist/
-npm run typecheck            # tsc --noEmit
-npm run test:e2e             # Playwright suite (auto-starts dev server)
+# Frontend
+npm install
+npm run dev                       # http://localhost:5174
+
+# Worker (optional, only for cloud sync development)
+cd worker
+npm install --no-bin-links
+npm run db:apply                  # apply schema to local D1
+npm run seed:local                # seed 54 curated puzzles
+npm run dev                       # http://localhost:8788
 ```
 
-A `postinstall` hook copies `ffish.wasm` from `node_modules/ffish-es6` into `public/`. If it goes missing, run `node scripts/copy-wasm.mjs`.
-
-The dev server requires Cross-Origin-Opener-Policy + Cross-Origin-Embedder-Policy headers (set in `vite.config.ts`) so the WASM engine can use `SharedArrayBuffer`. The production host (Cloudflare Pages) needs the same — configured via `_headers`.
+In another browser tab, open Settings → Cloud Sync → "เปิด cloud sync" to connect to the local worker.
 
 ---
 
 ## Testing
 
-**42 Playwright E2E tests · ~50s wall-clock** · single-browser (Chromium) with `--host 0.0.0.0` so it runs in WSL.
-
 ```bash
+# Frontend E2E (75 tests)
 npm run test:e2e
+
+# Worker integration (26 tests)
+cd worker && npm run test
+
+# Both — playwright auto-starts wrangler dev as a secondary webServer.
 ```
 
-Test files:
-
-| Spec | Tests | What it proves |
-|------|-------|----------------|
-| `smoke.spec.ts` | 10 | every tab loads + about page has all attributions + manifest fetch |
-| `lessons.spec.ts` | 4 | list, multi-step nav, counting-demo, position-viewer renders 32 pieces |
-| `puzzles.spec.ts` | 4 | drag-to-solve, wrong-move feedback, localStorage record, ratings + SR update |
-| `play.spec.ts` | 1 | Fairy-Stockfish WASM loads + Makruk start FEN rendered correctly |
-| `bot-game.spec.ts` | 1 | scripted user-bot plays 6 plies against the engine, no JS errors |
-| `comprehensive.spec.ts` | 9 | lessons multi-step, settings → Board CSS, analyze button, PWA reachable, mobile 375px viewport, save & resume, move log inspect |
-| `skeletons.spec.ts` | 5 | settings persistence, daily puzzle card, PGN buttons, library populated/empty |
-| `critical-gaps.spec.ts` | 8 | hint Coach output, mate→game-over, promotion bia→met, rated toggle, NNUE loading state, all 4 levels, Custom palette click, PGN download Blob trigger |
-
-The dragMove helper is smart: synthesised mouse drag for multi-square moves, click-then-click fallback for adjacent moves (chessground's drag threshold mis-detects short gestures otherwise).
+Test pyramids:
+- **Unit-ish** — no separate pure-function test suite; logic is exercised by integration.
+- **Worker integration (vitest)** — wrangler dev + local D1 + scenario tests:
+  - infrastructure (health, DB ping, 404)
+  - anonymous registration + auth
+  - game record with server-side verification
+  - rating progression over a session
+  - global leaderboard ordering
+  - input validation
+  - curated puzzle catalog (server-side reads)
+- **Frontend E2E (playwright)** — smoke, foundation, puzzles, mobile/touch, resume bug, schema versioning, personality system, onboarding modal, cloud sync, PWA install-readiness.
 
 ---
 
-## Privacy
+## Deployment (production)
 
-100% client-side app logic. No account server, no database, no telemetry, no third-party trackers, no cookies. Static assets (HTML/JS/CSS/board piece SVGs/content JSON) are served from the host you load the app from; the optional NNUE network blob is fetched from jsDelivr's CDN on demand. None of these requests carry user identifiers — they're plain static file fetches.
+### 1. Worker
+```bash
+cd worker
+npm run db:create                 # creates D1 db, prints database_id
+# edit wrangler.toml — paste database_id into [[d1_databases]].database_id
+npm run db:apply:remote           # apply schema to production D1
+npm run seed:remote               # seed curated puzzles
+npm run deploy                    # push worker; prints workers.dev URL
+```
 
-User state in `localStorage`:
-- `openmakruk_stats` — rating, history, displayName
-- `openmakruk_settings` — UI preferences
-- `openmakruk_lesson_progress` — per-lesson completion
-- `openmakruk_puzzle_progress` — per-puzzle solves
-- `openmakruk_puzzle_rating` — personal puzzle Elo
-- `openmakruk_puzzle_schedule` — SM-2 spaced repetition state
-- `openmakruk_current_game` — in-progress game (cleared on game end)
-- `openmakruk_library` — saved positions
-- `openmakruk_daily_puzzle` — today's puzzle solved-marker
+### 2. Frontend
+```bash
+# Set the API base URL at build time (or omit for cloud-sync-disabled build)
+VITE_API_BASE=https://openmakruk-api.<account>.workers.dev npm run build
+# dist/ is ready to drop on Cloudflare Pages, GitHub Pages, or any static host.
+```
 
-IndexedDB (browser-controlled):
-- `openmakruk-content` — cached `/content/*.json` keyed by manifest version
-- `openmakruk` (engine namespace) — NNUE network blob
-
-The user can wipe all of this any time via Profile → "🗑 ลบ profile ทั้งหมด" or by clearing browser storage. Export/Import JSON in Profile provides data portability.
-
----
-
-## Roadmap
-
-- **v0.1 (current)** — 8 tabs functional, 42 E2E tests, content-driven, PWA-ready, Chess Coach, Game Report
-- **v0.2** — Deploy to `openmakruk.com` via Cloudflare Pages · Touch-drag polish · 50+ puzzles · 15+ lessons with interactive demos
-- **v0.3** — Clock + time controls wired (lib already exists) · Live eval bar during engine thinking · Multi-PV row → animate on board
-- **v0.4** — Curated learning path with quizzes · Opening explorer (content/openings/*.json)
-- **v0.5** — Chess Coach motifs: pin · skewer · discovered attack · phase-based accuracy
-- **v0.9+** — Optional backend: leaderboards · user-submitted puzzles · cloud sync · tournaments (Cloudflare Worker + D1)
+For a custom domain:
+- Cloudflare Pages: route openmakruk.com → frontend project; API on `api.openmakruk.com`
+- DNS-only setup: ensure CORS allowlist in `worker/src/index.ts` includes your origin
 
 ---
 
-## License
+## Anti-cheat
 
-OpenMakruk's source code is **MIT** — see [`LICENSE`](LICENSE).
+Match leaderboard rows require `verified=1`. Verification flow per game:
 
-Bundled third-party components keep their own licenses — full list in [`NOTICE.md`](NOTICE.md). The user-facing About page at `/#/about` shows the same attribution in the running app, as required by CC BY-SA 4.0.
+1. Client `POST /api/games` with `mode: 'rated'` and the full UCI move log
+2. Worker replays every move against the pure-JS rules engine
+3. Any illegal move → 422; the row is never inserted
+4. Final position must classify as the claimed outcome:
+   - `win`  → opponent checkmated
+   - `loss` → user checkmated
+   - `draw` → stalemate OR halfmove ≥ 100
+5. On pass: row inserted with `verified=1`; user rating updated via server-computed Elo (K=32)
+
+Editing browser localStorage doesn't help — the server is the source of truth for everything that affects the global leaderboard.
 
 ---
 
-## Credits
+## Stack
 
-Author: **Natthaphon C.** — PhD Physics, self-taught dev, building this as both a portfolio piece and a tool for the Thai chess community.
+| Layer | Tech |
+|---|---|
+| Frontend | Vite + React 18 + TypeScript |
+| Board | chessground v9.x (Lichess board library) |
+| Rules + engine (client) | ffish-es6 + fairy-stockfish-nnue.wasm |
+| Engine plugins | MakrukEngine contract · personality bots |
+| State | localStorage via versioned defineStore wrapper |
+| Routing | Hash-based custom router |
+| Worker | Cloudflare Workers + Hono |
+| Database | Cloudflare D1 (SQLite at the edge) |
+| Worker rules | Pure-JS Makruk rules engine (own implementation) |
+| Tests | Playwright (frontend) + Vitest (worker) |
+| CI | GitHub Actions |
 
-Built standing on the shoulders of:
-- **Fairy-Stockfish** team (Fabian Fichter and contributors) — the chess-variant engine that handles Makruk rules + search.
-- **Lichess** — for `chessground`, the production board library + the lichess.org analysis pattern this project echoes.
-- **Fulmene** + **Yevrowl** — for the Makruk piece artwork.
-- **belzedar_** — for the Makruk NNUE network (+248 Elo).
-- **pychess.org** — proving Makruk online is solvable, used as a reference for variant handling.
+---
 
-See `/#/about` in the app or [`NOTICE.md`](NOTICE.md) for the full license-by-license attribution. PRs, issues, feature requests welcome.
+## Contributing
+
+This is an open-source mission project (not portfolio-first). Issues + PRs welcome.
+
+- Reproducible builds: `npm ci` at root and in worker/
+- All PRs run typecheck + build + e2e + worker integration in CI
+- New engine? Add a file to `src/lib/engines/`, implement `MakrukEngine`, side-effect register
+- New personality bot? Append one entry to `src/lib/personalities/personalities.ts` — no class needed
+- New puzzles? Edit `public/content/puzzles/all.json`, bump version in `manifest.json`, run `worker/scripts/seed-curated.mjs` if you want them on the server too
+
+---
+
+## License + Credits
+
+MIT (code) · Piece SVGs CC BY-SA 4.0 (Yevrowl + Fulmene + belzedar_ via Wikimedia Commons; see `public/pieces/NOTICE`). Full credits on the About page.
