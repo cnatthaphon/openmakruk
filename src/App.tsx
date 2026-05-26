@@ -114,6 +114,7 @@ import {
 } from './lib/gameState';
 import { autoAnalyze, nnueAutoLoad } from './lib/flags';
 import { fenToPieceMap } from './lib/makruk';
+import { letterToPiece, PIECE_VALUE } from './lib/chessAttacks';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -1176,12 +1177,21 @@ export default function App() {
       // opponent would happily agree to a draw.
       const result = await searchBestMove(state.fen, { depth: 12 });
       const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+      const opponentColor: 'white' | 'black' = userColor === 'white' ? 'black' : 'white';
       const isUserToMove = state.turn === userColor;
       // searchBestMove returns eval from current side-to-move's POV.
       // We need the OPPONENT's POV (the side deciding whether to accept).
       let opponentCp: number | undefined;
       if (typeof result.scoreCp === 'number') {
         opponentCp = isUserToMove ? -result.scoreCp : result.scoreCp;
+      } else {
+        // Personality engines (ScoredBot) return only `bestMove`, no
+        // scoreCp. Without a fallback, the threshold checks below get
+        // skipped and the draw gets auto-accepted — even when the
+        // opponent has a winning material lead. Fall back to a plain
+        // material count so a position like "K+M+N vs K" is correctly
+        // refused by the winning bot.
+        opponentCp = materialAdvantageCp(state.fen, opponentColor);
       }
 
       if (typeof result.mateIn === 'number' && result.mateIn !== 0) {
@@ -1194,8 +1204,9 @@ export default function App() {
       }
 
       // Threshold: opponent accepts when they're not clearly winning.
-      // 60cp = ~half a pawn, a forgiving cutoff so end-game equal
-      // positions get drawn even with some imprecision.
+      // 60cp = ~half a pawn for engine-returned cp; for the material
+      // fallback the same 60cp ≈ 0.6 piece units, which catches any
+      // missing-Met scenario cleanly.
       const ACCEPT_THRESHOLD = 60;
       if (typeof opponentCp === 'number' && opponentCp >= ACCEPT_THRESHOLD) {
         setDrawOfferRefused(
@@ -2933,6 +2944,23 @@ function forcedSubtitle(result: string, mode: Mode): string {
     return 'คุณยอมแพ้ในเกมนี้ — rating ปรับเป็น loss';
   }
   return '';
+}
+
+/** Material balance from `side`'s POV, expressed in centipawns. Used
+ *  by handleOfferDraw as a fallback evaluator when the active engine
+ *  is a personality bot that doesn't return scoreCp from search() —
+ *  without this fallback, every draw offer against a personality bot
+ *  gets blindly accepted regardless of the actual position. */
+function materialAdvantageCp(fen: string, side: 'white' | 'black'): number {
+  const pieces = fenToPieceMap(fen);
+  let net = 0;
+  for (const letter of Object.values(pieces)) {
+    const p = letterToPiece(letter);
+    if (!p || p.role === 'king') continue;
+    const value = PIECE_VALUE[p.role] * 100; // pawn units → centipawns
+    net += p.color === side ? value : -value;
+  }
+  return net;
 }
 
 function gameOverIcon(result: string, mode: Mode): string {
