@@ -121,7 +121,7 @@ function SurviveRunner({ positionId }: { positionId: string }) {
       }
       setPuzzle(p);
       setUserSide(p.toMove);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const ffishAny = ffish as any;
       live = new ffishAny.Board('makruk', p.fen);
       boardRef.current = live;

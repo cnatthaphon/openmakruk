@@ -69,7 +69,7 @@ export async function setup(): Promise<void> {
   proc.stderr.on('data', (chunk: Buffer) => {
     const s = chunk.toString();
     if (s.includes('error') || s.includes('Error')) {
-      // eslint-disable-next-line no-console
+       
       console.warn('[wrangler stderr]', s.trim());
     }
   });

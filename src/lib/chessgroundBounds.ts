@@ -59,7 +59,7 @@ export function invalidateChessgroundBounds(api: Api | null): void {
   }
   if (!warned) {
     warned = true;
-    // eslint-disable-next-line no-console
+     
     console.warn(
       '[OpenMakruk] chessground state.dom.bounds.clear() not found — ' +
         'internal API may have changed in the installed version. ' +

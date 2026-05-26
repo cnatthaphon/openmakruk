@@ -40,7 +40,7 @@ export function log(step: string, data?: unknown): void {
   const ev: LogEvent = { t: Date.now(), step, data };
   push(ev);
   if (isEnabled()) {
-    // eslint-disable-next-line no-console
+     
     console.log(`%c[OpenMakruk] ${step}`, 'color:#d4a23c', data ?? '');
   }
 }
@@ -58,7 +58,7 @@ export function timeEnd(name: string, data?: unknown): number {
   const ev: LogEvent = { t: Date.now(), step: name, data, durationMs };
   push(ev);
   if (isEnabled()) {
-    // eslint-disable-next-line no-console
+     
     console.log(
       `%c[OpenMakruk] ${name} %c(${durationMs.toFixed(0)}ms)`,
       'color:#d4a23c',

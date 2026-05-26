@@ -82,7 +82,7 @@ const MATE_SCORE = 100_000;
 
 /** Minimax with α-β pruning on a ffish board. Returns white-POV
  *  score. Caller maximizes at white's turn, minimizes at black's. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 function minimax(board: any, depth: number, alpha: number, beta: number): number {
   if (board.isGameOver(true)) {
     const result = board.result(true) as string;
@@ -181,7 +181,7 @@ async function ensureBookComputed(): Promise<void> {
   const ffish = await loadFfish();
   const map = new Map<string, { openingId: string; move: string }[]>();
   for (const opening of OPENING_BOOK) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const board = new (ffish as any).Board('makruk', MAKRUK_START_FEN);
     try {
       for (const move of opening.moves) {

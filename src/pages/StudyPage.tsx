@@ -389,7 +389,7 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
     let cancelled = false;
     loadFfish().then((ffish) => {
       if (cancelled) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const ffishAny = ffish as any;
       const board = new ffishAny.Board('makruk', MAKRUK_START_FEN);
       const out: string[] = [MAKRUK_START_FEN];

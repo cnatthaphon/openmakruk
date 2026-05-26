@@ -126,7 +126,7 @@ function TrainerRunner({ openingId }: { openingId: string }) {
       }
       setOpening(op);
       // Pre-replay the opening to capture FEN + legal moves at each ply.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const ffishAny = ffish as any;
       live = new ffishAny.Board('makruk', MAKRUK_START_FEN);
       boardRef.current = live;
@@ -151,7 +151,7 @@ function TrainerRunner({ openingId }: { openingId: string }) {
         try { live.delete(); } catch { /* ignore */ }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [openingId]);
 
   const handleMove = useCallback(

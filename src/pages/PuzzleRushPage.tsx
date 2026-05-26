@@ -83,7 +83,7 @@ export function PuzzleRushPage() {
         /* ignore */
       }
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const ffishAny = ffish as any;
     const board = new ffishAny.Board('makruk', puzzle.fen);
     boardRef.current = board;
