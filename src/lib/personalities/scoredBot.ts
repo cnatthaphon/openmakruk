@@ -12,7 +12,7 @@
 // effectively the same strong engine. Cheap scorers = distinct play
 // styles + cheap CPU per move (instant on any device).
 
-import { fenToPieceMap, loadFfish } from '../makruk';
+import { fenToPieceMap, loadFfish, MAKRUK_START_FEN } from '../makruk';
 import { letterToPiece, PIECE_VALUE } from '../chessAttacks';
 import type { Color } from '../lessonRules';
 import { registerEngine } from '../engines/registry';
@@ -146,6 +146,89 @@ function depthForPersonality(personalityId: string): number {
   return 2;
 }
 
+// ─── Opening book (mirrors worker/src/exhibition.ts) ──────────────
+
+const OPENING_BOOK: { id: string; moves: string[] }[] = [
+  { id: 'op-khun-pawn',       moves: ['d3d4', 'd6d5', 'e3e4', 'e6e5'] },
+  { id: 'op-met-shuffle',     moves: ['e3e4', 'e6e5', 'e1f2', 'd6d5'] },
+  { id: 'op-khon-fianchetto', moves: ['f3f4', 'f6f5', 'c3c4', 'c6c5'] },
+  { id: 'op-khon-line',       moves: ['d3d4', 'd6d5', 'f1e2', 'f8e7'] },
+  { id: 'op-rua-line',        moves: ['a3a4', 'a6a5', 'h3h4', 'h6h5'] },
+];
+
+const OPENING_PREFERENCES: Record<string, Record<string, number>> = {
+  attacker:   { 'op-rua-line': 3, 'op-met-shuffle': 2, 'op-khun-pawn': 1 },
+  defender:   { 'op-khun-pawn': 3, 'op-khon-fianchetto': 2, 'op-khon-line': 1 },
+  positional: { 'op-khon-fianchetto': 3, 'op-khon-line': 2.5, 'op-khun-pawn': 1.5 },
+  hunter:     { 'op-rua-line': 3, 'op-met-shuffle': 2, 'op-khun-pawn': 1 },
+  wanderer:   { 'op-khun-pawn': 1, 'op-met-shuffle': 1, 'op-khon-fianchetto': 1, 'op-khon-line': 1, 'op-rua-line': 1 },
+  mobile:     { 'op-khon-fianchetto': 2, 'op-khon-line': 2, 'op-khun-pawn': 1 },
+  cautious:   { 'op-khun-pawn': 3, 'op-khon-fianchetto': 1.5, 'op-khon-line': 1 },
+};
+
+// Probability of using a book move when one is available (vs falling
+// through to minimax). 1.0 = always book; 0.0 = never book. 0.9 keeps
+// the bot mostly on-book in opening but lets it surprise occasionally.
+const BOOK_PROBABILITY = 0.9;
+
+// Lazy-computed map from book position FEN to the candidate book moves
+// available at that position (each tagged with its opening id for
+// personality-weighted selection). Computed once on first search().
+let BOOK_FEN_TO_MOVES: Map<string, { openingId: string; move: string }[]> | null = null;
+
+async function ensureBookComputed(): Promise<void> {
+  if (BOOK_FEN_TO_MOVES) return;
+  const ffish = await loadFfish();
+  const map = new Map<string, { openingId: string; move: string }[]>();
+  for (const opening of OPENING_BOOK) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const board = new (ffish as any).Board('makruk', MAKRUK_START_FEN);
+    try {
+      for (const move of opening.moves) {
+        const fen = board.fen();
+        if (!map.has(fen)) map.set(fen, []);
+        const list = map.get(fen)!;
+        // Multiple openings can share a position prefix (e.g. Khun-pawn
+        // and Khon-line both play d3d4 first). Dedupe by move.
+        if (!list.some((e) => e.move === move)) {
+          list.push({ openingId: opening.id, move });
+        }
+        board.push(move);
+      }
+    } finally {
+      board.delete();
+    }
+  }
+  BOOK_FEN_TO_MOVES = map;
+}
+
+/** Look up a book move for the current position, weighted by the
+ *  bot's personality preferences over openings. Returns null when
+ *  the position is out of book or the bot rolled the "deviate" check. */
+function bookMoveFor(fen: string, personalityId: string): string | null {
+  if (!BOOK_FEN_TO_MOVES) return null;
+  const candidates = BOOK_FEN_TO_MOVES.get(fen);
+  if (!candidates || candidates.length === 0) return null;
+  if (Math.random() >= BOOK_PROBABILITY) return null;
+  const prefs = OPENING_PREFERENCES[personalityId];
+  if (!prefs) {
+    // Unknown personality — pick any book continuation at random.
+    return candidates[Math.floor(Math.random() * candidates.length)].move;
+  }
+  let total = 0;
+  for (const c of candidates) total += prefs[c.openingId] ?? 0;
+  if (total <= 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)].move;
+  }
+  let pick = Math.random() * total;
+  for (const c of candidates) {
+    const w = prefs[c.openingId] ?? 0;
+    pick -= w;
+    if (pick <= 0) return c.move;
+  }
+  return candidates[0].move;
+}
+
 class ScoredBot implements MakrukEngine {
   readonly id: string;
   readonly name: string;
@@ -165,6 +248,14 @@ class ScoredBot implements MakrukEngine {
   }
 
   async search(fen: string, opts: SearchOpts = {}): Promise<SearchResult> {
+    // Opening book — if the current position is in a known opening
+    // line AND the personality preference roll picks one, return it
+    // immediately without running minimax. Saves CPU + gives game-
+    // to-game variety (first 4 plies look distinct per personality).
+    await ensureBookComputed();
+    const book = bookMoveFor(fen, this.personality.id);
+    if (book) return { bestMove: book };
+
     const ffish = await loadFfish();
     const board = new ffish.Board('makruk', fen);
     try {
