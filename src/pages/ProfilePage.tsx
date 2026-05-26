@@ -18,6 +18,7 @@ import { downloadPgn, gameToPgn, gamesToPgn } from '../lib/pgn';
 import { toast } from '../components/Toast';
 import { loadStreak } from '../lib/streak';
 import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
+import { navigate } from '../lib/router';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -871,7 +872,6 @@ function BotHallOfFameSection() {
   const supports = backend.fetchBots !== undefined;
   const [bots, setBots] = useState<BotCharacter[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [tierFilter, setTierFilter] = useState<'all' | 'rookie' | 'veteran' | 'master'>('all');
 
   useEffect(() => {
@@ -923,8 +923,9 @@ function BotHallOfFameSection() {
           {filtered.map((b) => (
             <button
               key={b.id}
-              className={`profile-bot-card ${expanded === b.id ? 'is-expanded' : ''}`}
-              onClick={() => setExpanded((cur) => (cur === b.id ? null : b.id))}
+              className="profile-bot-card"
+              onClick={() => navigate({ tab: 'bots', id: b.id })}
+              title={`เปิดหน้า ${b.displayName}`}
             >
               <div className="profile-bot-card-head">
                 <span className="profile-bot-avatar">{b.avatar}</span>
@@ -936,15 +937,9 @@ function BotHallOfFameSection() {
                   {b.tier === 'rookie' ? '🥉' : b.tier === 'veteran' ? '🥈' : '🥇'}
                 </span>
               </div>
-              {expanded === b.id && (
-                <div className="profile-bot-detail">
-                  <p>{b.lore}</p>
-                  <p className="label-aside">
-                    🤝 ผู้ใช้ vs {b.displayName}: {b.losses}W (มนุษย์ชนะ) · {b.draws}D · {b.wins}L (bot ชนะ){' '}
-                    · รวม {b.gamesPlayed} เกม
-                  </p>
-                </div>
-              )}
+              <div className="profile-bot-card-meta label-aside">
+                {b.gamesPlayed} เกม · bot ชนะ {b.losses} · เปิดดูรายละเอียด →
+              </div>
             </button>
           ))}
         </div>

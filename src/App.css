@@ -6018,3 +6018,192 @@ footer a:hover {
   white-space: nowrap;
 }
 
+/* ─── Bot Detail Page ─────────────────────────────────────────── */
+.bot-detail-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+.bot-detail-back {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.bot-detail-back:hover {
+  background: rgba(255,255,255,0.06);
+}
+.bot-detail-hero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(212,162,60,0.12), rgba(163,123,245,0.08));
+  border: 1px solid rgba(212,162,60,0.25);
+  border-radius: 12px;
+}
+.bot-detail-avatar {
+  font-size: 4.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.bot-detail-headline {
+  flex: 1;
+  min-width: 0;
+}
+.bot-detail-name {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  color: var(--fg);
+}
+.bot-detail-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.bot-detail-tier, .bot-detail-personality, .bot-detail-rating {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  font-size: 13px;
+  color: var(--fg);
+}
+.bot-detail-tier[data-tier="rookie"]  { border-color: #cd7f32; }
+.bot-detail-tier[data-tier="veteran"] { border-color: #c0c0c0; }
+.bot-detail-tier[data-tier="master"]  { border-color: #d4a23c; }
+.bot-detail-rating {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+}
+.bot-detail-motto {
+  text-align: center;
+  font-size: 1.15rem;
+  font-style: italic;
+  color: rgba(255,255,255,0.85);
+  padding: 16px 20px;
+  margin: 16px 0;
+  border-top: 1px dashed rgba(255,255,255,0.1);
+  border-bottom: 1px dashed rgba(255,255,255,0.1);
+}
+.bot-detail-section {
+  margin-top: 18px;
+}
+.bot-detail-section h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--fg);
+}
+.bot-detail-section p {
+  margin: 0;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.85);
+}
+.bot-detail-lore {
+  font-style: italic;
+}
+.bot-detail-list {
+  margin: 4px 0 0;
+  padding-left: 20px;
+}
+.bot-detail-list li {
+  margin: 4px 0;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.85);
+}
+.bot-detail-howtobeat {
+  padding: 12px 14px;
+  background: rgba(122,186,127,0.08);
+  border: 1px solid rgba(122,186,127,0.25);
+  border-radius: 8px;
+}
+.bot-detail-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.bot-detail-stat {
+  padding: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  text-align: center;
+}
+.bot-detail-stat.highlight {
+  background: rgba(212,162,60,0.1);
+  border-color: rgba(212,162,60,0.35);
+}
+.bot-detail-stat-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--fg);
+}
+.bot-detail-stat-label {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-top: 2px;
+}
+.bot-detail-cta {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+.bot-detail-challenge {
+  flex: 1 1 200px;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 0;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.bot-detail-challenge:hover {
+  transform: translateY(-1px);
+}
+.bot-detail-share {
+  flex: 0 0 auto;
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.bot-detail-share:hover {
+  background: rgba(255,255,255,0.1);
+}
+.bot-detail-error {
+  color: #c75555;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 540px) {
+  .bot-detail-hero {
+    flex-direction: column;
+    text-align: center;
+  }
+  .bot-detail-avatar {
+    font-size: 3.5rem;
+  }
+  .bot-detail-tags {
+    justify-content: center;
+  }
+}
+
+.profile-bot-card-meta {
+  margin-top: 6px;
+  font-size: 12px;
+}
+

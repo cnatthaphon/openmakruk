@@ -70,6 +70,9 @@ const SettingsPage = lazy(() =>
 const LibraryPage = lazy(() =>
   import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })),
 );
+const BotDetailPage = lazy(() =>
+  import('./pages/BotDetailPage').then((m) => ({ default: m.BotDetailPage })),
+);
 const CertPage = lazy(() =>
   import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
 );
@@ -160,6 +163,7 @@ const TAB_LABELS: Record<Tab, string> = {
   settings: '⚙️ ตั้งค่า',
   about:    'ℹ️ เกี่ยวกับ',
   cert:     '', // hidden — visited via shareable URL only
+  bots:     '', // hidden — visited via /#/bots/<bot-id> deep link
 };
 const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
   (t) => TAB_LABELS[t] !== '',
@@ -1712,6 +1716,9 @@ export default function App() {
       )}
       {currentTab === 'cert' && (
         <ErrorBoundary scope="cert"><CertPage slug={route.id} /></ErrorBoundary>
+      )}
+      {currentTab === 'bots' && (
+        <ErrorBoundary scope="bots"><BotDetailPage botId={route.id} /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (

@@ -36,6 +36,9 @@ export const TAB_IDS = [
   // Public cert page — not in the tab nav but a valid route id so
   // `/#/cert/<slug>` resolves cleanly.
   'cert',
+  // Bot character detail — `/#/bots/<bot-id>`. Deep-linkable from Bot
+  // Hall of Fame cards + sharable. Hidden from nav like cert.
+  'bots',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];
