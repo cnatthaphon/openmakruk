@@ -26,6 +26,9 @@ import { findPersonality } from '../lib/personalities/personalities';
 import { findNarrative } from '../lib/personalities/narrative';
 import { navigate } from '../lib/router';
 import { SkeletonScreen } from '../components/Skeleton';
+import { setChallengeTarget } from '../lib/challenge';
+import { loadSettings, saveSettings } from '../lib/settings';
+import { toast } from '../components/Toast';
 
 type Props = {
   botId: string | null;
@@ -207,9 +210,30 @@ export function BotDetailPage({ botId }: Props) {
       <section className="bot-detail-cta">
         <button
           className="bot-detail-challenge"
-          onClick={() => navigate({ tab: 'play' })}
+          onClick={() => {
+            // Lock the Play tab to this specific bot character.
+            setChallengeTarget({
+              botId: bot.id,
+              displayName: bot.displayName,
+              avatar: bot.avatar,
+              personality: bot.personality,
+              tier: bot.tier,
+              rating: bot.rating,
+            });
+            // Swap the active engine to this personality so the
+            // Play tab actually plays the bot's style. Personality
+            // engines are registered as `personality:<id>` by
+            // src/lib/personalities/scoredBot.ts.
+            const settings = loadSettings();
+            saveSettings({
+              ...settings,
+              engineId: `personality:${bot.personality}`,
+            });
+            toast.success(`⚔️ พร้อมท้าดวล ${bot.displayName}`);
+            navigate({ tab: 'play' });
+          }}
         >
-          ⚔️ ท้าดวล · ไปที่หน้าเล่น
+          ⚔️ ท้าดวลตอนนี้
         </button>
         <button
           className="bot-detail-share"

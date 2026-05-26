@@ -6659,6 +6659,55 @@ footer a:hover {
   background: rgba(255,255,255,0.12);
 }
 
+/* ─── Bot Challenge banner (Play tab) ────────────────────────── */
+.challenge-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  margin: 0 auto 12px;
+  max-width: 920px;
+  background: linear-gradient(135deg, rgba(232,90,74,0.15), rgba(212,162,60,0.1));
+  border: 1px solid rgba(232,90,74,0.4);
+  border-radius: 10px;
+}
+.challenge-banner-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+.challenge-banner-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.challenge-banner-body strong {
+  font-size: 14px;
+  color: var(--fg);
+}
+.challenge-banner-clear {
+  flex-shrink: 0;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  color: var(--fg-dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+.challenge-banner-clear:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+}
+@media (max-width: 540px) {
+  .challenge-banner {
+    flex-wrap: wrap;
+  }
+  .challenge-banner-clear {
+    width: 100%;
+  }
+}
+
 /* ─── Bot Exhibition ─────────────────────────────────────────── */
 .profile-bots-live-link {
   display: inline-block;

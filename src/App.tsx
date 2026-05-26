@@ -87,6 +87,11 @@ const CertPage = lazy(() =>
 );
 import { loadSettings, type Settings } from './lib/settings';
 import {
+  clearChallengeTarget,
+  loadChallengeTarget,
+  type ChallengeTarget,
+} from './lib/challenge';
+import {
   playCapture,
   playCheck,
   playDraw,
@@ -298,6 +303,22 @@ export default function App() {
   // re-loaded whenever the user leaves the Settings tab so newly-saved
   // values take effect without needing a full reload.
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+
+  // Active bot challenge — set when the user clicks "ท้าดวล" on a Bot
+  // Detail page. The Play tab shows a banner while a challenge is
+  // active, and game recording uses the bot's full id (e.g.
+  // `bot:attacker-master`) as the opponent so Bot Hall of Fame stats
+  // reflect real head-to-head play, not just generic difficulty.
+  const [challenge, setChallenge] = useState<ChallengeTarget | null>(() =>
+    loadChallengeTarget(),
+  );
+  // Refresh on hash change — covers the user clicking "ท้าดวล" on a
+  // bot detail page and arriving back at /#/play.
+  useEffect(() => {
+    const onChange = () => setChallenge(loadChallengeTarget());
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
 
   // On-demand engine analysis — triggered by the 🔍 วิเคราะห์ button.
   // analysisLines holds the top-N candidate moves; liveEval is the
@@ -658,9 +679,21 @@ export default function App() {
       if (outcome) {
         const session = loadSession();
         if (session.token) {
+          // Opponent identity hierarchy:
+          //   1. If user is in a bot-challenge run, use the bot's full
+          //      id (e.g. `bot:attacker-master`) — backs the per-bot
+          //      head-to-head stats in Bot Hall of Fame.
+          //   2. Else for Fairy-Stockfish, use the difficulty bucket.
+          //   3. Else (personality engines without challenge), use the
+          //      engine id (`personality:attacker`).
+          const opponentId = challenge
+            ? challenge.botId
+            : settings.engineId === 'fairy-stockfish'
+              ? difficulty
+              : settings.engineId;
           backend
             .recordGame(session.token, {
-              opponent: settings.engineId === 'fairy-stockfish' ? difficulty : settings.engineId,
+              opponent: opponentId,
               userSide: userColor,
               outcome,
               plyCount: history.length,
@@ -1745,6 +1778,29 @@ export default function App() {
       </Suspense>
       {currentTab === 'play' && (
       <ErrorBoundary scope="play"><main>
+        {challenge && (
+          <div className="challenge-banner" role="status">
+            <span className="challenge-banner-icon">⚔️</span>
+            <div className="challenge-banner-body">
+              <strong>
+                {challenge.avatar} กำลังท้าดวล {challenge.displayName}
+              </strong>
+              <span className="label-aside">
+                rating {challenge.rating} · ผลเกมจะนับใน Bot Hall of Fame
+              </span>
+            </div>
+            <button
+              className="challenge-banner-clear"
+              onClick={() => {
+                clearChallengeTarget();
+                setChallenge(null);
+              }}
+              title="หยุดท้าดวลตัวนี้ — เกมต่อไปจะนับเป็น difficulty ปกติ"
+            >
+              ✕ จบการท้าดวล
+            </button>
+          </div>
+        )}
         <TodayStrip />
         {settings.showEvalBar && (
           <div className="eval-bar-live-wrap">
