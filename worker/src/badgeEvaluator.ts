@@ -45,6 +45,11 @@ export async function evaluateBadges(
 
   const candidates: string[] = [];
 
+  // ─── Welcome — always unlocks on first eval ─────────────────────
+  // The user exists (registered + has token), so the badge is earned
+  // by definition. Idempotent via INSERT OR IGNORE below.
+  if (!already.has('welcome')) candidates.push('welcome');
+
   // ─── Rating ladder ──────────────────────────────────────────────
   for (const b of BADGES.filter((x) => x.category === 'rating')) {
     if (already.has(b.id)) continue;

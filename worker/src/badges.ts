@@ -14,6 +14,7 @@
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'diamond';
 
 export type BadgeCategory =
+  | 'welcome'       // zero-friction unlock on first auth — "you're in"
   | 'rating'        // climbing the rating ladder
   | 'puzzles'       // puzzle solver count + accuracy
   | 'streak'        // daily activity
@@ -37,6 +38,15 @@ export type BadgeDef = {
 };
 
 export const BADGES: BadgeDef[] = [
+  // ─── Welcome (zero-friction first-visit unlock) ─────────────────
+  // Triggers as soon as the user has any record in the users table —
+  // i.e. they enabled cloud sync. Visual audit feedback (Phase 9K):
+  // a fresh Profile with 18 locked badges feels "I have nothing".
+  // This badge flips the framing to "you have 1, here are 17 more".
+  { id: 'welcome', category: 'welcome', tier: 'bronze',
+    icon: '👋', nameTh: 'ผู้มาใหม่', threshold: 1,
+    descTh: 'ยินดีต้อนรับสู่ OpenMakruk · ปลดล็อกอัตโนมัติเมื่อเปิด cloud sync' },
+
   // ─── Rating ladder ──────────────────────────────────────────────
   { id: 'rating-1100', category: 'rating', tier: 'bronze',
     icon: '🥉', nameTh: 'Apprentice', threshold: 1100,

@@ -503,7 +503,7 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
         {state.status === 'playing' && (
           <>
             {puzzle.hint && !showHint && (
-              <button onClick={() => setShowHint(true)}>💡 ขอใบ้</button>
+              <button onClick={() => setShowHint(true)}>💡 ขอคำใบ้</button>
             )}
             <button onClick={resetPuzzle} className="secondary">
               ↻ เริ่มใหม่
@@ -524,6 +524,33 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
           </>
         )}
           </div>
+
+          {/* Themes — surface tactical tags so the user knows what
+              pattern they just practiced. Visual-audit feedback:
+              right column had wasted whitespace below the buttons. */}
+          {puzzle.themes && puzzle.themes.length > 0 && (
+            <div className="puzzle-themes">
+              <div className="label-aside">🏷️ ธีม:</div>
+              <div className="puzzle-themes-row">
+                {puzzle.themes.map((t) => (
+                  <span key={t} className="puzzle-theme-tag">{t}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {state.status === 'playing' && wrongMovesRef.current.length > 0 && (
+            <div className="puzzle-attempts">
+              <div className="label-aside">
+                ❌ ตาที่ลองมาแล้ว ({wrongMovesRef.current.length}):
+              </div>
+              <div className="puzzle-attempts-row">
+                {wrongMovesRef.current.slice(-5).map((m, i) => (
+                  <code key={`${m}-${i}`} className="puzzle-attempt">{m}</code>
+                ))}
+              </div>
+            </div>
+          )}
         </aside>
       </div>
     </div>

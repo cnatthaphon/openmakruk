@@ -110,6 +110,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { toast } from './components/Toast';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActivityTicker } from './components/ActivityTicker';
+import { BottomNav } from './components/BottomNav';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
 import {
@@ -146,8 +147,12 @@ import { loadLessonProgress } from './lib/learnProgress';
 // tab bar (filtered out below); the type still covers it.
 const TAB_LABELS: Record<Tab, string> = {
   play:     '♔ เล่น',
-  learn:    '🎓 ฝึก',
-  study:    '📖 ศึกษา',
+  // Visual-audit feedback: "ฝึก" + "ศึกษา" both translated as "study"
+  // and felt overlapping. Rename to functional labels:
+  //   learn → "บทเรียน" (lessons / curriculum starting from rules)
+  //   study → "ทฤษฎี"  (theory: openings, endgames, tactical themes)
+  learn:    '🎓 บทเรียน',
+  study:    '📖 ทฤษฎี',
   puzzles:  '🧩 ปริศนา',
   custom:   '🎨 ออกแบบ',
   library:  '📚 คลัง',
@@ -1585,13 +1590,24 @@ export default function App() {
             const streak = loadStreak();
             const days = streak.current;
             return days > 0 ? (
-              <span className="app-profile-streak" title={`Streak ${days} วันติด · longest ${streak.longest}`}>
-                🔥 {days}
+              <span
+                className="app-profile-streak"
+                title={`เข้ามาเล่น ${days} วันติดต่อกัน · longest ${streak.longest}`}
+                aria-label={`streak ${days} วันติด`}
+              >
+                🔥 {days}<span className="app-profile-unit">d</span>
               </span>
             ) : null;
           })()}
           <span className="app-profile-name">{stats.displayName}</span>
-          <span className="app-profile-rating">{stats.rating}</span>
+          <span
+            className="app-profile-rating"
+            title={`rating ${stats.rating} · K-factor 32`}
+            aria-label={`rating ${stats.rating}`}
+          >
+            <span className="app-profile-rating-label">R</span>
+            {stats.rating}
+          </span>
         </button>
       </header>
       <ActivityTicker />
@@ -2258,14 +2274,26 @@ export default function App() {
         </aside>
       </main></ErrorBoundary>
       )}
+      {/* Footer kept minimal — version + a single source link. The
+          old "v0.1 · Fairy-Stockfish · hint · review · NNUE-ready"
+          jargon string was dev-signature spillage on every page;
+          credits + stack details now live on the About page. */}
       <footer>
         <p>
-          v0.1 · Fairy-Stockfish · hint · review · NNUE-ready ·
           <a href="https://github.com/cnatthaphon/openmakruk" target="_blank" rel="noopener noreferrer">
-            {' '}GitHub
+            GitHub
           </a>
+          {' · '}
+          <button
+            type="button"
+            className="footer-about-link"
+            onClick={() => setCurrentTab('about')}
+          >
+            เกี่ยวกับ
+          </button>
         </p>
       </footer>
+      <BottomNav currentTab={currentTab} />
       {showOnboarding && (
         <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}

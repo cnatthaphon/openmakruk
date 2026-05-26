@@ -15,6 +15,7 @@ import { fenToPieceMap } from '../lib/makruk';
 import { letterToPiece, ROLE_TH } from '../lib/chessAttacks';
 import { loadLibrary, removePosition, type SavedPosition } from '../lib/library';
 import { toast } from '../components/Toast';
+import { navigate } from '../lib/router';
 
 type Props = {
   onLoad: (fen: string) => void;
@@ -93,10 +94,17 @@ export function LibraryPage({ onLoad, initialPositionId }: Props) {
 
       {library.length === 0 && (
         <div className="library-empty">
-          <p>ยังไม่มีตำแหน่งบันทึก</p>
+          <div className="library-empty-icon" aria-hidden="true">📚</div>
+          <h3>คลังของคุณยังว่าง</h3>
           <p className="label-aside">
-            ไปที่ 🎨 ออกแบบ → "💾 บันทึกในคลัง" เพื่อเริ่มสะสมตำแหน่ง
+            สะสมตำแหน่งที่น่าจดจำไว้กลับมาฝึกซ้ำ · ใช้ได้ทั้งจากเกมจริง · ปริศนา · หรือออกแบบเอง
           </p>
+          <button
+            className="library-empty-cta"
+            onClick={() => navigate({ tab: 'custom' })}
+          >
+            🎨 ออกแบบตำแหน่งแรก →
+          </button>
         </div>
       )}
 

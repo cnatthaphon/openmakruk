@@ -214,7 +214,7 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
           <div className="puzzles-counting-text">
             <strong>การนับ trainer</strong>
             <span className="label-aside">
-              · กฎเฉพาะหมากรุกไทย · K+X vs K มีกรอบเวลา · ใครรู้กฎจริงคือเก่งจริง
+              · กฎเฉพาะหมากรุกไทย · ขุนเหลือเปลือยต้องรุกฆาตในกี่ตา
             </span>
           </div>
           <span className="puzzles-counting-cta">เริ่มฝึก →</span>

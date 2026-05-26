@@ -154,6 +154,16 @@ export async function enableCloud(
 
   cloudflareBackend.setToken(session.token);
   setBackend(cloudflareBackend);
+
+  // Trigger an immediate badge evaluation so the welcome badge (and
+  // any badges the user already qualified for via local play before
+  // enabling sync) light up without waiting for the next recorded
+  // game. Fire-and-forget — failure is silent because the user will
+  // re-evaluate on their first game anyway.
+  cloudflareBackend
+    .evaluateMyBadges(session.token)
+    .catch(() => undefined);
+
   return session;
 }
 

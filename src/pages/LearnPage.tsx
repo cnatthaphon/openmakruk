@@ -190,7 +190,7 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
   return (
     <div className="learn-page">
       <header className="learn-header">
-        <h2>🎓 ฝึกเดินหมากรุกไทย</h2>
+        <h2>🎓 บทเรียนหมากรุกไทย</h2>
         <p>เส้นทางจากเริ่มต้นจนเล่นเป็น · ทำตามลำดับ · ครบหมดแล้วพร้อมเข้าโหมดจัดอันดับ</p>
         <div className="learn-overall-progress">
           ความคืบหน้า: <strong>{totalCompleted}</strong> / {lessons.length} บทเรียน
@@ -205,10 +205,16 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
             ▶ เรียนต่อจาก: {lastViewed.title}
           </button>
         )}
-        <p className="learn-status-note">
-          🎮 บทที่มี demo/steps: <strong>{interactiveCount}</strong> / {lessons.length} ·
-          content เก็บใน <code>content/lessons/all.json</code> · เติมได้โดยไม่ต้อง rebuild
-        </p>
+        {/* Dev-mode-only status. The path / rebuild note is useful for
+            content authors editing locally; useless (and confusing)
+            for end users. Hidden in production via Vite's static
+            replace of import.meta.env.DEV. */}
+        {import.meta.env.DEV && (
+          <p className="learn-status-note">
+            🎮 บทที่มี demo/steps: <strong>{interactiveCount}</strong> / {lessons.length} ·
+            content เก็บใน <code>content/lessons/all.json</code> · เติมได้โดยไม่ต้อง rebuild
+          </p>
+        )}
       </header>
 
       {LESSON_GROUP_ORDER.map((g) => {

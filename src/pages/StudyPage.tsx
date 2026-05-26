@@ -45,7 +45,7 @@ export function StudyPage({
   return (
     <div className="study-page">
       <header className="study-header">
-        <h2>📖 ศึกษา</h2>
+        <h2>📖 ทฤษฎี · เปิดเกม · จบเกม · ธีมยุทธวิธี</h2>
         <p className="label-aside">
           เปิด · ปิดท้าย · ยุทธวิธี — เนื้อหาวิชาการ จัดกลุ่มตามประเภท
         </p>
