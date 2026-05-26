@@ -254,6 +254,20 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
             </div>
             <span className="puzzles-counting-cta">→</span>
           </button>
+          <button
+            className="puzzles-rush-banner"
+            onClick={() => navigate({ tab: 'survive' })}
+            aria-label="Survive the attack — ป้องกัน 10 ตา"
+          >
+            <span className="puzzles-counting-icon">🛡️</span>
+            <div className="puzzles-counting-text">
+              <strong>Survive the attack</strong>
+              <span className="label-aside">
+                · ป้องกัน 10 ตา · ตำแหน่งภายใต้แรงกดดัน
+              </span>
+            </div>
+            <span className="puzzles-counting-cta">→</span>
+          </button>
         </div>
       </header>
 

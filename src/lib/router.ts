@@ -52,6 +52,8 @@ export const TAB_IDS = [
   'bossrush',
   // Pattern Recognition — `/#/pattern` (visualization drill).
   'pattern',
+  // Survive the attack — `/#/survive` (defensive challenge).
+  'survive',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];

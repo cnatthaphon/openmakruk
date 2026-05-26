@@ -6980,6 +6980,75 @@ footer a:hover {
   background: linear-gradient(135deg, rgba(163,123,245,0.25), rgba(212,162,60,0.18));
 }
 
+/* ─── Survive the attack ────────────────────────────────────── */
+.survive-page { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+.survive-back {
+  background: transparent; border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg); padding: 6px 14px; border-radius: 6px;
+  font-size: 13px; cursor: pointer; margin-bottom: 18px;
+}
+.survive-header { margin-bottom: 16px; }
+.survive-header h2 { margin: 0 0 4px; }
+.survive-runner-head { margin-bottom: 12px; text-align: center; }
+.survive-error { color: #c75555; }
+.survive-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.survive-card {
+  text-align: left;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: var(--fg);
+}
+.survive-card:hover {
+  background: rgba(122,186,127,0.1);
+  border-color: rgba(122,186,127,0.35);
+}
+.survive-card.is-cleared {
+  border-color: rgba(122,186,127,0.5);
+  background: rgba(122,186,127,0.08);
+}
+.survive-card-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 4px;
+}
+.survive-card-best { font-size: 12px; color: #d4a23c; font-weight: 600; }
+.survive-counter {
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #d4a23c;
+  margin: 0 0 10px;
+}
+.survive-board { display: flex; justify-content: center; }
+.survive-result {
+  margin-top: 14px;
+  padding: 16px;
+  text-align: center;
+  border-radius: 10px;
+}
+.survive-result.is-cleared {
+  background: rgba(122,186,127,0.12);
+  border: 1px solid rgba(122,186,127,0.35);
+}
+.survive-result.is-mated {
+  background: rgba(232,90,74,0.1);
+  border: 1px solid rgba(232,90,74,0.35);
+}
+.survive-result-icon { font-size: 2.4rem; }
+.survive-result-title { font-weight: 700; font-size: 1.1rem; margin: 4px 0; }
+.survive-restart {
+  margin-top: 10px; padding: 8px 18px;
+  background: var(--accent); color: var(--accent-fg);
+  border: 0; border-radius: 6px; font-weight: 600; cursor: pointer;
+}
+
 /* ─── Pattern Recognition drill ──────────────────────────────── */
 .pattern-page {
   max-width: 700px;
