@@ -33,6 +33,13 @@ migrations_dir = "./migrations"
 [observability]
 enabled = true
 
+# Scheduled triggers — Bot Exhibition tick. Generates one bot-vs-bot
+# game every 30 minutes so the /api/exhibition/recent feed stays fresh
+# even when no users are online. Cloudflare runs scheduled handlers
+# "best-effort" near the cron time (not exact).
+[triggers]
+crons = ["*/30 * * * *"]
+
 # ─── Staging environment ──────────────────────────────────────────
 # Deployed via `wrangler deploy --env staging`. Lives at a separate
 # workers.dev subdomain (`openmakruk-api-staging.<account>.workers.dev`)

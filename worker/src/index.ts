@@ -28,6 +28,8 @@ import { badgesRoute, certRoute } from './routes/badges';
 import { journeyRoute } from './routes/journey';
 import { tournamentsRoute } from './routes/tournaments';
 import { signalsRoute } from './routes/signals';
+import { exhibitionRoute } from './routes/exhibition';
+import { runExhibitionTick } from './exhibition';
 
 /** Cloudflare bindings configured in wrangler.toml. */
 export type Env = {
@@ -81,6 +83,7 @@ app.route('/api/cert', certRoute);
 app.route('/api/journey', journeyRoute);
 app.route('/api/tournaments', tournamentsRoute);
 app.route('/api/signals', signalsRoute);
+app.route('/api/exhibition', exhibitionRoute);
 
 /** DB readiness — separate from /health because hitting D1 costs a
  *  read and we don't want every monitoring probe to drive that bill. */
@@ -104,4 +107,23 @@ app.onError((err, c) => {
   return c.json({ error: 'internal', message: String(err) }, 500);
 });
 
-export default app;
+// Scheduled handler — triggered by cron in wrangler.toml. Generates
+// one bot-vs-bot exhibition game per tick. Wrapped in try/catch so a
+// transient D1 hiccup doesn't blow up the worker — Cloudflare retries
+// scheduled events on its own schedule, so swallowing here is safe.
+async function scheduled(
+  _event: ScheduledEvent,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<void> {
+  ctx.waitUntil(
+    runExhibitionTick(env).catch((err) => {
+      console.error('exhibition.tick.error', err);
+    }),
+  );
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+};

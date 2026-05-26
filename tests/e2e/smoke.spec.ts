@@ -21,6 +21,7 @@ const TABS = [
 const HIDDEN_ROUTES = [
   { hash: 'counting', expect: /Counting Trainer/ },
   { hash: 'rush', expect: /Puzzle Rush/ },
+  { hash: 'exhibition', expect: /Bot Exhibition/ },
 ];
 
 test.describe('smoke: all tabs load', () => {

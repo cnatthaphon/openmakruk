@@ -44,6 +44,8 @@ export const TAB_IDS = [
   'counting',
   // Puzzle Rush — `/#/rush`. Timed back-to-back puzzle solving.
   'rush',
+  // Bot Exhibition — `/#/exhibition` (feed) or `/#/exhibition/<id>` (replay).
+  'exhibition',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];

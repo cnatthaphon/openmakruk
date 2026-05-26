@@ -116,6 +116,26 @@ export type TournamentInfo = {
   upcomingEndsAt: number | null;
 };
 
+/** One row in the public exhibition feed — meta only, no moves array. */
+export type ExhibitionSummary = {
+  id: string;
+  whiteBotId: string;
+  blackBotId: string;
+  whiteName: string | null;
+  blackName: string | null;
+  whiteAvatar: string | null;
+  blackAvatar: string | null;
+  outcome: 'white-wins' | 'black-wins' | 'draw' | 'truncated' | string;
+  plyCount: number;
+  finalFen: string;
+  createdAt: number;
+};
+
+/** Full exhibition game — what /api/exhibition/:id returns. */
+export type ExhibitionGame = ExhibitionSummary & {
+  moves: string[];
+};
+
 /** Real engagement signals — every number comes from a DB count. */
 export type ActivitySignals = {
   gamesToday: number;
@@ -358,6 +378,8 @@ export type BackendAdapter = {
 
   /** Active + upcoming tournament windows. */
   fetchTournaments?(): Promise<TournamentInfo[]>;
+  fetchExhibitionRecent?(): Promise<ExhibitionSummary[]>;
+  fetchExhibitionGame?(id: string): Promise<ExhibitionGame | null>;
 
   /** Honest engagement signals — games/puzzles played today + last
    *  player display name. All from real DB counts, no fakes. */

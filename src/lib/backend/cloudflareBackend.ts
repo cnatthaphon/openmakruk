@@ -32,6 +32,8 @@ import type {
   CertView,
   JourneyView,
   TournamentInfo,
+  ExhibitionSummary,
+  ExhibitionGame,
   ActivitySignals,
 } from './types';
 
@@ -307,6 +309,26 @@ export class CloudflareBackend implements BackendAdapter {
   async fetchSignals(): Promise<ActivitySignals> {
     const res = await this.request('/api/signals');
     return (await res.json()) as ActivitySignals;
+  }
+
+  async fetchExhibitionRecent(): Promise<ExhibitionSummary[]> {
+    const res = await this.request('/api/exhibition/recent');
+    const body = (await res.json()) as { games: ExhibitionSummary[] };
+    return body.games;
+  }
+
+  async fetchExhibitionGame(id: string): Promise<ExhibitionGame | null> {
+    try {
+      const res = await this.request(
+        `/api/exhibition/${encodeURIComponent(id)}`,
+        { allow401: true },
+      );
+      if (res.status === 404) return null;
+      return (await res.json()) as ExhibitionGame;
+    } catch (err) {
+      if (err instanceof BackendError && err.status === 404) return null;
+      throw err;
+    }
   }
 
   async fetchCert(slug: string): Promise<CertView | null> {
