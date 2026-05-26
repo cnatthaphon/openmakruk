@@ -171,7 +171,7 @@ import {
   syncHistoryFromServer,
 } from './lib/backend/cloudSession';
 import { getBackend } from './lib/backend';
-import { useRoute, navigate, type Tab } from './lib/router';
+import { useRoute, navigate, CONTENT_TABS, type Tab } from './lib/router';
 import { thaiSquare, thaiUci } from './lib/thaiUci';
 import {
   loadStreak,
@@ -411,16 +411,14 @@ export default function App() {
   // onboarding later by hitting Settings or root /. Read once at mount.
   const [showOnboarding, setShowOnboarding] = useState(() => {
     if (hasOnboarded()) return false;
-    // Deep link = a route with an id segment, OR a hidden-nav tab that
-    // implies specific content (cert/bots/exhibition/counting/rush).
+    // Deep link = a route with an id segment, OR a content tab (per
+    // CONTENT_TABS in router.ts). Single source of truth — adding a
+    // new hidden route in router.ts auto-extends the skip list.
     const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
     const segments = initialHash.replace(/^#\//, '').split('/').filter(Boolean);
     const tab = segments[0] ?? '';
     const hasId = segments.length >= 2;
-    const contentTabs = new Set([
-      'cert', 'bots', 'exhibition', 'counting', 'rush', 'movetrainer', 'bossrush',
-    ]);
-    if (hasId || contentTabs.has(tab)) return false;
+    if (hasId || CONTENT_TABS.has(tab as Tab)) return false;
     return true;
   });
 

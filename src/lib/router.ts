@@ -58,6 +58,26 @@ export const TAB_IDS = [
 
 export type Tab = (typeof TAB_IDS)[number];
 
+// Content tabs — hidden from top nav (no label) AND represent
+// specific user-intent content (a puzzle, a bot, a drill). When a
+// first-time visitor lands on one of these via a share link, the
+// onboarding modal must NOT block them — they came here for a reason
+// and the tutorial can wait. Adding a new content tab here = onboarding
+// skip auto-syncs. Phase 21 refactor: previously a separate hard-coded
+// Set in App.tsx that fell out of sync with each new route (Phase 17
+// pattern + Phase 18 survive both missed the array).
+export const CONTENT_TABS: ReadonlySet<Tab> = new Set<Tab>([
+  'cert',
+  'bots',
+  'exhibition',
+  'counting',
+  'rush',
+  'movetrainer',
+  'bossrush',
+  'pattern',
+  'survive',
+]);
+
 export type Route = {
   /** Top-level tab. Always present (falls back to 'play'). */
   tab: Tab;

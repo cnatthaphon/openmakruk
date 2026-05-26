@@ -26,6 +26,8 @@ import { loadRushProgress } from '../lib/bossRush';
 import { loadPuzzleProgress } from '../lib/puzzleProgress';
 import { getActiveSeason, getPriorSeason, seasonLabel } from '../lib/seasons';
 import { aggregateMastery } from '../lib/reviewMastery';
+import { MOTIF_LABELS } from '../lib/conceptMastery';
+import type { MotifKind } from '../lib/coach/types';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -1213,6 +1215,19 @@ function ReviewMasterySection() {
           </div>
         </div>
       </div>
+      {Object.keys(m.motifs).length > 0 && (
+        <>
+          <h4 className="mastery-motif-subtitle">🎯 Motifs ที่คุณเล่นมาแล้ว</h4>
+          <div className="mastery-motif-grid">
+            {(Object.keys(m.motifs) as MotifKind[]).map((kind) => (
+              <div key={kind} className="mastery-motif-chip">
+                <span className="mastery-motif-label">{MOTIF_LABELS[kind] ?? kind}</span>
+                <span className="mastery-motif-count">{m.motifs[kind]}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

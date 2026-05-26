@@ -23,6 +23,8 @@ import {
   type AnnotatedMove,
   type Classification,
 } from './review';
+import { motifTotalsForUser, type MotifTotals } from './conceptMastery';
+import type { MotifKind } from './coach/types';
 
 const MASTERY_VERSION = 1;
 const MAX_REVIEWS = 100;
@@ -40,6 +42,9 @@ export type ReviewSummary = {
   counts: Record<Classification, number>;
   /** Total moves played on the user's side. */
   totalUserMoves: number;
+  /** Per-motif counts of what the user PLAYED — fork / capture /
+   *  check / mate / hanging / develop / promotion / mateThreat. */
+  motifs: MotifTotals;
 };
 
 type MasteryState = {
@@ -78,6 +83,7 @@ export function recordReviewSummary(
   const counts = classCountFor(moves, userSide);
   const totalUserMoves = moves.filter((m) => m.side === userSide).length;
   const accuracy = accuracyFor(moves, userSide);
+  const motifs = motifTotalsForUser(moves, userSide);
   const summary: ReviewSummary = {
     gameId,
     reviewedAt: Date.now(),
@@ -85,6 +91,7 @@ export function recordReviewSummary(
     accuracy,
     counts,
     totalUserMoves,
+    motifs,
   };
   const state = store.load();
   // Drop any prior summary for this game so re-reviewing replaces.
@@ -106,6 +113,8 @@ export type MasteryAggregate = {
   recentAccuracy: number;
   /** Trend = recent − overall. Positive = improving. */
   trend: number;
+  /** Aggregate motifs across all reviewed games (sum). */
+  motifs: Partial<Record<MotifKind, number>>;
 };
 
 /** Aggregate mastery across all stored summaries. Returns zero-state
@@ -120,16 +129,24 @@ export function aggregateMastery(): MasteryAggregate {
       averageAccuracy: 0,
       recentAccuracy: 0,
       trend: 0,
+      motifs: {},
     };
   }
   const totals: Record<Classification, number> = {
     best: 0, good: 0, inaccuracy: 0, mistake: 0, blunder: 0,
   };
+  const motifs: Partial<Record<MotifKind, number>> = {};
   let totalMoves = 0;
   let accSum = 0;
   for (const s of summaries) {
     for (const k of Object.keys(totals) as Classification[]) {
       totals[k] += s.counts[k] ?? 0;
+    }
+    if (s.motifs) {
+      for (const [kind, n] of Object.entries(s.motifs)) {
+        const k = kind as MotifKind;
+        motifs[k] = (motifs[k] ?? 0) + (n ?? 0);
+      }
     }
     totalMoves += s.totalUserMoves;
     accSum += s.accuracy;
@@ -147,5 +164,6 @@ export function aggregateMastery(): MasteryAggregate {
     averageAccuracy,
     recentAccuracy: recentAcc,
     trend: recentAcc - averageAccuracy,
+    motifs,
   };
 }

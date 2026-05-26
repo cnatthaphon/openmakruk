@@ -7262,6 +7262,34 @@ footer a:hover {
   background: rgba(232,90,74,0.15);
 }
 
+/* ─── Concept motif chips (Profile) ─────────────────────────── */
+.mastery-motif-subtitle {
+  margin: 14px 0 6px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  font-weight: 600;
+}
+.mastery-motif-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mastery-motif-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  font-size: 12px;
+}
+.mastery-motif-count {
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #d4a23c;
+}
+
 /* ─── Season snapshot (Profile) ──────────────────────────────── */
 .season-grid {
   display: grid;
