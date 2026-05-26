@@ -31,6 +31,11 @@ import {
   findProvince,
   type Region,
 } from '../lib/provinces';
+import {
+  evaluateCosmetics,
+  loadCosmeticSelection,
+  saveCosmeticSelection,
+} from '../lib/cosmetics';
 
 type Props = {
   onSettingsChange?: (s: Settings) => void;
@@ -180,6 +185,14 @@ export function SettingsPage({ onSettingsChange }: Props) {
             ))}
           </select>
         </SettingRow>
+      </section>
+
+      <section className="settings-section">
+        <h3>🎨 Cosmetics · เลือกตราประจำตัว</h3>
+        <p className="label-aside">
+          ตราที่ปลดล็อกแล้วจะแสดงข้างชื่อในเมนูบนสุด · ปลดล็อกได้จาก rating + Puzzles + Counting + Move Trainer + Boss Rush + streak
+        </p>
+        <CosmeticPicker />
       </section>
 
       <section className="settings-section">
@@ -413,6 +426,56 @@ function ProvincePicker({
           {busy ? '⏳…' : '💾 บันทึก'}
         </button>
       )}
+    </div>
+  );
+}
+
+function CosmeticPicker() {
+  const [items, setItems] = useState(() => evaluateCosmetics());
+  const [selected, setSelected] = useState<string | null>(
+    () => loadCosmeticSelection().selectedId,
+  );
+  // Re-evaluate on focus — unlock state can change while the user is
+  // on the settings page (e.g. they just hit rating 1500 in a new
+  // tab). Cheap to recompute.
+  useEffect(() => {
+    const refresh = () => setItems(evaluateCosmetics());
+    window.addEventListener('focus', refresh);
+    return () => window.removeEventListener('focus', refresh);
+  }, []);
+
+  const pick = (id: string | null) => {
+    setSelected(id);
+    saveCosmeticSelection(id);
+  };
+
+  return (
+    <div className="cosmetic-grid">
+      <button
+        className={`cosmetic-card ${selected === null ? 'is-selected' : ''}`}
+        onClick={() => pick(null)}
+      >
+        <div className="cosmetic-glyph" aria-hidden="true">∅</div>
+        <div className="cosmetic-name">ไม่ใช้ตรา</div>
+        <div className="cosmetic-hint">default · ไม่แสดงตราข้างชื่อ</div>
+      </button>
+      {items.map((c) => (
+        <button
+          key={c.id}
+          className={`cosmetic-card ${selected === c.id ? 'is-selected' : ''} ${c.unlocked ? '' : 'is-locked'}`}
+          disabled={!c.unlocked}
+          onClick={() => c.unlocked && pick(c.id)}
+          title={c.unlocked ? c.descTh : `🔒 ${c.unlockHint}`}
+        >
+          <div className="cosmetic-glyph" aria-hidden="true">
+            {c.unlocked ? c.glyph : '🔒'}
+          </div>
+          <div className="cosmetic-name">{c.nameTh}</div>
+          <div className="cosmetic-hint">
+            {c.unlocked ? c.descTh : c.unlockHint}
+          </div>
+        </button>
+      ))}
     </div>
   );
 }

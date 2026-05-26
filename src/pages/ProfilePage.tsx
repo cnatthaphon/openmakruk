@@ -24,6 +24,7 @@ import { loadDrillProgress, DRILL_LEVELS } from '../lib/countingDrill';
 import { loadTrainerProgress } from '../lib/moveTrainer';
 import { loadRushProgress } from '../lib/bossRush';
 import { loadPuzzleProgress } from '../lib/puzzleProgress';
+import { getActiveSeason, getPriorSeason, seasonLabel } from '../lib/seasons';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -225,6 +226,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <EventsSection />
 
       <AutoMineSection />
+
+      <SeasonSection />
 
       <MasteryOverview />
 
@@ -1147,6 +1150,50 @@ function MatchLeaderboardSection({ stats }: { stats: UserStats }) {
       <p className="label-aside profile-lb-note">
         คะแนน = ชนะ × น้ำหนัก + (เสมอ × น้ำหนัก / 2) · แพ้ = 0
       </p>
+    </section>
+  );
+}
+
+function SeasonSection() {
+  // Touches getActiveSeason on every Profile render — it freezes any
+  // rolled-over seasons + updates the active snapshot in one call.
+  const active = getActiveSeason();
+  const prior = getPriorSeason();
+  return (
+    <section className="profile-section">
+      <h3>📅 ฤดูกาล · {seasonLabel(active.seasonId)}</h3>
+      <p className="label-aside">
+        Snapshot ของฤดูกาลนี้ · เริ่มต้นเมื่อต้นไตรมาส · ตัวเลขจะคงตอนหลังจบไตรมาส
+      </p>
+      <div className="season-grid">
+        <div className="season-tile">
+          <div className="season-tile-label">Peak rating</div>
+          <div className="season-tile-value">{active.peakRating}</div>
+          {prior && (
+            <div className="season-tile-sub">
+              ฤดูก่อน {seasonLabel(prior.seasonId)}: {prior.peakRating}
+            </div>
+          )}
+        </div>
+        <div className="season-tile">
+          <div className="season-tile-label">เกมที่บันทึก</div>
+          <div className="season-tile-value">{active.totalGames}</div>
+          {prior && (
+            <div className="season-tile-sub">
+              ฤดูก่อน: {prior.totalGames}
+            </div>
+          )}
+        </div>
+        <div className="season-tile">
+          <div className="season-tile-label">ปริศนาแก้</div>
+          <div className="season-tile-value">{active.puzzlesSolved}</div>
+          {prior && (
+            <div className="season-tile-sub">
+              ฤดูก่อน: {prior.puzzlesSolved}
+            </div>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

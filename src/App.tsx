@@ -131,6 +131,7 @@ import { autoAnalyze, nnueAutoLoad } from './lib/flags';
 import { fenToPieceMap } from './lib/makruk';
 import { letterToPiece, PIECE_VALUE } from './lib/chessAttacks';
 import { titleForRating } from './lib/titles';
+import { activeCosmetic } from './lib/cosmetics';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -1790,6 +1791,19 @@ export default function App() {
                 style={{ color: tier.color, borderColor: tier.color }}
               >
                 {tier.th}
+              </span>
+            );
+          })()}
+          {(() => {
+            const cosm = activeCosmetic();
+            if (!cosm) return null;
+            return (
+              <span
+                className="app-profile-cosmetic"
+                title={`${cosm.nameTh} · ${cosm.descTh}`}
+                aria-label={`cosmetic ${cosm.nameTh}`}
+              >
+                {cosm.glyph}
               </span>
             );
           })()}
