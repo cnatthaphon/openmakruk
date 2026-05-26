@@ -13,11 +13,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   loadEndgames,
+  loadMasterGames,
   loadOpenings,
   loadTacticsThemes,
 } from '../lib/content';
 import type {
   EndgameStudy,
+  MasterGame,
   Opening,
   TacticTheme,
 } from '../lib/extraContentSchema';
@@ -26,12 +28,13 @@ import { MAKRUK_START_FEN, loadFfish } from '../lib/makruk';
 import { thaiUci } from '../lib/thaiUci';
 import { SkeletonGrid } from '../components/Skeleton';
 
-type StudySubTab = 'openings' | 'endgames' | 'themes';
+type StudySubTab = 'openings' | 'endgames' | 'themes' | 'master';
 
 const SUBTABS: { id: StudySubTab; label: string }[] = [
   { id: 'openings', label: '📖 หมากเปิด' },
   { id: 'endgames', label: '🏁 หมากปลายเกม' },
   { id: 'themes', label: '🎯 ยุทธวิธีตามหัวข้อ' },
+  { id: 'master', label: '👑 เกมตัวอย่าง' },
 ];
 
 export function StudyPage({
@@ -80,6 +83,7 @@ export function StudyPage({
         {tab === 'themes' && (
           <ThemesSection onLoadTheme={onLoadPuzzleTheme} />
         )}
+        {tab === 'master' && <MasterGamesSection />}
       </div>
     </div>
   );
@@ -327,6 +331,116 @@ function ThemesSection({ onLoadTheme }: { onLoadTheme?: (matchTag: string) => vo
           <div className="study-card-desc">{th.description}</div>
         </button>
       ))}
+    </div>
+  );
+}
+
+
+// ─── Master Games ─────────────────────────────────────────────────
+
+function MasterGamesSection() {
+  const [games, setGames] = useState<MasterGame[] | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadMasterGames()
+      .then((data) => setGames(data))
+      .catch((e) => setErr(String(e)));
+  }, []);
+
+  if (err) return <p className="study-error">⚠ โหลด master games ไม่สำเร็จ: {err}</p>;
+  if (!games) return <SkeletonGrid count={3} withThumb={false} />;
+  if (games.length === 0) {
+    return <p className="study-empty">🚧 ยังไม่มีเกมตัวอย่าง · เพิ่มได้ผ่าน JSON</p>;
+  }
+  const active = games.find((g) => g.id === activeId);
+  if (active) {
+    return <MasterGameView game={active} onClose={() => setActiveId(null)} />;
+  }
+  return (
+    <div className="study-list">
+      {games.map((g) => (
+        <button
+          key={g.id}
+          className="study-card"
+          onClick={() => setActiveId(g.id)}
+        >
+          <div className="study-card-title">{g.title}</div>
+          <div className="study-card-meta">
+            {g.whiteName} vs {g.blackName} · {g.result} · {g.moves.length} ply
+          </div>
+          <div className="study-card-desc">{g.subtitle}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => void }) {
+  const [fens, setFens] = useState<string[]>([MAKRUK_START_FEN]);
+  const [ply, setPly] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    loadFfish().then((ffish) => {
+      if (cancelled) return;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ffishAny = ffish as any;
+      const board = new ffishAny.Board('makruk', MAKRUK_START_FEN);
+      const out: string[] = [MAKRUK_START_FEN];
+      try {
+        for (const mv of game.moves) {
+          board.push(mv);
+          out.push(board.fen());
+        }
+        setFens(out);
+      } finally {
+        board.delete();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [game.id]);
+
+  const currentFen = fens[ply] ?? MAKRUK_START_FEN;
+  const lastMoveUci = ply > 0 ? game.moves[ply - 1] : null;
+  const note = useMemo(
+    () => game.commentary.find((c) => c.plyAfter === ply),
+    [game.commentary, ply],
+  );
+
+  return (
+    <div className="study-view">
+      <button className="study-back" onClick={onClose}>← กลับ</button>
+      <h3>{game.title}</h3>
+      <p className="study-view-desc">
+        {game.whiteName} vs {game.blackName} · ผลลัพธ์ <strong>{game.result}</strong>
+      </p>
+      <div className="study-view-board">
+        <Board
+          fen={currentFen}
+          legalMoves={[]}
+          flipped={false}
+          disabled
+          turn={ply % 2 === 0 ? 'white' : 'black'}
+          isCheck={false}
+          lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
+          hint={null}
+          onMove={() => undefined}
+        />
+      </div>
+      {note && <div className="study-view-note">📝 {note.text}</div>}
+      <div className="study-view-stepper">
+        <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
+        <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
+        <span className="label-aside">ตา {ply} / {game.moves.length}</span>
+        <button
+          onClick={() => setPly((p) => Math.min(game.moves.length, p + 1))}
+          disabled={ply === game.moves.length}
+        >▶</button>
+        <button onClick={() => setPly(game.moves.length)} disabled={ply === game.moves.length}>⏭</button>
+      </div>
     </div>
   );
 }

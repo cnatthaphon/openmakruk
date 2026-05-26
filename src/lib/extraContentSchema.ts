@@ -56,6 +56,29 @@ export type TacticTheme = {
   examplePuzzles: string[];
 };
 
+/** A complete, annotated reference game. Distinct from a puzzle
+ *  (which expects the user to solve) and from an opening (which is
+ *  a 4-move stub) — this is a full strong-side game with commentary
+ *  at key inflection points. Surfaced under Study tab. */
+export type MasterGame = {
+  id: string;
+  title: string;
+  /** Short single-line gist for the picker. */
+  subtitle: string;
+  /** Players (informal labels — "ขาว"/"ดำ" or names from an archive). */
+  whiteName: string;
+  blackName: string;
+  /** PGN result: "1-0" | "0-1" | "1/2-1/2". */
+  result: string;
+  /** UCI move sequence from MAKRUK_START_FEN. */
+  moves: string[];
+  /** Per-ply commentary keyed by plyAfter (same shape as EndgameStudy). */
+  commentary: { plyAfter: number; text: string }[];
+  /** Tags for filtering: opening name, tactical theme. */
+  themes: string[];
+  ratingBand?: { min: number; max: number };
+};
+
 /** Free-form expert annotation keyed by FEN. Multiple annotations
  * for the same FEN are allowed; UI dedupes by id. */
 export type Annotation = {

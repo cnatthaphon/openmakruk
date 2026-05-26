@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 3,
-  "generatedAt": "2026-05-25",
+  "schemaVersion": 4,
+  "generatedAt": "2026-05-26",
   "lessons": {
     "version": 2,
     "url": "/content/lessons/all.json",
@@ -30,5 +30,10 @@
     "version": 1,
     "url": "/content/annotations/all.json",
     "count": 0
+  },
+  "masterGames": {
+    "version": 1,
+    "url": "/content/master-games/all.json",
+    "count": 3
   }
 }

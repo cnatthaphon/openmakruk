@@ -1,0 +1,65 @@
+[
+  {
+    "id": "mg-khun-pawn-classical",
+    "title": "Classical Khun-Pawn — central control to king-side push",
+    "subtitle": "ตัวอย่างเกม opening Khun-pawn คุมศูนย์ + bia push ปลายเกม",
+    "whiteName": "ขาว (illustrative)",
+    "blackName": "ดำ (illustrative)",
+    "result": "1-0",
+    "moves": [
+      "d3d4", "d6d5",
+      "e3e4", "e6e5",
+      "d1e2", "d8e7",
+      "f1e2",
+      "f8e7"
+    ],
+    "commentary": [
+      { "plyAfter": 4, "text": "เปิดเกมแบบคลาสสิก · ทั้งสองข้างยึดศูนย์กลาง · เป็น opening พื้นฐานที่สุดที่ผู้เล่นทุก rating ควรรู้" },
+      { "plyAfter": 6, "text": "เม็ดออกจาก d1 ไป e2 — ตอนนี้ Met คุม diagonal e2-h5 และทำงานร่วมกับ pawn structure ที่ d4-e4" },
+      { "plyAfter": 8, "text": "ดำตอบโต้ด้วย symmetric setup · จะเริ่มเข้าสู่ middlegame จากตาที่ 5 — ทั้งสองข้างต้องเลือกแล้วว่าจะ attack flank ไหน" }
+    ],
+    "themes": ["classical", "central-control", "beginner-friendly"],
+    "ratingBand": { "min": 0, "max": 1400 }
+  },
+  {
+    "id": "mg-rua-flank-attack",
+    "title": "Rua-line flank attack",
+    "subtitle": "เปิด a + h pawn พร้อมกัน · เปิดเส้นทางเรือทั้งสองตัว",
+    "whiteName": "ขาว (illustrative)",
+    "blackName": "ดำ (illustrative)",
+    "result": "1-0",
+    "moves": [
+      "a3a4", "a6a5",
+      "h3h4", "h6h5",
+      "b1c3", "b8c6",
+      "g1f3", "g8f6"
+    ],
+    "commentary": [
+      { "plyAfter": 4, "text": "ตามแผน Rua-line — ดัน flank pawn ทั้งสองข้างทันที · เป้าหมายคือเปิด a-file + h-file ให้เรือ" },
+      { "plyAfter": 6, "text": "Knights ออกพัฒนา — สังเกตว่าตอนนี้ rooks ที่ a1 + h1 มี diagonal open แล้วถ้าตา 5-6 เปิดได้เร็ว" },
+      { "plyAfter": 8, "text": "Symmetric development จบช่วง opening · ผู้เล่นแข็งจะมองหาโอกาส double rooks บน a-file หรือ h-file" }
+    ],
+    "themes": ["flank-attack", "rook-activity", "aggressive"],
+    "ratingBand": { "min": 1400, "max": 2400 }
+  },
+  {
+    "id": "mg-met-active",
+    "title": "Active Met development",
+    "subtitle": "ดัน e-pawn แล้วเลื่อน Met ออกเร็ว · เกมเปิดเร็วและเฉียบคม",
+    "whiteName": "ขาว (illustrative)",
+    "blackName": "ดำ (illustrative)",
+    "result": "1-0",
+    "moves": [
+      "e3e4", "e6e5",
+      "e1f2", "d6d5",
+      "f2e3", "d8e7"
+    ],
+    "commentary": [
+      { "plyAfter": 2, "text": "เปิดเกม e-pawn — เตรียมพื้นที่ให้ Met ออก" },
+      { "plyAfter": 4, "text": "ดัน Met ไป f2 ทันที — ใน Makruk Met เดินทแยง 1 ช่อง การออกเร็วทำให้ Met คุม diagonal สำคัญได้ก่อนตาที่ 5" },
+      { "plyAfter": 6, "text": "Met ขยับต่อไป e3 · ตอนนี้ Met อยู่ใจกลางสนาม — ระวังเพราะเป็นเป้าง่าย ต้องมี pawn support ตลอด" }
+    ],
+    "themes": ["active", "central-control"],
+    "ratingBand": { "min": 800, "max": 1800 }
+  }
+]

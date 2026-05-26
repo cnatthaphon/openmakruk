@@ -17,6 +17,7 @@ import type { Puzzle } from './puzzleSchema';
 import type {
   Annotation,
   EndgameStudy,
+  MasterGame,
   Opening,
   TacticTheme,
 } from './extraContentSchema';
@@ -30,6 +31,7 @@ export type ContentManifest = {
   endgames?: ManifestEntry;
   tacticsThemes?: ManifestEntry;
   annotations?: ManifestEntry;
+  masterGames?: ManifestEntry;
 };
 
 export type ManifestEntry = {
@@ -44,7 +46,8 @@ export type ContentKey =
   | 'openings'
   | 'endgames'
   | 'tacticsThemes'
-  | 'annotations';
+  | 'annotations'
+  | 'masterGames';
 
 const MANIFEST_URL = '/content/manifest.json';
 
@@ -87,6 +90,10 @@ export function loadTacticsThemes(): Promise<TacticTheme[]> {
 
 export function loadAnnotations(): Promise<Annotation[]> {
   return fetchFromManifest<Annotation[]>('annotations');
+}
+
+export function loadMasterGames(): Promise<MasterGame[]> {
+  return fetchFromManifest<MasterGame[]>('masterGames');
 }
 
 function fetchFromManifest<T>(key: ContentKey): Promise<T> {
