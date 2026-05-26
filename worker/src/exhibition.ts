@@ -15,10 +15,62 @@
 // `src/lib/personalities/personalities.ts` — keep them in sync if you
 // edit either.
 //
+// Opening book — a small static catalog mirrors public/content/openings/
+// all.json so bot-vs-bot games don't always start with the same Khun-
+// pawn moves. White's personality picks the opening (its preference
+// weights below); both sides follow the prescribed 4 plies, then the
+// minimax engine takes over from move 5. Without this, every exhibition
+// game would look identical for the first 8 ply, which makes the
+// public showcase feel mechanical.
+//
 // Game cap: 200 plies. After that, mark as 'truncated' (draw-equivalent
 // for the display layer). In practice attacker-vs-defender games tend
 // to finish in 60-100 plies; the cap mostly protects against pathologic
 // loops in low-Elo personalities like wanderer.
+
+type OpeningLine = { id: string; moves: string[] };
+
+const OPENING_BOOK: OpeningLine[] = [
+  { id: 'op-khun-pawn',       moves: ['d3d4', 'd6d5', 'e3e4', 'e6e5'] },
+  { id: 'op-met-shuffle',     moves: ['e3e4', 'e6e5', 'e1f2', 'd6d5'] },
+  { id: 'op-khon-fianchetto', moves: ['f3f4', 'f6f5', 'c3c4', 'c6c5'] },
+  { id: 'op-khon-line',       moves: ['d3d4', 'd6d5', 'f1e2', 'f8e7'] },
+  { id: 'op-rua-line',        moves: ['a3a4', 'a6a5', 'h3h4', 'h6h5'] },
+];
+
+// Per-personality opening weights. Higher = picked more often. Personality
+// shapes the *vibe* of the opening: attacker reaches for flank-attack
+// Rua line, defender clings to the balanced classical Khun-pawn, etc.
+const OPENING_PREFERENCES: Record<string, Record<string, number>> = {
+  attacker:   { 'op-rua-line': 3, 'op-met-shuffle': 2, 'op-khun-pawn': 1 },
+  defender:   { 'op-khun-pawn': 3, 'op-khon-fianchetto': 2, 'op-khon-line': 1 },
+  positional: { 'op-khon-fianchetto': 3, 'op-khon-line': 2.5, 'op-khun-pawn': 1.5 },
+  hunter:     { 'op-rua-line': 3, 'op-met-shuffle': 2, 'op-khun-pawn': 1 },
+  wanderer:   { 'op-khun-pawn': 1, 'op-met-shuffle': 1, 'op-khon-fianchetto': 1, 'op-khon-line': 1, 'op-rua-line': 1 },
+  mobile:     { 'op-khon-fianchetto': 2, 'op-khon-line': 2, 'op-khun-pawn': 1 },
+  cautious:   { 'op-khun-pawn': 3, 'op-khon-fianchetto': 1.5, 'op-khon-line': 1 },
+  // Boss — uniform across all openings, plays everything strongly.
+  'fairy-stockfish': {
+    'op-khun-pawn': 1, 'op-met-shuffle': 1, 'op-khon-fianchetto': 1,
+    'op-khon-line': 1, 'op-rua-line': 1,
+  },
+};
+
+/** Pick an opening line by weighted random over the personality's
+ *  preferences. Returns the chosen line; never null (falls back to
+ *  Khun-pawn for unknown personalities). */
+function pickOpening(personalityId: string): OpeningLine {
+  const prefs = OPENING_PREFERENCES[personalityId] ?? OPENING_PREFERENCES['fairy-stockfish'];
+  const total = Object.values(prefs).reduce((s, w) => s + w, 0);
+  if (total <= 0) return OPENING_BOOK[0];
+  let pick = Math.random() * total;
+  for (const opening of OPENING_BOOK) {
+    const w = prefs[opening.id] ?? 0;
+    pick -= w;
+    if (pick <= 0) return opening;
+  }
+  return OPENING_BOOK[0];
+}
 
 import {
   applyMove,
@@ -334,7 +386,20 @@ export function simulateExhibitionGame(
   }
   const moves: string[] = [];
 
-  for (let ply = 0; ply < MAX_PLIES; ply++) {
+  // Opening book — white's personality picks the line; both sides
+  // follow the 4 prescribed plies. Skips silently if any book move
+  // is somehow illegal (data drift).
+  const opening = pickOpening(whiteBot.personality);
+  for (const bookMove of opening.moves) {
+    const applied = applyMove(pos, bookMove);
+    if (!applied.ok) break;
+    pos = applied.position;
+    moves.push(bookMove);
+    const earlyStatus = classify(pos);
+    if (earlyStatus.state !== 'ongoing') break;
+  }
+
+  for (let ply = moves.length; ply < MAX_PLIES; ply++) {
     const bot = pos.turn === 'white' ? whiteBot : blackBot;
     const move = pickMove(pos, bot.personality, bot.tier);
     if (move === null) break; // no legal moves — classify below
