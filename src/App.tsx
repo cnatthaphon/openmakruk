@@ -115,6 +115,7 @@ import {
 import { autoAnalyze, nnueAutoLoad } from './lib/flags';
 import { fenToPieceMap } from './lib/makruk';
 import { letterToPiece, PIECE_VALUE } from './lib/chessAttacks';
+import { titleForRating } from './lib/titles';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -1667,6 +1668,22 @@ export default function App() {
               </span>
             ) : null;
           })()}
+          {(() => {
+            const tier = titleForRating(stats.rating);
+            // "มือใหม่" is the default for sub-1000 — too generic to
+            // surface in the chrome, so we hide it. Real titles
+            // (ผู้เล่น+) render with their accent colour.
+            if (tier.minRating < 1000) return null;
+            return (
+              <span
+                className="app-profile-title"
+                title={`${tier.th} · ${tier.descTh}`}
+                style={{ color: tier.color, borderColor: tier.color }}
+              >
+                {tier.th}
+              </span>
+            );
+          })()}
           <span className="app-profile-name">{stats.displayName}</span>
           <span
             className="app-profile-rating"
@@ -1953,12 +1970,14 @@ export default function App() {
                           onClick={() => {
                             const oppName = DIFFICULTY_LABELS[difficulty];
                             const plyCount = history.length;
+                            const tier = titleForRating(stats.rating);
+                            const titlePrefix = tier.minRating >= 1000 ? `${tier.th} ` : '';
                             const outcomeText = drawHere
-                              ? `เสมอกับ ${oppName}`
+                              ? `${titlePrefix}เสมอกับ ${oppName}`
                               : userWonHere
-                                ? `ผมชนะ ${oppName}`
-                                : `ผมแพ้ ${oppName}`;
-                            const text = `${outcomeText} ใน ${plyCount} ตา · มาลองเล่น Makruk กัน`;
+                                ? `${titlePrefix}ชนะ ${oppName}`
+                                : `${titlePrefix}แพ้ ${oppName}`;
+                            const text = `${outcomeText} ใน ${plyCount} ตา · openmakruk.com`;
                             const url = 'https://openmakruk.com';
                             if (typeof navigator.share === 'function') {
                               navigator

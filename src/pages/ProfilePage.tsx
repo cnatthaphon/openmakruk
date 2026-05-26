@@ -19,6 +19,7 @@ import { toast } from '../components/Toast';
 import { loadStreak } from '../lib/streak';
 import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { navigate } from '../lib/router';
+import { titleForRating, ratingToNextTitle } from '../lib/titles';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -158,8 +159,27 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
           )}
         </div>
         <div className="profile-rating-block">
-          <div className="profile-rating-value">{stats.rating}</div>
-          <div className="profile-rating-label">Rating</div>
+          {(() => {
+            const tier = titleForRating(stats.rating);
+            const next = ratingToNextTitle(stats.rating);
+            return (
+              <>
+                <div className="profile-rating-value">{stats.rating}</div>
+                <div
+                  className="profile-rating-title"
+                  style={{ color: tier.color }}
+                  title={tier.descTh}
+                >
+                  {tier.th}
+                </div>
+                <div className="profile-rating-label">
+                  {next
+                    ? `อีก ${next.remaining} → ${next.next.th}`
+                    : 'ระดับสูงสุดของตำแหน่ง'}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </header>
 
