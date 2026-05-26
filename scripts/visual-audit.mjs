@@ -47,7 +47,8 @@ for (const vp of VIEWPORTS) {
   try {
     await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
     await page.evaluate(() => {
-      try { localStorage.clear(); sessionStorage.clear(); } catch {}
+      // eslint-disable-next-line no-undef
+      try { localStorage.clear(); sessionStorage.clear(); } catch { /* ignore */ }
     });
   } catch (e) {
     console.log(`  ! warmup failed: ${e.message}`);
