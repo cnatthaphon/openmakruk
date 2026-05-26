@@ -31,6 +31,13 @@ export default [
       'worker/dist/**',
       'worker/seed-curated.sql',
       'tests/e2e/.storage-state.json',
+      // Ad-hoc QA scripts use browser globals (PerformanceObserver,
+      // performance, sessionStorage) inside page.evaluate() callbacks
+      // that ESLint can't see across the playwright boundary. They're
+      // not source code — exclude from the lint gate.
+      'scripts/qa-*.mjs',
+      'scripts/smoke-prod-deep.mjs',
+      'scripts/visual-audit.mjs',
     ],
   },
   js.configs.recommended,
