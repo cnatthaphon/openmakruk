@@ -1205,7 +1205,6 @@ function SeasonHallOfFameSection() {
           {new Date(active.endsAt).toLocaleDateString('th-TH')}
         </p>
       )}
-      {!seasons && <p className="label-aside">กำลังโหลด…</p>}
       {seasons && seasons.length === 0 && (
         <p className="label-aside">ยังไม่มีฤดูกาลที่ปิด · cron rollover จะบันทึกหลังจบไตรมาสแรก</p>
       )}
