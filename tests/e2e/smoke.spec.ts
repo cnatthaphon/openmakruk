@@ -17,6 +17,11 @@ const TABS = [
   { hash: 'about',    label: /เกี่ยวกับ/ },
 ];
 
+// Hidden routes (no nav tab) — smoke just verifies they don't crash.
+const HIDDEN_ROUTES = [
+  { hash: 'counting', expect: /Counting Trainer/ },
+];
+
 test.describe('smoke: all tabs load', () => {
   for (const tab of TABS) {
     test(`/#/${tab.hash} renders`, async ({ page }) => {
@@ -26,6 +31,16 @@ test.describe('smoke: all tabs load', () => {
       // Active tab button should have the matching label
       await expect(page.locator('button.tab.is-active').first()).toContainText(tab.label);
       await waitForContentReady(page);
+      expect(errors).toEqual([]);
+    });
+  }
+
+  for (const route of HIDDEN_ROUTES) {
+    test(`/#/${route.hash} (hidden route) renders without crashing`, async ({ page }) => {
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(e.message));
+      await page.goto(`/#/${route.hash}`);
+      await expect(page.locator('body')).toContainText(route.expect);
       expect(errors).toEqual([]);
     });
   }

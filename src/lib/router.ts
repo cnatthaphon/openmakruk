@@ -39,6 +39,9 @@ export const TAB_IDS = [
   // Bot character detail — `/#/bots/<bot-id>`. Deep-linkable from Bot
   // Hall of Fame cards + sharable. Hidden from nav like cert.
   'bots',
+  // Counting Trainer drill — `/#/counting` (level picker) or
+  // `/#/counting/<level-id>` (active drill).
+  'counting',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];

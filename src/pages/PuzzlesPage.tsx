@@ -204,17 +204,14 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
             even know it exists. */}
         <button
           className="puzzles-counting-banner"
-          onClick={() => {
-            const first = puzzles?.find((p) => p.category === 'counting');
-            if (first) setActivePuzzleId(first.id);
-          }}
-          aria-label="ฝึกการนับ — กฎเฉพาะของหมากรุกไทย"
+          onClick={() => navigate({ tab: 'counting' })}
+          aria-label="Counting Trainer — กฎเฉพาะของหมากรุกไทย"
         >
           <span className="puzzles-counting-icon">🔢</span>
           <div className="puzzles-counting-text">
-            <strong>การนับ trainer</strong>
+            <strong>Counting Trainer · drill mode</strong>
             <span className="label-aside">
-              · กฎเฉพาะหมากรุกไทย · ขุนเหลือเปลือยต้องรุกฆาตในกี่ตา
+              · 5 levels · ไล่ขุนเปลือยให้จนภายในกรอบเวลา
             </span>
           </div>
           <span className="puzzles-counting-cta">เริ่มฝึก →</span>

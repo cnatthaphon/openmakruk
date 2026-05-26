@@ -6298,3 +6298,207 @@ footer a:hover {
   }
 }
 
+/* ─── Counting Trainer drill ─────────────────────────────────── */
+.drill-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+.drill-back {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 20px;
+}
+.drill-back:hover {
+  background: rgba(255,255,255,0.06);
+}
+.drill-error {
+  color: #c75555;
+}
+.drill-index-header {
+  margin-bottom: 18px;
+}
+.drill-index-header h2 {
+  margin: 0 0 4px;
+}
+.drill-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.drill-card {
+  text-align: left;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  color: var(--fg);
+  transition: background 0.1s ease, border-color 0.1s ease, transform 0.1s ease;
+}
+.drill-card:hover {
+  background: rgba(212,162,60,0.1);
+  border-color: rgba(212,162,60,0.3);
+  transform: translateY(-1px);
+}
+.drill-card.is-cleared {
+  border-color: rgba(122,186,127,0.4);
+  background: rgba(122,186,127,0.06);
+}
+.drill-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.drill-card-stars {
+  font-size: 14px;
+}
+.drill-card-desc {
+  margin: 0 0 4px;
+  color: rgba(255,255,255,0.85);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* Active drill runner */
+.drill-runner .drill-header {
+  margin-bottom: 16px;
+}
+.drill-runner .drill-header h2 {
+  margin: 0 0 4px;
+}
+.drill-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 20px;
+  align-items: start;
+}
+.drill-board-col {
+  display: flex;
+  justify-content: center;
+}
+.drill-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.drill-counter {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+}
+.drill-counter-label {
+  font-size: 12px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.drill-counter-value {
+  font-size: 2.4rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--fg);
+  line-height: 1.1;
+  margin: 4px 0;
+}
+.drill-counter-unit {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--fg-dim);
+}
+.drill-counter-bar {
+  height: 8px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 8px 0 4px;
+}
+.drill-counter-fill {
+  height: 100%;
+  background: #7aba7f;
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.drill-counter-bar.is-warn .drill-counter-fill { background: #e8c45a; }
+.drill-counter-bar.is-danger .drill-counter-fill { background: #e85a4a; }
+.drill-hint {
+  padding: 10px 12px;
+  background: rgba(212,162,60,0.1);
+  border: 1px solid rgba(212,162,60,0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.5;
+}
+.drill-action {
+  padding: 10px 16px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: 0;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+.drill-action:hover {
+  filter: brightness(1.05);
+}
+.drill-secondary {
+  background: rgba(255,255,255,0.08);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.drill-secondary:hover {
+  background: rgba(255,255,255,0.14);
+}
+.drill-result {
+  padding: 16px;
+  border-radius: 10px;
+  text-align: center;
+}
+.drill-result.is-won {
+  background: rgba(122,186,127,0.12);
+  border: 1px solid rgba(122,186,127,0.35);
+}
+.drill-result.is-failed {
+  background: rgba(232,90,74,0.08);
+  border: 1px solid rgba(232,90,74,0.3);
+}
+.drill-result-icon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+.drill-result-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  margin: 6px 0 2px;
+}
+.drill-result-meta {
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+.drill-result-stars {
+  font-size: 1.4rem;
+  margin: 8px 0 4px;
+}
+.drill-result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .drill-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
