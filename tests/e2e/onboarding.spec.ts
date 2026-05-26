@@ -37,7 +37,8 @@ test.describe('onboarding modal', () => {
 
     // Step 4: opponent picker → finish
     await expect(page.getByText('เลือกคู่ต่อสู้คนแรก')).toBeVisible();
-    // Pick the second option (wanderer) to exercise non-default path.
+    // Pick the second option (cautious — wanderer is now the default
+    // at index 0 after Phase 11 removed Random Bot from the list).
     await page.locator('.onboarding-opponent').nth(1).click();
     await page.getByRole('button', { name: /เริ่มเล่น/ }).click();
 
@@ -53,7 +54,7 @@ test.describe('onboarding modal', () => {
     const onboarded = await page.evaluate(() => localStorage.getItem('openmakruk_onboarded'));
     expect(onboarded).toBe('1');
     const settings = await readStore<{ engineId: string }>(page, 'openmakruk_settings');
-    expect(settings?.engineId).toBe('personality:wanderer');
+    expect(settings?.engineId).toBe('personality:cautious');
   });
 
   test('skip button dismisses without making changes', async ({ page }) => {
