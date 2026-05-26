@@ -41,9 +41,11 @@ test.describe('onboarding modal', () => {
     await page.locator('.onboarding-opponent').nth(1).click();
     await page.getByRole('button', { name: /เริ่มเล่น/ }).click();
 
-    // Modal closes, app lands on /#/play.
+    // Modal closes, app lands on /#/puzzles (post-onboarding redirect
+    // changed from /#/play in Phase 11 — new users get a real first-
+    // task moment by being placed in front of the puzzle list).
     await expect(page.locator('.onboarding-modal')).toHaveCount(0);
-    expect(page.url()).toContain('#/play');
+    expect(page.url()).toContain('#/puzzles');
 
     // Verify name + engine persisted, and onboarded flag is set.
     const stats = await readStore<{ displayName: string }>(page, 'openmakruk_stats');
