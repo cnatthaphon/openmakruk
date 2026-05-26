@@ -24,8 +24,13 @@ import {
 // Side-effect import: registers Fairy-Stockfish as the default engine.
 // Importing the module is what calls registerEngine() at its bottom.
 import './engines/fairyStockfish';
-import './engines/randomBot';
-import './engines/greedyBot';
+// Random-bot and Greedy-bot baselines REMOVED — they masked real bugs
+// (e.g. review.ts grading a game with Random Bot returned "no
+// blunders" because random can't see threats; users defaulted to
+// random-bot after onboarding and never realised every game was a
+// nonsense shuffle). All "fallback" engines now go through
+// Fairy-Stockfish or the 7 personality bots — if something can't load
+// a real engine, surface the error instead of producing garbage.
 import './personalities/scoredBot';
 
 // ---- Re-exports (backward compat) -------------------------------------

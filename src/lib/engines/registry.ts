@@ -97,3 +97,25 @@ export function getActiveEngine(): Promise<MakrukEngine> {
 export function getActiveEngineSync(): MakrukEngine | null {
   return activeInstance;
 }
+
+// Cache of one-off engines instantiated for analysis-only purposes
+// (post-game review). They share no state with the active-engine slot
+// so reviewing with Fairy-Stockfish doesn't disturb whatever engine
+// the user picked for play.
+const adhocInstances = new Map<string, MakrukEngine>();
+
+/** Fetch a specific engine by id, instantiating + initing on first
+ *  request. Independent of the active engine — used by post-game
+ *  review to force-analyse with Fairy-Stockfish regardless of which
+ *  engine the user selected for play. */
+export async function getEngineById(id: string): Promise<MakrukEngine> {
+  if (id === activeId && activeInstance) return activeInstance;
+  const existing = adhocInstances.get(id);
+  if (existing) return existing;
+  const d = descriptors.get(id);
+  if (!d) throw new Error(`engineRegistry: unknown engine "${id}"`);
+  const instance = d.factory();
+  await instance.init();
+  adhocInstances.set(id, instance);
+  return instance;
+}

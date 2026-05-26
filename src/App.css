@@ -29,6 +29,14 @@
   box-sizing: border-box;
 }
 
+/* Reserve the vertical scrollbar gutter at all times so opening a
+   modal / popup (which adds content + a scrollbar) doesn't shift the
+   entire viewport horizontally. Stable-gutter is the modern standard
+   and supported by every browser this codebase targets. */
+html {
+  scrollbar-gutter: stable;
+}
+
 html, body, #root {
   margin: 0;
   padding: 0;

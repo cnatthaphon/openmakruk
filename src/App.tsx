@@ -1971,11 +1971,11 @@ export default function App() {
                     </div>
                   );
                 })()}
-                {gameOverSubtitle(forcedResult ?? state.result, mode, state.counting) && (
+                {gameOverSubtitle(forcedResult ?? state.result, mode, state.counting, state.legalMoves, state.isCheck, state.fen) && (
                   <div className="game-over-subtitle">
                     {forcedResult
                       ? forcedSubtitle(forcedResult, mode)
-                      : gameOverSubtitle(state.result, mode, state.counting)}
+                      : gameOverSubtitle(state.result, mode, state.counting, state.legalMoves, state.isCheck, state.fen)}
                   </div>
                 )}
                 {(() => {
@@ -3067,13 +3067,35 @@ function gameOverIcon(result: string, mode: Mode): string {
   return '🎉';
 }
 
-function gameOverSubtitle(result: string, mode: Mode, counting: CountInfo): string | null {
+function gameOverSubtitle(
+  result: string,
+  mode: Mode,
+  counting: CountInfo,
+  legalMoves?: string[],
+  isCheck?: boolean,
+  fen?: string,
+): string | null {
   if (mode !== 'play-white' && mode !== 'play-black') return null;
   if (result === '1/2-1/2') {
+    // Distinguish the WHY for draws so the user understands why they
+    // didn't win the position they thought looked winnable.
     if (counting.active && counting.remaining === 0) {
-      return 'ฝ่ายแข็งกว่าไล่ไม่จนภายใน count limit';
+      return '🔢 ฝ่ายแข็งกว่าไล่ไม่จนภายใน count limit (Makruk counting rule)';
     }
-    return 'ไม่ฝ่ายไหนชนะ';
+    // Stalemate — side to move has no legal moves but isn't in check.
+    if (legalMoves !== undefined && legalMoves.length === 0 && isCheck === false) {
+      return '🪦 อับ (stalemate) — ฝ่ายเดินไม่มีตา · แต่ไม่ถูกรุก';
+    }
+    // 50-move-equivalent halfmove counter from FEN. Field index 4 of
+    // a standard FEN is the halfmove counter since last
+    // capture/pawn-move. ffish's draw threshold is 100 halfmoves.
+    if (fen) {
+      const halfmove = parseInt(fen.split(' ')[4] ?? '0', 10);
+      if (halfmove >= 100) {
+        return `⏳ 50-move rule (${halfmove} halfmoves ไม่มีการจับ/เดิน Bia)`;
+      }
+    }
+    return '🔁 ตำแหน่งซ้ำ 3 ครั้ง (threefold repetition) — ไม่ฝ่ายไหนชนะ';
   }
   const userWon =
     (mode === 'play-white' && result === '1-0') ||

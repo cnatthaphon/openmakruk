@@ -35,30 +35,33 @@ type Props = {
 // Curated starting opponents for new users — narrower than the full
 // catalog so we don't overwhelm. Sorted from gentlest → spicier so
 // the natural reading order is also the difficulty ramp.
+// First-opponent picks — gentlest personality first. Random Bot is
+// gone entirely (it masked engine-load bugs by happily playing
+// garbage); the user picks a real character from move 1.
 const STARTING_OPPONENTS: { engineId: string; label: string; emoji: string; desc: string }[] = [
-  {
-    engineId: 'random-bot',
-    label: 'Random Bot',
-    emoji: '🎲',
-    desc: 'อ่อนสุด · เดินสุ่ม · เหมาะลองสนามครั้งแรก',
-  },
   {
     engineId: personalityEngineId('wanderer'),
     label: 'นักเดิน',
     emoji: '🍃',
-    desc: 'มีจุดยุทธวิธีนิดหน่อย · ระดับเริ่มต้น',
+    desc: 'เดินสับสน บางทีฉลาดเกินคาด · ระดับเริ่มต้น (~700 Elo)',
   },
   {
     engineId: personalityEngineId('cautious'),
     label: 'ระวังตัว',
     emoji: '🐢',
-    desc: 'เน้นป้องกัน · เกมยาว · ลองฝึกบุก',
+    desc: 'เน้นป้องกัน · เกมยาว · ลองฝึกบุก (~900 Elo)',
+  },
+  {
+    engineId: personalityEngineId('defender'),
+    label: 'นักรับ',
+    emoji: '🛡️',
+    desc: 'รักษาตัวรวมหมู่ · ไม่ค่อยบุก (~950 Elo)',
   },
   {
     engineId: personalityEngineId('positional'),
     label: 'ตามตำแหน่ง',
     emoji: '🧭',
-    desc: 'รักษากลาง · ระดับ club beginner',
+    desc: 'รักษากลาง · ระดับ club beginner (~1000 Elo)',
   },
 ];
 
@@ -80,7 +83,12 @@ export function OnboardingModal({ onClose }: Props) {
       saveSession({ ...sess, province });
     }
     markOnboarded();
-    navigate({ tab: 'play', id: null });
+    // First-task heuristic: drop the new user into a mate-in-1 puzzle
+    // instead of an empty play board. Solving one easy puzzle in the
+    // first 60 seconds is a much sharper success moment than staring
+    // at an unfamiliar start position. The puzzles tab itself surfaces
+    // the daily puzzle prominently so they'll see it.
+    navigate({ tab: 'puzzles', id: null });
     onClose();
   };
 

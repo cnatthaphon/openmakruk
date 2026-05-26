@@ -8,8 +8,16 @@
 // suggested best move.
 
 import type { Board as FfishBoard } from 'ffish-es6';
-import { getActiveEngine, searchBestMove } from './engine';
+import { getEngineById } from './engines/registry';
 import { log } from './log';
+
+// Post-game review ALWAYS uses Fairy-Stockfish, never the user's
+// currently-active play engine. Reason: if the user chose Random
+// Bot for play, asking that bot to grade the just-played game
+// produces "every move was fine" because the bot can't see threats.
+// Reviews must be honest — that requires a strong evaluator
+// regardless of who the user was playing against.
+const ANALYSIS_ENGINE_ID = 'fairy-stockfish';
 
 // Fallback only — every registered engine declares `analysisDefaults`
 // in its capabilities. Used when the active engine somehow surfaces
@@ -113,10 +121,10 @@ export async function analyzeGame(
   moves: string[],
   onProgress?: ProgressCallback,
 ): Promise<AnnotatedMove[]> {
-  // Read the analysis search opts from the active engine's capability
-  // descriptor. Lets a future MCTS-based engine pass `{nodes: 4000}`
-  // instead of `{depth: 12}` without touching this caller.
-  const engine = await getActiveEngine();
+  // Force Fairy-Stockfish for analysis — see ANALYSIS_ENGINE_ID
+  // comment above. Reviews are dishonest when graded by Random Bot
+  // or a personality bot that can't see captures.
+  const engine = await getEngineById(ANALYSIS_ENGINE_ID);
   const searchOpts = engine.capabilities.analysisDefaults ?? FALLBACK_ANALYSIS;
 
   log('review.analyze.start', {
@@ -131,12 +139,12 @@ export async function analyzeGame(
     const fenBefore = board.fen();
     const sideToMove: 'white' | 'black' = board.turn() ? 'white' : 'black';
 
-    const before = await searchBestMove(fenBefore, searchOpts);
+    const before = await engine.search(fenBefore, searchOpts);
 
     board.push(move);
     const fenAfter = board.fen();
 
-    const afterOpp = await searchBestMove(fenAfter, searchOpts);
+    const afterOpp = await engine.search(fenAfter, searchOpts);
 
     // afterOpp is from the OPPONENT's POV. Flip sign for the side that
     // just moved so we can compare apples to apples with `before`.

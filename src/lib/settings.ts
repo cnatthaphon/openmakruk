@@ -58,6 +58,10 @@ export const DEFAULT_SETTINGS: Settings = {
   engineId: 'fairy-stockfish',
 };
 
+// Auto-migrate any saved engineId that points to a now-deleted engine
+// (random-bot / greedy-bot). Wraps loadSettings's user below.
+const REMOVED_ENGINE_IDS = new Set(['random-bot', 'greedy-bot']);
+
 const store = defineStore<Settings>({
   key: 'openmakruk_settings',
   version: SETTINGS_VERSION,
@@ -72,7 +76,16 @@ const store = defineStore<Settings>({
 });
 
 export function loadSettings(): Settings {
-  return store.load();
+  const raw = store.load();
+  // If the user previously selected one of the now-removed baseline
+  // bots, silently bump them to Fairy-Stockfish so they don't sit on
+  // an engine id that no longer exists in the registry.
+  if (REMOVED_ENGINE_IDS.has(raw.engineId)) {
+    const fixed: Settings = { ...raw, engineId: 'fairy-stockfish' };
+    store.save(fixed);
+    return fixed;
+  }
+  return raw;
 }
 
 export function saveSettings(settings: Settings): void {
