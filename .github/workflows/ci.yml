@@ -113,3 +113,19 @@ jobs:
             test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+      # Deploy frontend to Cloudflare Pages — only on push to main,
+      # and only if everything above passed (default step-conditional
+      # behavior). PR builds do not deploy. The `dist/` directory is
+      # already produced by the Build step earlier in this job.
+      #
+      # Requires repo secrets:
+      #   CLOUDFLARE_API_TOKEN — token with Pages:Edit permission
+      #   CLOUDFLARE_ACCOUNT_ID — account id for openmakruk-api
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name openmakruk --branch main
