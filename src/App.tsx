@@ -98,6 +98,7 @@ import {
   loadChallengeTarget,
   type ChallengeTarget,
 } from './lib/challenge';
+import { findNarrative } from './lib/personalities/narrative';
 import {
   playCapture,
   playCheck,
@@ -134,6 +135,7 @@ import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
 import { GameReport } from './components/GameReport';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { toast } from './components/Toast';
+import { claimDailyRewardIfDue } from './lib/dailyReward';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActivityTicker } from './components/ActivityTicker';
 import { BottomNav } from './components/BottomNav';
@@ -414,6 +416,22 @@ export default function App() {
     const next = recordActivity(loadStreak());
     saveStreak(next);
     log('streak.pulse', { current: next.current, longest: next.longest });
+    // Daily login reward — one toast per local day, escalating tone
+    // at milestone days (3 / 7 / 14 / 30 / 100). Runs AFTER the streak
+    // pulse so the milestone reads the just-updated streak count.
+    const reward = claimDailyRewardIfDue();
+    if (reward) {
+      log('streak.reward.claimed', { day: reward.streakDay, tier: reward.tier });
+      // Use slight delay so toast lands AFTER initial UI mount —
+      // otherwise it can clip behind the loading skeleton.
+      window.setTimeout(() => {
+        if (reward.tier === 'epic' || reward.tier === 'big') {
+          toast.success(reward.message);
+        } else {
+          toast.info(reward.message);
+        }
+      }, 800);
+    }
   }, []);
 
   // Achievement evaluation — runs whenever stats / puzzle / lesson
@@ -1823,6 +1841,18 @@ export default function App() {
               <span className="label-aside">
                 rating {challenge.rating} · ผลเกมจะนับใน Bot Hall of Fame
               </span>
+              {(() => {
+                // Bot's pre-game line — adds character before move 1.
+                // Only shown while no moves have been played yet so it
+                // doesn't keep nagging mid-game.
+                const narr = findNarrative(challenge.personality);
+                if (!narr || history.length > 0) return null;
+                return (
+                  <span className="challenge-banner-quote">
+                    💬 {narr.preGameQuote}
+                  </span>
+                );
+              })()}
             </div>
             <button
               className="challenge-banner-clear"
@@ -1888,9 +1918,24 @@ export default function App() {
             showLegalDots={settings.showLegalDots}
             animationMs={settings.animationMs}
           />
-          {(state.isGameOver || forcedResult) && !reviewActive && (
+          {(state.isGameOver || forcedResult) && !reviewActive && (() => {
+            // Outcome class drives the result-specific accent +
+            // celebration animation (gold-glow on win, neutral on
+            // draw, soft red on loss).
+            const effectiveResult = forcedResult ?? state.result;
+            const userWonCard =
+              (mode === 'play-white' && effectiveResult === '1-0') ||
+              (mode === 'play-black' && effectiveResult === '0-1');
+            const userLostCard =
+              (mode === 'play-white' && effectiveResult === '0-1') ||
+              (mode === 'play-black' && effectiveResult === '1-0');
+            const drawCard = effectiveResult === '1/2-1/2';
+            const outcomeClass = userWonCard ? 'is-win'
+              : userLostCard ? 'is-loss'
+              : drawCard ? 'is-draw' : '';
+            return (
             <div className="game-over-overlay" role="dialog" aria-live="polite">
-              <div className="game-over-card">
+              <div className={`game-over-card ${outcomeClass}`}>
                 <div className="game-over-icon">
                   {gameOverIcon(forcedResult ?? state.result, mode)}
                 </div>
@@ -1899,6 +1944,26 @@ export default function App() {
                     ? formatForcedResult(forcedResult, mode)
                     : formatResult(state.result, state.counting)}
                 </div>
+                {(() => {
+                  // Bot's reaction line — win/loss specific. Only
+                  // surfaced when the user is in an active bot
+                  // challenge so the source of the quote is obvious.
+                  // Draws skip the quote (no clear emotional beat).
+                  if (!challenge || drawCard) return null;
+                  const narr = findNarrative(challenge.personality);
+                  if (!narr) return null;
+                  // userLostCard = bot won → bot's winQuote.
+                  // userWonCard  = bot lost → bot's lossQuote.
+                  const quote = userLostCard ? narr.winQuote
+                              : userWonCard  ? narr.lossQuote
+                              : null;
+                  if (!quote) return null;
+                  return (
+                    <div className="game-over-quote">
+                      {challenge.avatar} {challenge.displayName}: 💬 {quote}
+                    </div>
+                  );
+                })()}
                 {gameOverSubtitle(forcedResult ?? state.result, mode, state.counting) && (
                   <div className="game-over-subtitle">
                     {forcedResult
@@ -1999,7 +2064,8 @@ export default function App() {
                 })()}
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
         <aside className="sidebar">
           {clock && !reviewActive && (
