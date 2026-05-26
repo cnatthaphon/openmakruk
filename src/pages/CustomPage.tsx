@@ -25,6 +25,9 @@ import type { PuzzleCategory } from '../lib/puzzleSchema';
 import { verifyAndAnnotate } from '../lib/puzzleVerifier';
 import { saveUserPuzzle, newUserPuzzleId } from '../lib/userPuzzles';
 import { loadStats } from '../lib/stats';
+import { loadFfish } from '../lib/makruk';
+import { searchBestMove } from '../lib/engine';
+import { getEngineById } from '../lib/engines/registry';
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
@@ -320,6 +323,52 @@ function PuzzleAuthorPanel({
   const [prompt, setPrompt] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+
+  // Engine auto-suggest — runs Fairy-Stockfish from the current
+  // position and plays both sides through up to 5 plies, populating
+  // the solution field with the best line. User can edit before save.
+  // Use case: "I've placed an interesting tactic, what's the line?"
+  // The user doesn't have to type UCI by hand.
+  const handleAutoSuggest = async () => {
+    setSuggesting(true);
+    setFeedback(null);
+    try {
+      const ffish = await loadFfish();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ffishAny = ffish as any;
+      const board = new ffishAny.Board('makruk', fen);
+      // Force Fairy-Stockfish (same as review.ts) — personality bots
+      // wouldn't return a meaningful "best line".
+      const engine = await getEngineById('fairy-stockfish');
+      const opts = engine.capabilities.analysisDefaults ?? { depth: 12 };
+      const moves: string[] = [];
+      try {
+        // Play up to 5 plies (~3 user moves + 2 opponent replies) —
+        // long enough to capture mate-in-2 + tactic sequences without
+        // running forever.
+        for (let i = 0; i < 5; i++) {
+          if (board.isGameOver(true)) break;
+          const result = await searchBestMove(board.fen(), opts);
+          if (!result.bestMove || result.bestMove.length < 4) break;
+          board.push(result.bestMove);
+          moves.push(result.bestMove);
+        }
+      } finally {
+        board.delete();
+      }
+      if (moves.length === 0) {
+        setFeedback('✗ Engine ไม่พบตาที่เล่นได้ (ตำแหน่งอาจ checkmate/stalemate อยู่แล้ว)');
+      } else {
+        setSolutionText(moves.join(' '));
+        setFeedback(`✓ Auto-suggest: ${moves.length} ตา · แก้ได้ก่อน verify`);
+      }
+    } catch (err) {
+      setFeedback(`✗ Auto-suggest failed: ${String(err)}`);
+    } finally {
+      setSuggesting(false);
+    }
+  };
 
   const handleSave = async () => {
     setVerifying(true);
@@ -393,13 +442,24 @@ function PuzzleAuthorPanel({
       </label>
       <label className="custom-puzzle-field custom-puzzle-solution">
         <span>ลำดับตา (UCI · คั่นด้วยช่องว่าง)</span>
-        <input
-          type="text"
-          value={solutionText}
-          onChange={(e) => setSolutionText(e.target.value)}
-          placeholder="เช่น 'a1a8' หรือ 'h5h7 a8b8 h7h8'"
-          spellCheck={false}
-        />
+        <div className="custom-puzzle-solution-row">
+          <input
+            type="text"
+            value={solutionText}
+            onChange={(e) => setSolutionText(e.target.value)}
+            placeholder="เช่น 'a1a8' หรือ 'h5h7 a8b8 h7h8'"
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="custom-puzzle-suggest"
+            onClick={handleAutoSuggest}
+            disabled={suggesting || verifying}
+            title="ให้ engine เดินคอม-vs-คอม จากตำแหน่งปัจจุบัน 5 ตา · แก้ได้ก่อน save"
+          >
+            {suggesting ? '🔍 คิด...' : '🤖 Auto-suggest'}
+          </button>
+        </div>
       </label>
       {feedback && (
         <div className={`custom-puzzle-feedback ${feedback.startsWith('✗') ? 'bad' : 'good'}`}>

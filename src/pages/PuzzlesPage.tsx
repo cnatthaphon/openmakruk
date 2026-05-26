@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { loadPuzzles } from '../lib/content';
-import { loadUserPuzzles } from '../lib/userPuzzles';
+import { deleteUserPuzzle, loadUserPuzzles } from '../lib/userPuzzles';
 import { getBackend } from '../lib/backend';
 import { isPuzzleSolved, loadPuzzleProgress, type PuzzleProgress } from '../lib/puzzleProgress';
 import { formatRating, loadPuzzleRating, type PuzzleRatingState } from '../lib/puzzleRating';
@@ -36,6 +36,7 @@ type Props = {
 
 export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
   const [puzzles, setPuzzles] = useState<Puzzle[] | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<PuzzleProgress>(() => loadPuzzleProgress());
   const [rating] = useState<PuzzleRatingState>(() => loadPuzzleRating());
@@ -92,7 +93,9 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // reloadKey lets MyPuzzlesSection trigger a re-pull after deletes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadKey]);
 
   // React to route changes while the page is mounted (e.g. user pastes
   // a deep link or clicks a daily-puzzle card). When the requested id
@@ -306,6 +309,11 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
         );
       })()}
 
+      <MyPuzzlesSection
+        onOpen={(id) => setActivePuzzleId(id)}
+        onRefresh={() => setReloadKey((k) => k + 1)}
+      />
+
       <div className="puzzles-categories">
         {PUZZLE_CATEGORY_ORDER.map((cat) => {
           const list = byCategory[cat];
@@ -379,4 +387,69 @@ function dedupeById(puzzles: Puzzle[]): Puzzle[] {
     out.push(p);
   }
   return out;
+}
+
+/** Lists user-authored puzzles with delete + open-to-solve actions.
+ *  Hidden when the user hasn't authored any. */
+function MyPuzzlesSection({
+  onOpen,
+  onRefresh,
+}: {
+  onOpen: (id: string) => void;
+  onRefresh: () => void;
+}) {
+  const [mine, setMine] = useState(() => loadUserPuzzlesLocal());
+  function loadUserPuzzlesLocal() {
+    return loadUserPuzzles();
+  }
+  if (mine.length === 0) {
+    return (
+      <section className="my-puzzles-section my-puzzles-empty">
+        <p className="label-aside">
+          🧩 ยังไม่มี puzzle ของคุณ · ออกแบบที่{' '}
+          <a href="#/custom" className="my-puzzles-link">🎨 ออกแบบ</a>{' '}
+          แล้วกด "🧩 บันทึกเป็น puzzle" — engine จะ verify ก่อน
+        </p>
+      </section>
+    );
+  }
+  const handleDelete = (id: string) => {
+    if (!window.confirm('ลบ puzzle นี้?')) return;
+    deleteUserPuzzle(id);
+    setMine(loadUserPuzzlesLocal());
+    onRefresh();
+  };
+  return (
+    <section className="my-puzzles-section">
+      <h3>🧩 ของฉัน · {mine.length} puzzle</h3>
+      <p className="label-aside">
+        Puzzle ที่คุณออกแบบเอง · ออกได้ที่{' '}
+        <a href="#/custom" className="my-puzzles-link">🎨 ออกแบบ</a>
+      </p>
+      <ul className="my-puzzles-list">
+        {mine.map((p) => (
+          <li key={p.id} className="my-puzzles-row">
+            <button
+              className="my-puzzles-open"
+              onClick={() => onOpen(p.id)}
+              title="แก้ปริศนา"
+            >
+              <strong>{p.prompt ?? p.id}</strong>
+              <span className="label-aside">
+                {p.category} · rating {p.rating} · {p.solution.length} ตา
+              </span>
+            </button>
+            <button
+              className="my-puzzles-delete"
+              onClick={() => handleDelete(p.id)}
+              aria-label="ลบ"
+              title="ลบ puzzle"
+            >
+              🗑
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
