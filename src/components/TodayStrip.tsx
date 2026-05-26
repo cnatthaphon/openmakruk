@@ -19,8 +19,9 @@ import { loadLessons, loadPuzzles } from '../lib/content';
 import { isDailySolvedToday, pickDailyPuzzle } from '../lib/dailyPuzzle';
 import { loadLessonProgress } from '../lib/learnProgress';
 import { getBackend } from '../lib/backend';
-import type { TournamentInfo } from '../lib/backend/types';
+import type { BotCharacter, TournamentInfo } from '../lib/backend/types';
 import { navigate } from '../lib/router';
+import { loadStats } from '../lib/stats';
 
 type DailyChip = {
   id: string;
@@ -33,10 +34,22 @@ type LessonChip = {
   title: string;
 };
 
+type RivalChip = {
+  botId: string;
+  displayName: string;
+  avatar: string;
+  /** Bot's wins MINUS the user's wins against it — positive = bot
+   *  has the edge, which is when the rivalry banner is most
+   *  motivating ("go back and take revenge"). */
+  botEdge: number;
+  recentGamesAgainst: number;
+};
+
 export function TodayStrip() {
   const [daily, setDaily] = useState<DailyChip | null>(null);
   const [nextLesson, setNextLesson] = useState<LessonChip | null>(null);
   const [tournament, setTournament] = useState<TournamentInfo | null>(null);
+  const [rival, setRival] = useState<RivalChip | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,12 +98,69 @@ export function TodayStrip() {
         .catch(() => undefined);
     }
 
+    // Rivalry — find a bot that has played the local user enough and
+    // currently leads the head-to-head. Local history is the source
+    // of truth because cloud sync is optional; we filter for opponent
+    // ids starting with `bot:` and group by opponent.
+    if (backend.fetchBots) {
+      const localHistory = loadStats().history;
+      const botGames = localHistory.filter((g) =>
+        typeof g.opponent === 'string' && g.opponent.startsWith('bot:'),
+      );
+      if (botGames.length >= 3) {
+        // Tally per bot id from the user's POV.
+        type Tally = { wins: number; losses: number; total: number };
+        const tally = new Map<string, Tally>();
+        for (const g of botGames) {
+          const id = String(g.opponent);
+          const cur = tally.get(id) ?? { wins: 0, losses: 0, total: 0 };
+          cur.total++;
+          if (g.outcome === 'win') cur.wins++;
+          else if (g.outcome === 'loss') cur.losses++;
+          tally.set(id, cur);
+        }
+        // Pick the bot with the largest (losses - wins) — i.e. the
+        // one the user is losing to most. Need at least 3 decided
+        // games against the same bot for it to count as a rivalry.
+        let bestId: string | null = null;
+        let bestEdge = 0;
+        let bestTotal = 0;
+        for (const [id, t] of tally.entries()) {
+          if (t.total < 3) continue;
+          const edge = t.losses - t.wins;
+          if (edge > bestEdge) {
+            bestEdge = edge;
+            bestId = id;
+            bestTotal = t.total;
+          }
+        }
+        if (bestId) {
+          backend
+            .fetchBots()
+            .then((bots: BotCharacter[]) => {
+              if (cancelled) return;
+              const bot = bots.find((b) => b.id === bestId);
+              if (bot) {
+                setRival({
+                  botId: bot.id,
+                  displayName: bot.displayName,
+                  avatar: bot.avatar,
+                  botEdge: bestEdge,
+                  recentGamesAgainst: bestTotal,
+                });
+              }
+            })
+            .catch(() => undefined);
+        }
+      }
+    }
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!daily && !nextLesson && !tournament) return null;
+  if (!daily && !nextLesson && !tournament && !rival) return null;
 
   return (
     <div className="today-strip" aria-label="วันนี้">
@@ -151,6 +221,24 @@ export function TodayStrip() {
             <span className="today-chip-body">
               <span className="today-chip-title">ทำต่อ</span>
               <span className="today-chip-meta">{nextLesson.title}</span>
+            </span>
+          </button>
+        )}
+
+        {rival && (
+          <button
+            className="today-chip today-chip-rivalry"
+            onClick={() => navigate({ tab: 'bots', id: rival.botId })}
+            title={`${rival.displayName} ชนะคุณ ${rival.botEdge} เกมในล่าสุด — ไปแก้ตัว`}
+          >
+            <span className="today-chip-icon" aria-hidden="true">
+              {rival.avatar}
+            </span>
+            <span className="today-chip-body">
+              <span className="today-chip-title">แก้ตัวกับ {rival.displayName}</span>
+              <span className="today-chip-meta">
+                แพ้นำ {rival.botEdge} จาก {rival.recentGamesAgainst} เกม
+              </span>
             </span>
           </button>
         )}

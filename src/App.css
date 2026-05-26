@@ -6328,6 +6328,14 @@ footer a:hover {
   background: rgba(122,186,127,0.1);
   border-color: rgba(122,186,127,0.35);
 }
+.today-chip-rivalry {
+  background: rgba(232,90,74,0.08);
+  border-color: rgba(232,90,74,0.3);
+}
+.today-chip-rivalry:hover {
+  background: rgba(232,90,74,0.15);
+  border-color: rgba(232,90,74,0.5);
+}
 .today-chip-icon {
   font-size: 1.3rem;
   flex-shrink: 0;
