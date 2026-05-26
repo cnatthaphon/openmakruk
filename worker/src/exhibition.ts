@@ -119,14 +119,25 @@ const PERSONALITY_WEIGHTS: Record<string, PersonalityWeights> = {
 //   depth 3 = 27,000 evals    — sees own follow-up (Master / Boss)
 // Worker scheduled handlers have 30s CPU — even depth 3 across a
 // 100-ply game stays well under budget (each eval is microseconds).
+// Depth picked conservatively because scheduled-handler CPU budget on
+// Workers is finite (effectively ~15s for free tier, more on paid).
+// Depth-3 master tier × full game easily breaches that and silently
+// kills the tick → no game inserted that round. Cap master at 2 here
+// and let the per-game real-time guard below catch any outlier.
 const TIER_DEPTH: Record<string, number> = {
   rookie: 1,
   veteran: 2,
-  master: 3,
+  master: 2,
 };
 function depthFor(tier: string | null | undefined): number {
   return (tier && TIER_DEPTH[tier]) || 1;
 }
+
+// Real-time budget for a single exhibition game. The cron tick can
+// only spend so much wall time inside the scheduled handler before
+// Cloudflare cancels it; we hard-stop the simulation loop a few
+// seconds before that to guarantee we always insert *something*.
+const MAX_REAL_TIME_MS = 12_000;
 
 // Piece values for Makruk — match client PIECE_VALUE.
 const PIECE_VALUE: Record<Role, number> = {
@@ -399,7 +410,11 @@ export function simulateExhibitionGame(
     if (earlyStatus.state !== 'ongoing') break;
   }
 
+  const startTime = Date.now();
   for (let ply = moves.length; ply < MAX_PLIES; ply++) {
+    // Wall-clock budget guard — cron handler must finish, even if
+    // that means a truncated game with whatever moves we have so far.
+    if (Date.now() - startTime > MAX_REAL_TIME_MS) break;
     const bot = pos.turn === 'white' ? whiteBot : blackBot;
     const move = pickMove(pos, bot.personality, bot.tier);
     if (move === null) break; // no legal moves — classify below
