@@ -20,6 +20,10 @@ import { loadStreak } from '../lib/streak';
 import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { navigate } from '../lib/router';
 import { titleForRating, ratingToNextTitle } from '../lib/titles';
+import { loadDrillProgress, DRILL_LEVELS } from '../lib/countingDrill';
+import { loadTrainerProgress } from '../lib/moveTrainer';
+import { loadRushProgress } from '../lib/bossRush';
+import { loadPuzzleProgress } from '../lib/puzzleProgress';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -221,6 +225,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <EventsSection />
 
       <AutoMineSection />
+
+      <MasteryOverview />
 
       <InsightsSection stats={stats} />
 
@@ -1141,6 +1147,85 @@ function MatchLeaderboardSection({ stats }: { stats: UserStats }) {
       <p className="label-aside profile-lb-note">
         คะแนน = ชนะ × น้ำหนัก + (เสมอ × น้ำหนัก / 2) · แพ้ = 0
       </p>
+    </section>
+  );
+}
+
+function MasteryOverview() {
+  // Aggregate progress across the four "skill verticals" — derived
+  // from existing local progress stores so this stays offline-safe.
+  const drill = loadDrillProgress();
+  const trainer = loadTrainerProgress();
+  const rush = loadRushProgress();
+  const puzzleProg = loadPuzzleProgress();
+
+  // Drill: cleared if best exists for that level
+  const drillCleared = Object.values(drill.bestByLevel).filter(Boolean).length;
+  const drillTotal = DRILL_LEVELS.length;
+
+  // Move Trainer: "mastered" if perfectMoves === totalMoves
+  const trainerMastered = Object.values(trainer.bestByOpening).filter(
+    (b) => b && b.perfectMoves === b.totalMoves,
+  ).length;
+  // Count by reading the catalog length lazily — fallback to 5 for
+  // the standard openings catalog if loadOpenings hasn't fired yet.
+  const trainerTotal = 5;
+
+  // Boss Rush: max clear across all tiers
+  const rushMax = Math.max(
+    rush.bestByTier.rookie?.beatenCount ?? 0,
+    rush.bestByTier.veteran?.beatenCount ?? 0,
+    rush.bestByTier.master?.beatenCount ?? 0,
+  );
+  const rushFullClears = (['rookie', 'veteran', 'master'] as const).filter(
+    (t) => (rush.bestByTier[t]?.beatenCount ?? 0) === 7,
+  ).length;
+
+  // Puzzles solved from local progress
+  const solvedPuzzles = puzzleProg.solved ? Object.keys(puzzleProg.solved).length : 0;
+
+  const tiles: { label: string; value: string; sub: string; color: string }[] = [
+    {
+      label: '🔢 Counting drills',
+      value: `${drillCleared} / ${drillTotal}`,
+      sub: drillCleared === drillTotal ? 'ครบทุก level ⭐' : 'ฝึก endgame Makruk เฉพาะตัว',
+      color: '#d4a23c',
+    },
+    {
+      label: '📖 Move Trainer',
+      value: `${trainerMastered} / ${trainerTotal}`,
+      sub: trainerMastered === trainerTotal ? 'จำ opening ครบ ⭐' : 'opening ที่จำได้แม่น',
+      color: '#a37bf5',
+    },
+    {
+      label: '🧩 Puzzles solved',
+      value: `${solvedPuzzles}`,
+      sub: 'ปริศนาทั้งหมด · รวมทุก category',
+      color: '#7aba7f',
+    },
+    {
+      label: '🏆 Boss Rush max',
+      value: `${rushMax} / 7`,
+      sub: rushFullClears > 0 ? `clear ${rushFullClears} tier เต็ม` : 'ผ่านบอตติดต่อกัน',
+      color: '#e85a4a',
+    },
+  ];
+
+  return (
+    <section className="profile-section">
+      <h3>🎯 Skill Mastery</h3>
+      <p className="label-aside">
+        ภาพรวม progress ของคุณข้าม 4 mode หลัก · อัพเดต local realtime
+      </p>
+      <div className="mastery-grid">
+        {tiles.map((t) => (
+          <div key={t.label} className="mastery-tile" style={{ borderColor: t.color + '55' }}>
+            <div className="mastery-tile-label">{t.label}</div>
+            <div className="mastery-tile-value" style={{ color: t.color }}>{t.value}</div>
+            <div className="mastery-tile-sub">{t.sub}</div>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

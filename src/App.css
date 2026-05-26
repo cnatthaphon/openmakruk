@@ -6962,6 +6962,36 @@ footer a:hover {
   background: linear-gradient(135deg, rgba(163,123,245,0.25), rgba(212,162,60,0.18));
 }
 
+/* ─── Mastery overview (Profile) ─────────────────────────────── */
+.mastery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.mastery-tile {
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  text-align: center;
+}
+.mastery-tile-label {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-bottom: 4px;
+}
+.mastery-tile-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+.mastery-tile-sub {
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin-top: 2px;
+}
+
 /* ─── Boss Rush ──────────────────────────────────────────────── */
 .rush-mode-page { max-width: 880px; margin: 0 auto; padding: 24px 16px 60px; }
 .rush-mode-back {
