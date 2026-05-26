@@ -393,11 +393,26 @@ export default function App() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
 
-  // Onboarding gate: show on first ever visit. Read once at mount so
-  // subsequent re-renders don't keep popping the modal — the flag flips
-  // in the modal's onClose. Defer initial value to a lazy initializer
-  // so localStorage isn't touched during render.
-  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
+  // Onboarding gate: show on first ever visit, UNLESS the user arrived
+  // via a deep link with explicit content (e.g. /#/puzzles/mate-001 or
+  // /#/cert/abc, /#/bots/<id>, /#/exhibition/<game>). When someone
+  // shares a puzzle link, the receiving user has clear intent — popping
+  // an onboarding modal in their face is wrong. They can still complete
+  // onboarding later by hitting Settings or root /. Read once at mount.
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (hasOnboarded()) return false;
+    // Deep link = a route with an id segment, OR a hidden-nav tab that
+    // implies specific content (cert/bots/exhibition/counting/rush).
+    const initialHash = typeof window !== 'undefined' ? window.location.hash : '';
+    const segments = initialHash.replace(/^#\//, '').split('/').filter(Boolean);
+    const tab = segments[0] ?? '';
+    const hasId = segments.length >= 2;
+    const contentTabs = new Set([
+      'cert', 'bots', 'exhibition', 'counting', 'rush', 'movetrainer', 'bossrush',
+    ]);
+    if (hasId || contentTabs.has(tab)) return false;
+    return true;
+  });
 
   // Cloud session restore: if a previous visit enabled cloud sync, the
   // bearer token is in localStorage. Re-attach to the active backend
@@ -1949,6 +1964,41 @@ export default function App() {
           </div>
         )}
         <TodayStrip />
+        {/* Quick-actions bar — always visible during an active vs-CPU
+            game, so ยอมแพ้/ขอเสมอ aren't buried inside the "ตาเดิน"
+            sub-tab the way they used to be. Matches lichess/chess.com
+            convention of having these one tap away from the board. */}
+        {(mode === 'play-white' || mode === 'play-black') &&
+          !state?.isGameOver &&
+          !forcedResult &&
+          !reviewActive &&
+          history.length > 0 && (
+            <div className="play-quick-actions">
+              <button
+                className="play-quick-button"
+                onClick={handleOfferDraw}
+                disabled={thinking || drawOfferPending}
+                title="ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน"
+              >
+                {drawOfferPending ? (
+                  <>
+                    <span className="spinner-sm" aria-hidden="true" />
+                    กำลังพิจารณา...
+                  </>
+                ) : (
+                  <>🤝 ขอเสมอ</>
+                )}
+              </button>
+              <button
+                className="play-quick-button play-quick-resign"
+                onClick={handleResign}
+                disabled={thinking}
+                title="ยอมแพ้ — บันทึกเป็น loss"
+              >
+                🏳 ยอมแพ้
+              </button>
+            </div>
+          )}
         {settings.showEvalBar && (
           <div className="eval-bar-live-wrap">
             <EvalBar score={liveEval} flipped={flipped} />
