@@ -25,6 +25,7 @@ import { loadTrainerProgress } from '../lib/moveTrainer';
 import { loadRushProgress } from '../lib/bossRush';
 import { loadPuzzleProgress } from '../lib/puzzleProgress';
 import { getActiveSeason, getPriorSeason, seasonLabel } from '../lib/seasons';
+import { aggregateMastery } from '../lib/reviewMastery';
 import { computeMatchLeaderboard, formatScore } from '../lib/leaderboard';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -232,6 +233,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       <SeasonHallOfFameSection />
 
       <MasteryOverview />
+
+      <ReviewMasterySection />
 
       <InsightsSection stats={stats} />
 
@@ -1152,6 +1155,64 @@ function MatchLeaderboardSection({ stats }: { stats: UserStats }) {
       <p className="label-aside profile-lb-note">
         คะแนน = ชนะ × น้ำหนัก + (เสมอ × น้ำหนัก / 2) · แพ้ = 0
       </p>
+    </section>
+  );
+}
+
+function ReviewMasterySection() {
+  const m = aggregateMastery();
+  if (m.reviewCount === 0) {
+    return (
+      <section className="profile-section">
+        <h3>📈 Review Mastery</h3>
+        <p className="label-aside">
+          เล่นเกม + กด "🔍 ดูรีวิวเกม" เพื่อสะสมข้อมูล · ระบบจะ aggregate ค่า accuracy + จำนวน blunder/mistake ข้ามเกม
+        </p>
+      </section>
+    );
+  }
+  const arrow = m.trend > 1 ? '↗' : m.trend < -1 ? '↘' : '→';
+  return (
+    <section className="profile-section">
+      <h3>📈 Review Mastery · จาก {m.reviewCount} รีวิวล่าสุด</h3>
+      <div className="mastery-grid">
+        <div className="mastery-tile" style={{ borderColor: '#7aba7f55' }}>
+          <div className="mastery-tile-label">Accuracy เฉลี่ย</div>
+          <div className="mastery-tile-value" style={{ color: '#7aba7f' }}>
+            {m.averageAccuracy}%
+          </div>
+          <div className="mastery-tile-sub">
+            {m.totalMoves} ตา รวม
+          </div>
+        </div>
+        <div className="mastery-tile" style={{ borderColor: '#d4a23c55' }}>
+          <div className="mastery-tile-label">Accuracy 10 เกมล่าสุด</div>
+          <div className="mastery-tile-value" style={{ color: '#d4a23c' }}>
+            {m.recentAccuracy}% {arrow}
+          </div>
+          <div className="mastery-tile-sub">
+            trend {m.trend > 0 ? '+' : ''}{m.trend}
+          </div>
+        </div>
+        <div className="mastery-tile" style={{ borderColor: '#e85a4a55' }}>
+          <div className="mastery-tile-label">Blunders รวม</div>
+          <div className="mastery-tile-value" style={{ color: '#e85a4a' }}>
+            {m.totals.blunder}
+          </div>
+          <div className="mastery-tile-sub">
+            ค่า mistake: {m.totals.mistake}
+          </div>
+        </div>
+        <div className="mastery-tile" style={{ borderColor: '#8acf6a55' }}>
+          <div className="mastery-tile-label">ตาที่ดีที่สุด</div>
+          <div className="mastery-tile-value" style={{ color: '#8acf6a' }}>
+            {m.totals.best}
+          </div>
+          <div className="mastery-tile-sub">
+            good: {m.totals.good}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

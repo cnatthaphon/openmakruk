@@ -138,6 +138,7 @@ import { fenToPieceMap } from './lib/makruk';
 import { letterToPiece, PIECE_VALUE } from './lib/chessAttacks';
 import { titleForRating } from './lib/titles';
 import { activeCosmetic } from './lib/cosmetics';
+import { recordReviewSummary } from './lib/reviewMastery';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -1508,6 +1509,15 @@ export default function App() {
         setReviewPly(annotated.length);
         setReviewActive(true);
         log('review.ready', { moves: annotated.length, summary: summarize(annotated) });
+        // Persist a compact summary for the Profile mastery dashboard.
+        // gameId — derive from the latest history entry on the local
+        // stats (or "live-{now}" if the game wasn't recorded as rated).
+        const userColorForMastery: 'white' | 'black' =
+          mode === 'play-white' ? 'white' :
+          mode === 'play-black' ? 'black' : 'white';
+        const latestGame = stats.history[0];
+        const masteryGameId = latestGame?.id ?? `live-${Date.now()}`;
+        recordReviewSummary(masteryGameId, userColorForMastery, annotated);
       } finally {
         reviewBoard.delete();
       }
