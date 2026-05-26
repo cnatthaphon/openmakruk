@@ -114,6 +114,7 @@ import { toast } from './components/Toast';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActivityTicker } from './components/ActivityTicker';
 import { BottomNav } from './components/BottomNav';
+import { TodayStrip } from './components/TodayStrip';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
 import {
@@ -1723,6 +1724,7 @@ export default function App() {
       </Suspense>
       {currentTab === 'play' && (
       <ErrorBoundary scope="play"><main>
+        <TodayStrip />
         {settings.showEvalBar && (
           <div className="eval-bar-live-wrap">
             <EvalBar score={liveEval} flipped={flipped} />
