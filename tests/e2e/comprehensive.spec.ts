@@ -168,16 +168,18 @@ test.describe('comprehensive integration', () => {
     expect(manifestHref).toBe('/manifest.webmanifest');
   });
 
-  test('mobile viewport: tab strip + board fit without overflowing', async ({ page }) => {
+  test('mobile viewport: bottom nav + board fit without overflowing', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 720 });
     await page.goto('/#/play');
     await waitForContentReady(page);
     await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
     await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
 
-    // Tab strip should be scrollable
-    const tabsBox = await page.locator('.tabs').boundingBox();
-    expect(tabsBox?.width).toBeLessThanOrEqual(375);
+    // At mobile breakpoint (<720px), top tab strip hides; bottom nav
+    // takes over. Verify the bottom nav is the visible primary nav.
+    await expect(page.locator('.bottom-nav')).toBeVisible();
+    const bottomBox = await page.locator('.bottom-nav').boundingBox();
+    expect(bottomBox?.width).toBeLessThanOrEqual(375);
 
     // Board should fit within the viewport width
     const boardBox = await page.locator('.cg-wrap').boundingBox();

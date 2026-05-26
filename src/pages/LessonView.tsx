@@ -48,6 +48,7 @@ import {
   type TextStep,
   type TryMoveDemo,
 } from '../lib/lessonSchema';
+import { navigate } from '../lib/router';
 
 type Props = {
   lesson: LessonContent;
@@ -112,6 +113,33 @@ export function LessonView({
       <StepRenderer step={step} />
 
       <footer className="lesson-footer">
+        {isLast && !onNextLesson && (
+          <div className="lesson-finale-cta">
+            <div className="lesson-finale-title">
+              🎓 จบหลักสูตรพื้นฐานแล้ว — ลองอะไรต่อ?
+            </div>
+            <div className="lesson-finale-actions">
+              <button
+                className="lesson-finale-button"
+                onClick={() => navigate({ tab: 'play' })}
+              >
+                🎮 ลองเล่นกับ bot
+              </button>
+              <button
+                className="lesson-finale-button"
+                onClick={() => navigate({ tab: 'puzzles' })}
+              >
+                🧩 ลองปริศนา
+              </button>
+              <button
+                className="lesson-finale-button"
+                onClick={() => navigate({ tab: 'study' })}
+              >
+                📖 ดูทฤษฎี
+              </button>
+            </div>
+          </div>
+        )}
         <div className="lesson-nav">
           <button
             className="lesson-nav-prev"

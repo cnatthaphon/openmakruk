@@ -7,8 +7,8 @@ import { waitForContentReady } from './helpers';
 
 const TABS = [
   { hash: 'play',     label: /เล่น/ },
-  { hash: 'learn',    label: /ฝึก/ },
-  { hash: 'study',    label: /ศึกษา/ },
+  { hash: 'learn',    label: /บทเรียน/ },
+  { hash: 'study',    label: /ทฤษฎี/ },
   { hash: 'puzzles',  label: /ปริศนา/ },
   { hash: 'custom',   label: /ออกแบบ/ },
   { hash: 'library',  label: /คลัง/ },

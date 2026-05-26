@@ -59,7 +59,7 @@ test.describe('skeleton features', () => {
     await waitForContentReady(page);
     await expect(page.locator('body')).toContainText('คลังตำแหน่ง');
     await expect(page.locator('.library-empty')).toBeVisible();
-    await expect(page.locator('body')).toContainText('ยังไม่มีตำแหน่งบันทึก');
+    await expect(page.locator('body')).toContainText('คลังของคุณยังว่าง');
   });
 
   test('Library page renders saved positions from localStorage', async ({ page }) => {

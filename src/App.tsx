@@ -1785,20 +1785,95 @@ export default function App() {
                       : gameOverSubtitle(state.result, mode, state.counting)}
                   </div>
                 )}
-                <div className="game-over-actions">
-                  <button
-                    className="game-over-button game-over-review"
-                    onClick={handleStartReview}
-                    disabled={reviewLoading || history.length === 0}
-                  >
-                    {reviewLoading
-                      ? `🔍 กำลังวิเคราะห์... ${reviewProgress?.current ?? 0}/${reviewProgress?.total ?? 0}`
-                      : '🔍 ดูรีวิวเกม'}
-                  </button>
-                  <button className="game-over-button" onClick={handleReset}>
-                    ⟳ เริ่มเกมใหม่
-                  </button>
-                </div>
+                {(() => {
+                  // Compute outcome for Next-CTA hierarchy. Falls back to
+                  // draw-ish when state.result is "*" (forced result path).
+                  const effectiveResult = forcedResult ?? state.result;
+                  const userWonHere =
+                    (mode === 'play-white' && effectiveResult === '1-0') ||
+                    (mode === 'play-black' && effectiveResult === '0-1');
+                  const drawHere = effectiveResult === '1/2-1/2';
+                  const userLostHere =
+                    (mode === 'play-white' && effectiveResult === '0-1') ||
+                    (mode === 'play-black' && effectiveResult === '1-0');
+                  const DIFFICULTIES: Difficulty[] = ['easy', 'medium', 'hard', 'master'];
+                  const idx = DIFFICULTIES.indexOf(difficulty);
+                  const harder = idx >= 0 && idx < DIFFICULTIES.length - 1 ? DIFFICULTIES[idx + 1] : null;
+                  const easier = idx > 0 ? DIFFICULTIES[idx - 1] : null;
+                  const stepTarget = userWonHere ? harder : userLostHere ? easier : harder;
+                  const stepLabel = userWonHere
+                    ? '⏫ ระดับยากขึ้น'
+                    : userLostHere
+                      ? '⏬ ระดับง่ายขึ้น'
+                      : '🔀 เปลี่ยนระดับ';
+                  return (
+                    <>
+                      <div className="game-over-actions next-cta-row">
+                        <button className="game-over-button primary" onClick={handleReset}>
+                          ⟳ เล่นซ้ำ
+                        </button>
+                        {stepTarget && (
+                          <button
+                            className="game-over-button primary"
+                            onClick={() => {
+                              setDifficulty(stepTarget);
+                              handleReset();
+                            }}
+                            title={`เปลี่ยนคู่ต่อสู้เป็น ${DIFFICULTY_LABELS[stepTarget]}`}
+                          >
+                            {stepLabel}
+                            <span className="game-over-button-sub">
+                              {DIFFICULTY_LABELS[stepTarget]}
+                            </span>
+                          </button>
+                        )}
+                        <button
+                          className="game-over-button primary"
+                          onClick={() => navigate({ tab: 'puzzles' })}
+                        >
+                          🧩 ลองปริศนา
+                        </button>
+                      </div>
+                      <div className="game-over-actions next-cta-secondary">
+                        <button
+                          className="game-over-button game-over-review secondary"
+                          onClick={handleStartReview}
+                          disabled={reviewLoading || history.length === 0}
+                        >
+                          {reviewLoading
+                            ? `🔍 วิเคราะห์... ${reviewProgress?.current ?? 0}/${reviewProgress?.total ?? 0}`
+                            : '🔍 ดูรีวิวเกม'}
+                        </button>
+                        <button
+                          className="game-over-button secondary"
+                          onClick={() => {
+                            const oppName = DIFFICULTY_LABELS[difficulty];
+                            const plyCount = history.length;
+                            const outcomeText = drawHere
+                              ? `เสมอกับ ${oppName}`
+                              : userWonHere
+                                ? `ผมชนะ ${oppName}`
+                                : `ผมแพ้ ${oppName}`;
+                            const text = `${outcomeText} ใน ${plyCount} ตา · มาลองเล่น Makruk กัน`;
+                            const url = 'https://openmakruk.com';
+                            if (typeof navigator.share === 'function') {
+                              navigator
+                                .share({ title: 'OpenMakruk', text, url })
+                                .catch(() => undefined);
+                            } else {
+                              const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(
+                                url,
+                              )}&text=${encodeURIComponent(text)}`;
+                              window.open(lineUrl, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                        >
+                          📤 แชร์
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}

@@ -544,6 +544,101 @@ main {
   align-items: stretch;
 }
 
+/* Next-CTA primary row — 3 large buttons side-by-side (stacked on
+   narrow viewports). Distinguishes "what's next" from review/share. */
+.next-cta-row {
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.next-cta-row .game-over-button.primary {
+  flex: 1 1 140px;
+  min-width: 140px;
+  padding: 12px 16px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.game-over-button-sub {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
+  letter-spacing: 0.02em;
+}
+
+.next-cta-secondary {
+  flex-direction: row !important;
+  gap: 8px;
+  margin-top: 4px;
+}
+.next-cta-secondary .game-over-button.secondary {
+  flex: 1 1 auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  background: rgba(255,255,255,0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.next-cta-secondary .game-over-button.secondary:hover {
+  background: rgba(255,255,255,0.1);
+  transform: none;
+}
+.next-cta-secondary .game-over-review.secondary {
+  background: linear-gradient(135deg, #a37bf5, #d4a23c);
+  color: #1a1816;
+  border: 0;
+}
+@media (max-width: 540px) {
+  .next-cta-row { flex-direction: column !important; }
+  .next-cta-row .game-over-button.primary { flex: 1 1 auto; }
+}
+
+/* Lesson finale CTA — only renders on the final lesson when there's
+   no next, so users finishing the curriculum aren't dropped back to
+   the lesson list with no further suggestion. */
+.lesson-finale-cta {
+  margin: 16px 0 12px;
+  padding: 14px 16px;
+  background: rgba(212, 162, 60, 0.08);
+  border: 1px solid rgba(212, 162, 60, 0.25);
+  border-radius: 8px;
+}
+.lesson-finale-title {
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--fg);
+}
+.lesson-finale-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lesson-finale-button {
+  flex: 1 1 140px;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: var(--fg);
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.1s ease;
+}
+.lesson-finale-button:hover {
+  background: rgba(212, 162, 60, 0.18);
+}
+
+/* Key-moment commentary line — narrative beneath the move arrows. */
+.key-moment-commentary {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.78);
+  line-height: 1.4;
+}
+
 .game-over-review {
   background: linear-gradient(135deg, #a37bf5, #d4a23c);
   color: #1a1816;

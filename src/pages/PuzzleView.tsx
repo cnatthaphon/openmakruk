@@ -40,6 +40,7 @@ import {
   saveSchedule,
 } from '../lib/spacedRepetition';
 import type { Puzzle } from '../lib/puzzleSchema';
+import { navigate } from '../lib/router';
 
 type Props = {
   puzzle: Puzzle;
@@ -521,6 +522,12 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
             {onNext && (
               <button onClick={onNext}>ปริศนาถัดไป →</button>
             )}
+            <button
+              onClick={() => navigate({ tab: 'play' })}
+              className="secondary"
+            >
+              🎮 ไปเล่นเกม
+            </button>
           </>
         )}
           </div>

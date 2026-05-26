@@ -281,6 +281,47 @@ export function keyMoments(
     .slice(0, n);
 }
 
+/**
+ * Phase-aware Thai narrative commentary for a single annotated move.
+ * The KeyMomentCard already shows "ที่เล่น X / ควรเล่น Y / เสีย N คะแนน"
+ * — this layer adds the *why this is interesting* line so a learner
+ * doesn't have to translate cp losses into intuition themselves.
+ *
+ * Phase boundaries are ply-based (rough but cheap):
+ *   ≤14 = opening, ≤30 = middlegame, >30 = endgame.
+ * Matches typical Makruk game arc — Met development happens slower
+ * than chess queens, so "opening" stretches a few moves longer.
+ */
+export function moveCommentary(move: AnnotatedMove): string {
+  const phase: 'opening' | 'middle' | 'endgame' =
+    move.ply <= 14 ? 'opening' : move.ply <= 30 ? 'middle' : 'endgame';
+
+  switch (move.classification) {
+    case 'best':
+      return '✨ ตาที่ดีที่สุด · ไม่มีตาอื่นดีกว่านี้';
+    case 'good':
+      return '👍 ตาก็ดี · ใกล้เคียงตาที่ engine แนะนำ';
+    case 'inaccuracy':
+      return phase === 'opening'
+        ? '🤔 opening ยังไม่แม่น · มี opening ที่เก่งกว่า'
+        : phase === 'middle'
+          ? '🤔 ตาไม่แม่นยำ · มีตา tactical ที่ดีกว่า'
+          : '🤔 endgame ยังไม่ถูกต้อง · เทคนิคปลายเกมต้องแม่นกว่านี้';
+    case 'mistake':
+      return phase === 'opening'
+        ? '😬 พลาด opening · เปิดทางให้คู่ต่อสู้พัฒนาง่าย'
+        : phase === 'middle'
+          ? '😬 พลาดในช่วงกลางเกม · เสียจังหวะ tactical'
+          : '😬 พลาดท้ายเกม · endgame ต้องการความแม่นยำ';
+    case 'blunder':
+      return phase === 'opening'
+        ? '💔 เริ่มต้นผิดมาก · ระวัง opening trap ในครั้งหน้า'
+        : phase === 'middle'
+          ? '💔 พลาดร้ายแรงในกลางเกม · เปิดทางให้คู่ต่อสู้บุก'
+          : '💔 พลาด endgame · เกือบทำได้ แต่...';
+  }
+}
+
 /** Format an EvalPoint as a short human string: "+0.45" or "M3" or "—". */
 export function formatEval(e?: EvalPoint | null): string {
   if (!e) return '—';

@@ -20,6 +20,7 @@ import {
   CLASSIFICATION_GLYPHS,
   CLASSIFICATION_LABELS,
   keyMoments,
+  moveCommentary,
   type AnnotatedMove,
   type Classification,
 } from '../lib/review';
@@ -225,6 +226,9 @@ function KeyMomentCard({ move, onJump }: { move: AnnotatedMove; onJump: () => vo
           <span className="key-moment-arrow-key good">↗</span>
           <span className="label">ควรเล่น:</span>{' '}
           <code className="good">{thaiUci(move.bestMove)}</code>
+        </div>
+        <div className="key-moment-commentary">
+          {moveCommentary(move)}
         </div>
         <button
           type="button"
