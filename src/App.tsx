@@ -89,6 +89,9 @@ const PuzzleRushPage = lazy(lazyRetry(() =>
 const ExhibitionPage = lazy(lazyRetry(() =>
   import('./pages/ExhibitionPage').then((m) => ({ default: m.ExhibitionPage })),
 ));
+const MoveTrainerPage = lazy(lazyRetry(() =>
+  import('./pages/MoveTrainerPage').then((m) => ({ default: m.MoveTrainerPage })),
+));
 const CertPage = lazy(lazyRetry(() =>
   import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
 ));
@@ -193,6 +196,7 @@ const TAB_LABELS: Record<Tab, string> = {
   counting: '', // hidden — visited via /#/counting or /#/counting/<level>
   rush:     '', // hidden — visited via /#/rush
   exhibition: '', // hidden — visited via /#/exhibition or /#/exhibition/<id>
+  movetrainer: '', // hidden — visited via /#/movetrainer
 };
 const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
   (t) => TAB_LABELS[t] !== '',
@@ -1827,6 +1831,9 @@ export default function App() {
       )}
       {currentTab === 'exhibition' && (
         <ErrorBoundary scope="exhibition"><ExhibitionPage gameId={route.id} /></ErrorBoundary>
+      )}
+      {currentTab === 'movetrainer' && (
+        <ErrorBoundary scope="movetrainer"><MoveTrainerPage openingId={route.id} /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (

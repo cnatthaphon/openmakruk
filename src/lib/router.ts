@@ -46,6 +46,8 @@ export const TAB_IDS = [
   'rush',
   // Bot Exhibition — `/#/exhibition` (feed) or `/#/exhibition/<id>` (replay).
   'exhibition',
+  // Move Trainer — `/#/movetrainer` (picker) or `/#/movetrainer/<openId>` (drill).
+  'movetrainer',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];
