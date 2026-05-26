@@ -6963,9 +6963,11 @@ footer a:hover {
   background: rgba(255,255,255,0.12);
 }
 
-.study-trainer-banner {
-  display: inline-block;
+.study-banner-row {
+  display: flex; gap: 8px; flex-wrap: wrap;
   margin-top: 10px;
+}
+.study-trainer-banner {
   padding: 8px 14px;
   background: linear-gradient(135deg, rgba(163,123,245,0.15), rgba(212,162,60,0.1));
   border: 1px solid rgba(163,123,245,0.35);
@@ -6976,6 +6978,112 @@ footer a:hover {
 }
 .study-trainer-banner:hover {
   background: linear-gradient(135deg, rgba(163,123,245,0.25), rgba(212,162,60,0.18));
+}
+
+/* ─── Pattern Recognition drill ──────────────────────────────── */
+.pattern-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+.pattern-back {
+  background: transparent; border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg); padding: 6px 14px; border-radius: 6px;
+  font-size: 13px; cursor: pointer; margin-bottom: 18px;
+}
+.pattern-intro { text-align: center; padding: 30px 20px; }
+.pattern-intro-icon { font-size: 3.5rem; margin-bottom: 6px; }
+.pattern-intro h2 { margin: 0 0 8px; }
+.pattern-best { margin: 18px 0; font-size: 15px; }
+.pattern-start {
+  padding: 12px 28px;
+  background: linear-gradient(135deg, #a37bf5, #d4a23c);
+  color: #1a1a1a;
+  border: 0; border-radius: 8px; font-weight: 700; font-size: 15px;
+  cursor: pointer;
+}
+.pattern-start:hover { filter: brightness(1.05); }
+.pattern-start:disabled { opacity: 0.5; cursor: not-allowed; }
+.pattern-secondary {
+  padding: 10px 18px; background: rgba(255,255,255,0.06);
+  color: var(--fg); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+
+.pattern-hud {
+  display: flex; justify-content: space-between;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px; margin-bottom: 12px;
+  padding: 10px 14px; background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+}
+.pattern-board { position: relative; margin-bottom: 16px; }
+.pattern-board-overlay {
+  position: absolute; inset: 0;
+  background: rgba(20, 14, 10, 0.94);
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px;
+  font-size: 1.2rem; color: rgba(255,255,255,0.7);
+}
+.pattern-board-overlay-text {
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+  border: 1px dashed rgba(255,255,255,0.2);
+}
+.pattern-quiz { margin-top: 14px; }
+.pattern-prompt {
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.pattern-choices {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.pattern-choice {
+  padding: 14px 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pattern-choice:hover:not(:disabled) {
+  background: rgba(212,162,60,0.15);
+  border-color: rgba(212,162,60,0.35);
+}
+.pattern-choice:disabled { cursor: default; }
+.pattern-choice.is-correct {
+  background: rgba(122,186,127,0.2);
+  border-color: rgba(122,186,127,0.5);
+  color: #b6e2c4;
+}
+.pattern-choice.is-wrong {
+  background: rgba(232,90,74,0.18);
+  border-color: rgba(232,90,74,0.45);
+  color: #f6b8b0;
+}
+.pattern-next { margin-top: 12px; text-align: center; }
+.pattern-result {
+  text-align: center; padding: 30px 20px;
+}
+.pattern-result-icon { font-size: 3rem; }
+.pattern-result h2 { margin: 8px 0 12px; }
+.pattern-result-score {
+  font-size: 2.4rem; font-weight: 700;
+  color: #d4a23c;
+  font-family: 'JetBrains Mono', monospace;
+  margin: 4px 0;
+}
+.pattern-result-meta { font-size: 15px; margin: 8px 0; color: #b6e2c4; }
+.pattern-result-actions {
+  display: flex; gap: 10px; justify-content: center; margin-top: 16px;
+  flex-wrap: wrap;
 }
 
 /* ─── Play tab — sticky quick-actions (resign / draw) ────────── */

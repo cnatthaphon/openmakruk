@@ -52,15 +52,20 @@ export function StudyPage({
         <p className="label-aside">
           เปิด · ปิดท้าย · ยุทธวิธี — เนื้อหาวิชาการ จัดกลุ่มตามประเภท
         </p>
-        <button
-          className="study-trainer-banner"
-          onClick={() => {
-            // Navigate via router so the hash change picks up.
-            window.location.hash = '#/movetrainer';
-          }}
-        >
-          🎯 Move Trainer · ฝึกจำ opening ทีละตา →
-        </button>
+        <div className="study-banner-row">
+          <button
+            className="study-trainer-banner"
+            onClick={() => { window.location.hash = '#/movetrainer'; }}
+          >
+            🎯 Move Trainer · ฝึกจำ opening ทีละตา →
+          </button>
+          <button
+            className="study-trainer-banner"
+            onClick={() => { window.location.hash = '#/pattern'; }}
+          >
+            🧠 Pattern Recognition · 10 รอบ visualization →
+          </button>
+        </div>
       </header>
 
       <div className="study-subtabs" role="tablist">

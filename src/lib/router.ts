@@ -50,6 +50,8 @@ export const TAB_IDS = [
   'movetrainer',
   // Boss Rush — `/#/bossrush` (picker + active progress).
   'bossrush',
+  // Pattern Recognition — `/#/pattern` (visualization drill).
+  'pattern',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];

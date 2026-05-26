@@ -95,6 +95,9 @@ const MoveTrainerPage = lazy(lazyRetry(() =>
 const BossRushPage = lazy(lazyRetry(() =>
   import('./pages/BossRushPage').then((m) => ({ default: m.BossRushPage })),
 ));
+const PatternDrillPage = lazy(lazyRetry(() =>
+  import('./pages/PatternDrillPage').then((m) => ({ default: m.PatternDrillPage })),
+));
 const CertPage = lazy(lazyRetry(() =>
   import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
 ));
@@ -210,6 +213,7 @@ const TAB_LABELS: Record<Tab, string> = {
   exhibition: '', // hidden — visited via /#/exhibition or /#/exhibition/<id>
   movetrainer: '', // hidden — visited via /#/movetrainer
   bossrush: '', // hidden — visited via /#/bossrush
+  pattern: '', // hidden — visited via /#/pattern
 };
 const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
   (t) => TAB_LABELS[t] !== '',
@@ -1938,6 +1942,9 @@ export default function App() {
       )}
       {currentTab === 'bossrush' && (
         <ErrorBoundary scope="bossrush"><BossRushPage /></ErrorBoundary>
+      )}
+      {currentTab === 'pattern' && (
+        <ErrorBoundary scope="pattern"><PatternDrillPage /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (
