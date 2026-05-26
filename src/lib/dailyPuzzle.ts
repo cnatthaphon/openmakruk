@@ -54,6 +54,32 @@ function hashString(s: string): number {
   return h >>> 0; // unsigned
 }
 
+/** Daily difficulty cycle — Monday easy, Sunday hard. Returns a
+ *  rating band that the daily puzzle picker uses to escalate
+ *  difficulty across the week. Pattern borrowed from chess.com's
+ *  daily-cycle: predictable rhythm gives the user a reason to come
+ *  back every day, not just on solve-once Wednesday. */
+export function dailyDifficultyBand(date: Date = new Date()): {
+  dayLabel: string;
+  min: number;
+  max: number;
+} {
+  // 0=Sunday, 1=Monday, ..., 6=Saturday — escalate Mon → Sun
+  const dow = date.getDay();
+  // Mon=easiest → Sun=hardest. Sunday is the hardest because that's
+  // when Sunday Showdown runs, so it should test the player.
+  const bands: { dayLabel: string; min: number; max: number }[] = [
+    { dayLabel: 'อาทิตย์',  min: 1400, max: 1900 }, // Sun hardest
+    { dayLabel: 'จันทร์',   min: 700,  max: 1100 }, // Mon easiest
+    { dayLabel: 'อังคาร',   min: 800,  max: 1200 },
+    { dayLabel: 'พุธ',     min: 900,  max: 1300 },
+    { dayLabel: 'พฤหัสบดี', min: 1000, max: 1500 },
+    { dayLabel: 'ศุกร์',    min: 1100, max: 1600 },
+    { dayLabel: 'เสาร์',   min: 1300, max: 1800 },
+  ];
+  return bands[dow];
+}
+
 /**
  * Pick today's puzzle from the pool. Returns null when the pool is
  * empty. Picks deterministically — calling it twice on the same day
@@ -65,12 +91,15 @@ function hashString(s: string): number {
  */
 export function pickDailyPuzzle(puzzles: Puzzle[], today?: Date): Puzzle | null {
   if (puzzles.length === 0) return null;
-  const key = dailyDateKey(today);
+  const date = today ?? new Date();
+  const key = dailyDateKey(date);
   const hash = hashString(key);
-  // Prefer ratings in the 700-1400 band — but if not enough puzzles
-  // are in band, fall back to the whole pool.
-  const band = puzzles.filter((p) => p.rating >= 700 && p.rating <= 1400);
-  const pool = band.length >= 3 ? band : puzzles;
+  // Daily difficulty cycle — Monday easy → Sunday hard. The band
+  // floor/ceiling escalates through the week so players who solve
+  // every day get progressively harder puzzles by Sunday.
+  const cycle = dailyDifficultyBand(date);
+  const inBand = puzzles.filter((p) => p.rating >= cycle.min && p.rating <= cycle.max);
+  const pool = inBand.length >= 3 ? inBand : puzzles;
   return pool[hash % pool.length];
 }
 

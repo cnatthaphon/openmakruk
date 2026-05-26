@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { loadLessons, loadPuzzles } from '../lib/content';
-import { isDailySolvedToday, pickDailyPuzzle } from '../lib/dailyPuzzle';
+import { dailyDifficultyBand, isDailySolvedToday, pickDailyPuzzle } from '../lib/dailyPuzzle';
 import { loadLessonProgress } from '../lib/learnProgress';
 import { getBackend } from '../lib/backend';
 import type { BotCharacter, TournamentInfo } from '../lib/backend/types';
@@ -168,24 +168,27 @@ export function TodayStrip() {
         📅 วันนี้
       </div>
       <div className="today-strip-items">
-        {daily && (
-          <button
-            className={`today-chip ${daily.solved ? 'is-done' : ''}`}
-            onClick={() => navigate({ tab: 'puzzles', id: daily.id })}
-            title={daily.solved ? 'แก้แล้ววันนี้ — กลับไปดูได้' : 'ลองแก้'}
-          >
-            <span className="today-chip-icon" aria-hidden="true">
-              ⭐
-            </span>
-            <span className="today-chip-body">
-              <span className="today-chip-title">ปริศนาวันนี้</span>
-              <span className="today-chip-meta">
-                rating {daily.rating}
-                {daily.solved && ' · ✓ แก้แล้ว'}
+        {daily && (() => {
+          const band = dailyDifficultyBand();
+          return (
+            <button
+              className={`today-chip ${daily.solved ? 'is-done' : ''}`}
+              onClick={() => navigate({ tab: 'puzzles', id: daily.id })}
+              title={daily.solved ? 'แก้แล้ววันนี้ — กลับไปดูได้' : `${band.dayLabel} · band ${band.min}-${band.max} · ลองแก้`}
+            >
+              <span className="today-chip-icon" aria-hidden="true">
+                ⭐
               </span>
-            </span>
-          </button>
-        )}
+              <span className="today-chip-body">
+                <span className="today-chip-title">ปริศนา {band.dayLabel}</span>
+                <span className="today-chip-meta">
+                  rating {daily.rating}
+                  {daily.solved && ' · ✓ แก้แล้ว'}
+                </span>
+              </span>
+            </button>
+          );
+        })()}
 
         {tournament && (
           <button
