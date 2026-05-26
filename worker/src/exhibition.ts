@@ -54,7 +54,27 @@ const PERSONALITY_WEIGHTS: Record<string, PersonalityWeights> = {
   wanderer:   { material: 0.2, randomness: 0.8 },
   mobile:     { material: 0.4, center: 0.3, randomness: 0.1 },
   cautious:   { material: 0.5, defense: 0.4, center: 0.2, randomness: 0.05 },
+  // Fairy-Stockfish boss — no flavor, just play strong. Material-
+  // heavy + balanced attack/defense; relies on the deeper search to
+  // produce strong play rather than a personality quirk.
+  'fairy-stockfish': { material: 0.7, attack: 0.3, defense: 0.3, center: 0.3, aggression: 0.2 },
 };
+
+// Search depth by tier. Each level deeper roughly doubles the strength
+// at the cost of branching² CPU. With ~30 legal moves mid-game:
+//   depth 1 = 30 evals       — basically heuristic move (Rookie)
+//   depth 2 = 900 evals       — sees one opponent reply (Veteran)
+//   depth 3 = 27,000 evals    — sees own follow-up (Master / Boss)
+// Worker scheduled handlers have 30s CPU — even depth 3 across a
+// 100-ply game stays well under budget (each eval is microseconds).
+const TIER_DEPTH: Record<string, number> = {
+  rookie: 1,
+  veteran: 2,
+  master: 3,
+};
+function depthFor(tier: string | null | undefined): number {
+  return (tier && TIER_DEPTH[tier]) || 1;
+}
 
 // Piece values for Makruk — match client PIECE_VALUE.
 const PIECE_VALUE: Record<Role, number> = {
@@ -162,22 +182,127 @@ function scoreMove(
   return total;
 }
 
-// ─── Engine: pick the best-scored legal move for a personality ──────
+// ─── Static evaluator + minimax search ────────────────────────────
 
-function pickMove(pos: Position, personalityId: string): string | null {
-  const weights = PERSONALITY_WEIGHTS[personalityId];
-  // Unknown / boss personalities fall back to slight material focus +
-  // random — keeps games playable even if a bot's personality id isn't
-  // in our weights map.
-  const w = weights ?? { material: 0.5, randomness: 0.5 };
+const PIECE_SQUARES = (() => {
+  // Precompute every (file, rank) → "centerDist" so the per-move
+  // staticEval below doesn't recompute strings inside its inner loop.
+  const out = new Map<string, number>();
+  for (let f = 0; f < 8; f++) {
+    for (let r = 0; r < 8; r++) {
+      const sq = String.fromCharCode(97 + f) + (r + 1);
+      const dist = Math.abs(3.5 - f) + Math.abs(3.5 - r);
+      out.set(sq, dist);
+    }
+  }
+  return out;
+})();
+
+/** Static board evaluation from white's perspective. Material values
+ *  + small center-control bonus. Positive = white better, negative =
+ *  black better. Used as the leaf evaluator at the bottom of the
+ *  minimax tree. */
+function staticEval(pos: Position): number {
+  let score = 0;
+  for (const [sq, letter] of Object.entries(pos.pieces)) {
+    const piece = letterToPiece(letter);
+    if (!piece) continue;
+    const value = PIECE_VALUE[piece.role];
+    const centerBonus = (7 - (PIECE_SQUARES.get(sq) ?? 7)) * 0.02;
+    const contribution = value + centerBonus;
+    score += piece.color === 'white' ? contribution : -contribution;
+  }
+  return score;
+}
+
+// Mate scores use distance-to-mate so the engine prefers mate-in-2
+// over mate-in-5. Sign reflects who is mated (loser POV).
+const MATE_SCORE = 100_000;
+
+/** Minimax with alpha-beta pruning. Returns score from white POV.
+ *  Caller maximizes when it's white's turn at the root, minimizes
+ *  when black's turn. Caps depth to avoid pathological branching. */
+function minimax(
+  pos: Position,
+  depth: number,
+  alpha: number,
+  beta: number,
+): number {
+  const status = classify(pos);
+  if (status.state === 'checkmate') {
+    // Loser perspective; closer mate is more valuable.
+    return status.loser === 'white' ? -MATE_SCORE + (1 - depth) : MATE_SCORE - (1 - depth);
+  }
+  if (status.state === 'stalemate') return 0;
+  if (depth <= 0) return staticEval(pos);
+
+  const moves = listLegalMoves(pos);
+  if (moves.length === 0) return staticEval(pos);
+
+  if (pos.turn === 'white') {
+    let best = -Infinity;
+    for (const mv of moves) {
+      const r = applyMove(pos, mv);
+      if (!r.ok) continue;
+      const val = minimax(r.position, depth - 1, alpha, beta);
+      if (val > best) best = val;
+      if (best > alpha) alpha = best;
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const mv of moves) {
+      const r = applyMove(pos, mv);
+      if (!r.ok) continue;
+      const val = minimax(r.position, depth - 1, alpha, beta);
+      if (val < best) best = val;
+      if (best < beta) beta = best;
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+// ─── Engine: pick the best move using minimax + personality flavor ─
+
+/** Pick a move using minimax at the tier-appropriate depth, blended
+ *  with the bot's personality flavor. The minimax leg makes the bot
+ *  play *sensibly* (no hanging pieces, sees one-move tactics at
+ *  depth 2+); the personality leg makes it *recognizable* (attacker
+ *  prefers captures + forward moves even when equal-scored). */
+function pickMove(
+  pos: Position,
+  personalityId: string,
+  tier: string,
+): string | null {
   const moves = listLegalMoves(pos);
   if (moves.length === 0) return null;
+
+  const weights = PERSONALITY_WEIGHTS[personalityId] ?? {
+    material: 0.5,
+    randomness: 0.2,
+  };
+  const depth = depthFor(tier);
+  const sideSign = pos.turn === 'white' ? 1 : -1;
+  // Personality flavor magnitude relative to material units. 0.4 of a
+  // pawn worth of "personality preference" lets attacker prefer a
+  // capture over a quiet developing move, but won't make any tier
+  // sac a knight just because the move scores high on attack-count.
+  const FLAVOR = 0.4;
+
   let bestMove = moves[0];
   let bestScore = -Infinity;
   for (const mv of moves) {
-    const s = scoreMove(pos.pieces, pos.turn, mv, w);
-    if (s > bestScore) {
-      bestScore = s;
+    const r = applyMove(pos, mv);
+    if (!r.ok) continue;
+    // staticEval is white-POV; minimax of children is white-POV; flip
+    // to "side-to-move POV at the root" so larger = better for *us*.
+    const childScore = sideSign * minimax(r.position, depth - 1, -Infinity, Infinity);
+    const flavor = scoreMove(pos.pieces, pos.turn, mv, weights) * FLAVOR;
+    const total = childScore + flavor;
+    if (total > bestScore) {
+      bestScore = total;
       bestMove = mv;
     }
   }
@@ -200,8 +325,8 @@ export type ExhibitionResult = {
 };
 
 export function simulateExhibitionGame(
-  whiteBot: { id: string; personality: string },
-  blackBot: { id: string; personality: string },
+  whiteBot: { id: string; personality: string; tier: string },
+  blackBot: { id: string; personality: string; tier: string },
 ): ExhibitionResult {
   let pos = parseFen(MAKRUK_START_FEN);
   if (!pos) {
@@ -210,9 +335,8 @@ export function simulateExhibitionGame(
   const moves: string[] = [];
 
   for (let ply = 0; ply < MAX_PLIES; ply++) {
-    const personality =
-      pos.turn === 'white' ? whiteBot.personality : blackBot.personality;
-    const move = pickMove(pos, personality);
+    const bot = pos.turn === 'white' ? whiteBot : blackBot;
+    const move = pickMove(pos, bot.personality, bot.tier);
     if (move === null) break; // no legal moves — classify below
 
     const applied = applyMove(pos, move);
@@ -268,8 +392,10 @@ export function simulateExhibitionGame(
 export async function runExhibitionTick(env: { DB: D1Database }): Promise<void> {
   // Pull all bots. Cheap query — 22 rows.
   const result = await env.DB.prepare(
-    `SELECT id, bot_personality FROM users WHERE is_bot = 1 AND bot_personality IS NOT NULL`,
-  ).all<{ id: string; bot_personality: string }>();
+    `SELECT id, bot_personality, bot_tier
+       FROM users
+      WHERE is_bot = 1 AND bot_personality IS NOT NULL`,
+  ).all<{ id: string; bot_personality: string; bot_tier: string | null }>();
 
   const bots = result.results ?? [];
   if (bots.length < 2) return;
@@ -282,8 +408,16 @@ export async function runExhibitionTick(env: { DB: D1Database }): Promise<void> 
   const black = bots[bIdx];
 
   const game = simulateExhibitionGame(
-    { id: white.id, personality: white.bot_personality },
-    { id: black.id, personality: black.bot_personality },
+    {
+      id: white.id,
+      personality: white.bot_personality,
+      tier: white.bot_tier ?? 'master',
+    },
+    {
+      id: black.id,
+      personality: black.bot_personality,
+      tier: black.bot_tier ?? 'master',
+    },
   );
 
   const id = crypto.randomUUID();
