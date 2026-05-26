@@ -76,6 +76,9 @@ const BotDetailPage = lazy(() =>
 const CountingDrillPage = lazy(() =>
   import('./pages/CountingDrillPage').then((m) => ({ default: m.CountingDrillPage })),
 );
+const PuzzleRushPage = lazy(() =>
+  import('./pages/PuzzleRushPage').then((m) => ({ default: m.PuzzleRushPage })),
+);
 const CertPage = lazy(() =>
   import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
 );
@@ -169,6 +172,7 @@ const TAB_LABELS: Record<Tab, string> = {
   cert:     '', // hidden — visited via shareable URL only
   bots:     '', // hidden — visited via /#/bots/<bot-id> deep link
   counting: '', // hidden — visited via /#/counting or /#/counting/<level>
+  rush:     '', // hidden — visited via /#/rush
 };
 const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
   (t) => TAB_LABELS[t] !== '',
@@ -1727,6 +1731,9 @@ export default function App() {
       )}
       {currentTab === 'counting' && (
         <ErrorBoundary scope="counting"><CountingDrillPage levelId={route.id} /></ErrorBoundary>
+      )}
+      {currentTab === 'rush' && (
+        <ErrorBoundary scope="rush"><PuzzleRushPage /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (

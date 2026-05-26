@@ -20,6 +20,7 @@ const TABS = [
 // Hidden routes (no nav tab) — smoke just verifies they don't crash.
 const HIDDEN_ROUTES = [
   { hash: 'counting', expect: /Counting Trainer/ },
+  { hash: 'rush', expect: /Puzzle Rush/ },
 ];
 
 test.describe('smoke: all tabs load', () => {

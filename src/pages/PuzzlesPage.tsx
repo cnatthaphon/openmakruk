@@ -202,20 +202,36 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
             Surfaces the counting category prominently because the
             rule is unique to Thai chess and most newcomers don't
             even know it exists. */}
-        <button
-          className="puzzles-counting-banner"
-          onClick={() => navigate({ tab: 'counting' })}
-          aria-label="Counting Trainer — กฎเฉพาะของหมากรุกไทย"
-        >
-          <span className="puzzles-counting-icon">🔢</span>
-          <div className="puzzles-counting-text">
-            <strong>Counting Trainer · drill mode</strong>
-            <span className="label-aside">
-              · 5 levels · ไล่ขุนเปลือยให้จนภายในกรอบเวลา
-            </span>
-          </div>
-          <span className="puzzles-counting-cta">เริ่มฝึก →</span>
-        </button>
+        <div className="puzzles-flagship-row">
+          <button
+            className="puzzles-counting-banner"
+            onClick={() => navigate({ tab: 'counting' })}
+            aria-label="Counting Trainer — กฎเฉพาะของหมากรุกไทย"
+          >
+            <span className="puzzles-counting-icon">🔢</span>
+            <div className="puzzles-counting-text">
+              <strong>Counting Trainer · drill</strong>
+              <span className="label-aside">
+                · 5 levels · ไล่ขุนเปลือยภายในกรอบเวลา
+              </span>
+            </div>
+            <span className="puzzles-counting-cta">→</span>
+          </button>
+          <button
+            className="puzzles-rush-banner"
+            onClick={() => navigate({ tab: 'rush' })}
+            aria-label="Puzzle Rush — 3 นาทีแก้ให้ได้มากที่สุด"
+          >
+            <span className="puzzles-counting-icon">🔥</span>
+            <div className="puzzles-counting-text">
+              <strong>Puzzle Rush · 3 นาที</strong>
+              <span className="label-aside">
+                · แก้ให้ได้เยอะที่สุด · ผิด 3 ครั้ง = จบ
+              </span>
+            </div>
+            <span className="puzzles-counting-cta">→</span>
+          </button>
+        </div>
       </header>
 
       {!puzzles && !loadError && (

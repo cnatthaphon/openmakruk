@@ -6502,3 +6502,160 @@ footer a:hover {
   }
 }
 
+/* ─── Puzzle Rush ────────────────────────────────────────────── */
+.puzzles-flagship-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 12px 0;
+}
+.puzzles-rush-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, rgba(232,90,74,0.12), rgba(212,162,60,0.08));
+  border: 1px solid rgba(232,90,74,0.3);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg);
+  font-size: 13px;
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+.puzzles-rush-banner:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(232,90,74,0.18), rgba(212,162,60,0.12));
+}
+@media (max-width: 640px) {
+  .puzzles-flagship-row { grid-template-columns: 1fr; }
+}
+
+.rush-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+.rush-back {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 18px;
+}
+.rush-intro {
+  text-align: center;
+  padding: 30px 20px;
+}
+.rush-intro-icon {
+  font-size: 3.5rem;
+  margin-bottom: 8px;
+}
+.rush-intro h2 {
+  margin: 0 0 8px;
+}
+.rush-intro-best {
+  margin: 18px 0;
+  font-size: 15px;
+}
+.rush-start {
+  padding: 14px 32px;
+  background: linear-gradient(135deg, #e85a4a, #d4a23c);
+  color: #1a1a1a;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.rush-start:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.rush-active .rush-hud {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.rush-hud-stat {
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  text-align: center;
+}
+.rush-hud-label {
+  font-size: 14px;
+  margin-right: 4px;
+}
+.rush-hud-value {
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+}
+.rush-hud-time .rush-hud-value { color: #d4a23c; }
+.rush-hud-score .rush-hud-value { color: #7aba7f; }
+.rush-hud-strikes .rush-hud-value { color: #e85a4a; }
+
+.rush-board {
+  position: relative;
+  transition: filter 0.15s ease;
+}
+.rush-board.flash-correct {
+  filter: brightness(1.05) drop-shadow(0 0 12px rgba(122,186,127,0.5));
+}
+.rush-board.flash-wrong {
+  filter: brightness(0.92) drop-shadow(0 0 12px rgba(232,90,74,0.5));
+}
+.rush-board-hint {
+  text-align: center;
+  margin-top: 8px;
+}
+
+.rush-result {
+  text-align: center;
+  padding: 30px 20px;
+}
+.rush-result-icon {
+  font-size: 3.5rem;
+}
+.rush-result h2 {
+  margin: 8px 0 16px;
+}
+.rush-result-score {
+  font-size: 3rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: #d4a23c;
+  margin: 10px 0;
+}
+.rush-result-best {
+  margin: 16px 0;
+  font-size: 15px;
+}
+.rush-result-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.rush-secondary {
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.rush-secondary:hover {
+  background: rgba(255,255,255,0.12);
+}
+

@@ -42,6 +42,8 @@ export const TAB_IDS = [
   // Counting Trainer drill — `/#/counting` (level picker) or
   // `/#/counting/<level-id>` (active drill).
   'counting',
+  // Puzzle Rush — `/#/rush`. Timed back-to-back puzzle solving.
+  'rush',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];
