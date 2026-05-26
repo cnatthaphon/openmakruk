@@ -100,8 +100,13 @@ export function OnboardingModal({ onClose }: Props) {
           ข้าม ✕
         </button>
 
+        {/* Wrap each step in a <form> so Enter from the focused input/
+            select submits the step (browser default behavior for a
+            form with a single submit button). Without this, pressing
+            Enter after typing a name does nothing — the user has to
+            click "ต่อไป →" with the mouse, which feels broken. */}
         {step === 'welcome' && (
-          <>
+          <form onSubmit={(e) => { e.preventDefault(); setStep('name'); }}>
             <h2>ยินดีต้อนรับสู่ OpenMakruk</h2>
             <p>
               นี่คือแพลตฟอร์มสำหรับ <strong>หมากรุกไทย (Makruk)</strong> — เกมหมากรุกพื้นบ้านของไทยที่มีเอกลักษณ์เฉพาะตัว ต่างจากหมากรุกสากล:
@@ -115,13 +120,13 @@ export function OnboardingModal({ onClose }: Props) {
               ระบบฝึก รวบรวมปริศนา ฝึกเปิดเกม จบเกม · เล่นกับ bot หลายสไตล์ · ฟรีทั้งหมด · เล่นออฟไลน์ได้ทุกฟีเจอร์ · เปิด ☁️ cloud sync ใน Settings ถ้าอยากเทียบคะแนนกับคนอื่น (anonymous · ไม่ต้องสมัคร)
             </p>
             <div className="onboarding-buttons">
-              <button className="primary" onClick={() => setStep('name')}>ต่อไป →</button>
+              <button type="submit" className="primary">ต่อไป →</button>
             </div>
-          </>
+          </form>
         )}
 
         {step === 'name' && (
-          <>
+          <form onSubmit={(e) => { e.preventDefault(); setStep('region'); }}>
             <h2>เรียกคุณว่าอะไรดี</h2>
             <p>ชื่อจะแสดงในประวัติเกม · เปลี่ยนได้ใน Profile</p>
             <input
@@ -134,14 +139,14 @@ export function OnboardingModal({ onClose }: Props) {
               placeholder="ผู้เล่น"
             />
             <div className="onboarding-buttons">
-              <button onClick={() => setStep('welcome')}>← ย้อนกลับ</button>
-              <button className="primary" onClick={() => setStep('region')}>ต่อไป →</button>
+              <button type="button" onClick={() => setStep('welcome')}>← ย้อนกลับ</button>
+              <button type="submit" className="primary">ต่อไป →</button>
             </div>
-          </>
+          </form>
         )}
 
         {step === 'region' && (
-          <>
+          <form onSubmit={(e) => { e.preventDefault(); setStep('opponent'); }}>
             <h2>คุณอยู่จังหวัดไหน</h2>
             <p>
               เพื่อจัด leaderboard ต่อจังหวัด / ต่อภูมิภาค · ใช้แข่งกัน "กทม. vs เชียงใหม่"
@@ -168,20 +173,21 @@ export function OnboardingModal({ onClose }: Props) {
               👁️ ใช้แสดงในผลแข่งเท่านั้น · ไม่ใช่ข้อมูลส่วนตัว · ไม่ติด IP geolocation
             </p>
             <div className="onboarding-buttons">
-              <button onClick={() => setStep('name')}>← ย้อนกลับ</button>
-              <button className="primary" onClick={() => setStep('opponent')}>ต่อไป →</button>
+              <button type="button" onClick={() => setStep('name')}>← ย้อนกลับ</button>
+              <button type="submit" className="primary">ต่อไป →</button>
             </div>
-          </>
+          </form>
         )}
 
         {step === 'opponent' && (
-          <>
+          <form onSubmit={(e) => { e.preventDefault(); finish(); }}>
             <h2>เลือกคู่ต่อสู้คนแรก</h2>
             <p>เริ่มจาก bot ที่ไม่แรงเกินไป · เปลี่ยนได้ทุกเมื่อใน Settings</p>
             <div className="onboarding-opponents">
               {STARTING_OPPONENTS.map((opp) => (
                 <button
                   key={opp.engineId}
+                  type="button"
                   className={`onboarding-opponent ${engineId === opp.engineId ? 'selected' : ''}`}
                   onClick={() => setEngineId(opp.engineId)}
                 >
@@ -197,10 +203,10 @@ export function OnboardingModal({ onClose }: Props) {
               อยากท้าทายมากขึ้น? ดู personality bots ทั้งหมด ({PERSONALITIES.length} สไตล์) ใน Settings → Engine
             </p>
             <div className="onboarding-buttons">
-              <button onClick={() => setStep('region')}>← ย้อนกลับ</button>
-              <button className="primary" onClick={finish}>เริ่มเล่น 🎮</button>
+              <button type="button" onClick={() => setStep('region')}>← ย้อนกลับ</button>
+              <button type="submit" className="primary">เริ่มเล่น 🎮</button>
             </div>
-          </>
+          </form>
         )}
       </div>
     </div>

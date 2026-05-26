@@ -6,7 +6,14 @@ import { ToastProvider } from './components/Toast';
 import { hydrateDurableStores } from './lib/stores';
 import { setBackend } from './lib/backend';
 import { cloudflareBackend } from './lib/backend/cloudflareBackend';
+import { clearChunkReloadFlag } from './lib/lazyRetry';
 import './App.css';
+
+// Clear the stale-chunk reload-once flag now that the app is loading
+// successfully — the next time a deploy invalidates chunks (weeks
+// from now), we get a fresh single retry instead of skipping straight
+// to "give up". Safe to call repeatedly.
+clearChunkReloadFlag();
 
 // Register the Cloudflare adapter as the active backend at boot —
 // BEFORE any UI mounts. Public-read endpoints (Bot Hall of Fame,

@@ -46,45 +46,52 @@ import {
 // the bundler's chunk cache and feel instant. Tradeoff: ~80–120ms
 // extra latency on FIRST navigation to each new tab vs. ~30% smaller
 // initial JS payload. Worth it on mobile, invisible on desktop.
-const LearnPage = lazy(() =>
+// All lazy page imports go through lazyRetry — if a Pages deploy has
+// invalidated the chunk hash since this tab loaded its index.html
+// (the "stale chunk" problem), the first navigation to that page
+// would throw "Failed to fetch dynamically imported module". The
+// helper catches that, force-reloads the page once (preserving the
+// hash route), and the user lands on a fresh bundle within a second.
+import { lazyRetry } from './lib/lazyRetry';
+const LearnPage = lazy(lazyRetry(() =>
   import('./pages/LearnPage').then((m) => ({ default: m.LearnPage })),
-);
-const StudyPage = lazy(() =>
+));
+const StudyPage = lazy(lazyRetry(() =>
   import('./pages/StudyPage').then((m) => ({ default: m.StudyPage })),
-);
-const PuzzlesPage = lazy(() =>
+));
+const PuzzlesPage = lazy(lazyRetry(() =>
   import('./pages/PuzzlesPage').then((m) => ({ default: m.PuzzlesPage })),
-);
-const ProfilePage = lazy(() =>
+));
+const ProfilePage = lazy(lazyRetry(() =>
   import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
-);
-const CustomPage = lazy(() =>
+));
+const CustomPage = lazy(lazyRetry(() =>
   import('./pages/CustomPage').then((m) => ({ default: m.CustomPage })),
-);
-const AboutPage = lazy(() =>
+));
+const AboutPage = lazy(lazyRetry(() =>
   import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })),
-);
-const SettingsPage = lazy(() =>
+));
+const SettingsPage = lazy(lazyRetry(() =>
   import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
-);
-const LibraryPage = lazy(() =>
+));
+const LibraryPage = lazy(lazyRetry(() =>
   import('./pages/LibraryPage').then((m) => ({ default: m.LibraryPage })),
-);
-const BotDetailPage = lazy(() =>
+));
+const BotDetailPage = lazy(lazyRetry(() =>
   import('./pages/BotDetailPage').then((m) => ({ default: m.BotDetailPage })),
-);
-const CountingDrillPage = lazy(() =>
+));
+const CountingDrillPage = lazy(lazyRetry(() =>
   import('./pages/CountingDrillPage').then((m) => ({ default: m.CountingDrillPage })),
-);
-const PuzzleRushPage = lazy(() =>
+));
+const PuzzleRushPage = lazy(lazyRetry(() =>
   import('./pages/PuzzleRushPage').then((m) => ({ default: m.PuzzleRushPage })),
-);
-const ExhibitionPage = lazy(() =>
+));
+const ExhibitionPage = lazy(lazyRetry(() =>
   import('./pages/ExhibitionPage').then((m) => ({ default: m.ExhibitionPage })),
-);
-const CertPage = lazy(() =>
+));
+const CertPage = lazy(lazyRetry(() =>
   import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
-);
+));
 import { loadSettings, type Settings } from './lib/settings';
 import {
   clearChallengeTarget,
