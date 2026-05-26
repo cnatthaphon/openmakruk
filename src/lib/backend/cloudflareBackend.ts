@@ -34,6 +34,9 @@ import type {
   TournamentInfo,
   ExhibitionSummary,
   ExhibitionGame,
+  SeasonInfo,
+  SeasonSummary,
+  SeasonDetail,
   ActivitySignals,
 } from './types';
 
@@ -325,6 +328,32 @@ export class CloudflareBackend implements BackendAdapter {
       );
       if (res.status === 404) return null;
       return (await res.json()) as ExhibitionGame;
+    } catch (err) {
+      if (err instanceof BackendError && err.status === 404) return null;
+      throw err;
+    }
+  }
+
+  async fetchActiveSeason(): Promise<SeasonInfo> {
+    const res = await this.request('/api/seasons/active');
+    const body = (await res.json()) as { season: SeasonInfo };
+    return body.season;
+  }
+
+  async fetchClosedSeasons(): Promise<SeasonSummary[]> {
+    const res = await this.request('/api/seasons');
+    const body = (await res.json()) as { seasons: SeasonSummary[] };
+    return body.seasons;
+  }
+
+  async fetchSeasonWinners(id: string): Promise<SeasonDetail | null> {
+    try {
+      const res = await this.request(
+        `/api/seasons/${encodeURIComponent(id)}`,
+        { allow401: true },
+      );
+      if (res.status === 404) return null;
+      return (await res.json()) as SeasonDetail;
     } catch (err) {
       if (err instanceof BackendError && err.status === 404) return null;
       throw err;

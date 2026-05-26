@@ -136,6 +136,31 @@ export type ExhibitionGame = ExhibitionSummary & {
   moves: string[];
 };
 
+/** Active season — what /api/seasons/active returns. */
+export type SeasonInfo = {
+  id: string;
+  label: string;
+  startsAt: number;
+  endsAt: number;
+};
+
+/** Closed season summary — list view shape. */
+export type SeasonSummary = SeasonInfo & {
+  closedAt: number | null;
+};
+
+export type SeasonWinner = {
+  scope: string; // 'global' | 'region:<id>' | 'province:<code>'
+  rank: number;
+  userId: string;
+  displayName: string;
+  rating: number;
+};
+
+export type SeasonDetail = SeasonSummary & {
+  winners: SeasonWinner[];
+};
+
 /** Real engagement signals — every number comes from a DB count. */
 export type ActivitySignals = {
   gamesToday: number;
@@ -380,6 +405,9 @@ export type BackendAdapter = {
   fetchTournaments?(): Promise<TournamentInfo[]>;
   fetchExhibitionRecent?(): Promise<ExhibitionSummary[]>;
   fetchExhibitionGame?(id: string): Promise<ExhibitionGame | null>;
+  fetchActiveSeason?(): Promise<SeasonInfo>;
+  fetchClosedSeasons?(): Promise<SeasonSummary[]>;
+  fetchSeasonWinners?(id: string): Promise<SeasonDetail | null>;
 
   /** Honest engagement signals — games/puzzles played today + last
    *  player display name. All from real DB counts, no fakes. */

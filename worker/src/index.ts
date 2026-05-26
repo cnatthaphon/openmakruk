@@ -30,6 +30,8 @@ import { tournamentsRoute } from './routes/tournaments';
 import { signalsRoute } from './routes/signals';
 import { exhibitionRoute } from './routes/exhibition';
 import { runExhibitionTick } from './exhibition';
+import { seasonsRoute } from './routes/seasons';
+import { runSeasonRolloverIfDue } from './seasons';
 
 /** Cloudflare bindings configured in wrangler.toml. */
 export type Env = {
@@ -84,6 +86,7 @@ app.route('/api/journey', journeyRoute);
 app.route('/api/tournaments', tournamentsRoute);
 app.route('/api/signals', signalsRoute);
 app.route('/api/exhibition', exhibitionRoute);
+app.route('/api/seasons', seasonsRoute);
 
 /** DB readiness — separate from /health because hitting D1 costs a
  *  read and we don't want every monitoring probe to drive that bill. */
@@ -116,10 +119,25 @@ async function scheduled(
   env: Env,
   ctx: ExecutionContext,
 ): Promise<void> {
+  // Exhibition tick — bot vs bot game every cron firing (every 30 min).
   ctx.waitUntil(
     runExhibitionTick(env).catch((err) => {
       console.error('exhibition.tick.error', err);
     }),
+  );
+  // Season rollover — idempotent, only writes when a calendar quarter
+  // has just ended and its winners aren't yet recorded. Cheap if not
+  // due (one indexed lookup). Runs alongside the exhibition tick.
+  ctx.waitUntil(
+    runSeasonRolloverIfDue(env)
+      .then((res) => {
+        if (res.recorded) {
+          console.log('seasons.rollover', { id: res.recorded, winnerCount: res.winnerCount });
+        }
+      })
+      .catch((err) => {
+        console.error('seasons.rollover.error', err);
+      }),
   );
 }
 

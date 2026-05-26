@@ -7224,6 +7224,32 @@ footer a:hover {
   margin-top: 4px;
 }
 
+/* ─── Season Hall of Fame (Profile) ──────────────────────────── */
+.season-active-line { font-size: 13px; margin: 6px 0 10px; }
+.season-hof-list { list-style: none; padding: 0; margin: 0; }
+.season-hof-list li { margin: 4px 0; }
+.season-hof-row {
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%; padding: 10px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  color: var(--fg);
+  cursor: pointer;
+}
+.season-hof-row:hover { background: rgba(212,162,60,0.1); }
+.season-hof-winners {
+  margin: 6px 0 10px 12px;
+  padding: 10px 14px;
+  background: rgba(212,162,60,0.06);
+  border-left: 2px solid rgba(212,162,60,0.4);
+  border-radius: 4px;
+}
+.season-hof-winner {
+  display: flex; justify-content: space-between;
+  font-size: 13px; padding: 2px 0;
+}
+
 /* ─── Cosmetic picker (Settings) ─────────────────────────────── */
 .cosmetic-grid {
   display: grid;

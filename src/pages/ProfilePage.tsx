@@ -229,6 +229,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
 
       <SeasonSection />
 
+      <SeasonHallOfFameSection />
+
       <MasteryOverview />
 
       <InsightsSection stats={stats} />
@@ -1150,6 +1152,94 @@ function MatchLeaderboardSection({ stats }: { stats: UserStats }) {
       <p className="label-aside profile-lb-note">
         คะแนน = ชนะ × น้ำหนัก + (เสมอ × น้ำหนัก / 2) · แพ้ = 0
       </p>
+    </section>
+  );
+}
+
+function SeasonHallOfFameSection() {
+  const backend = getBackend();
+  const supports = backend.fetchClosedSeasons !== undefined;
+  const [seasons, setSeasons] = useState<import('../lib/backend/types').SeasonSummary[] | null>(null);
+  const [active, setActive] = useState<import('../lib/backend/types').SeasonInfo | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [winners, setWinners] = useState<import('../lib/backend/types').SeasonDetail | null>(null);
+
+  useEffect(() => {
+    if (!supports) return;
+    let cancelled = false;
+    if (backend.fetchActiveSeason) {
+      backend.fetchActiveSeason().then((s) => {
+        if (!cancelled) setActive(s);
+      }).catch(() => undefined);
+    }
+    if (backend.fetchClosedSeasons) {
+      backend.fetchClosedSeasons().then((s) => {
+        if (!cancelled) setSeasons(s);
+      }).catch(() => undefined);
+    }
+    return () => { cancelled = true; };
+  }, [supports, backend]);
+
+  useEffect(() => {
+    if (!openId || !backend.fetchSeasonWinners) {
+      setWinners(null);
+      return;
+    }
+    let cancelled = false;
+    backend.fetchSeasonWinners(openId).then((d) => {
+      if (!cancelled) setWinners(d);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [openId, backend]);
+
+  if (!supports) return null;
+  return (
+    <section className="profile-section">
+      <h3>🏆 Season Hall of Fame</h3>
+      <p className="label-aside">
+        ผู้ชนะแต่ละไตรมาส · บันทึกถาวร · scope: global · region · province
+      </p>
+      {active && (
+        <p className="season-active-line">
+          ฤดูกาลปัจจุบัน: <strong>{active.label}</strong> · จบ{' '}
+          {new Date(active.endsAt).toLocaleDateString('th-TH')}
+        </p>
+      )}
+      {!seasons && <p className="label-aside">กำลังโหลด…</p>}
+      {seasons && seasons.length === 0 && (
+        <p className="label-aside">ยังไม่มีฤดูกาลที่ปิด · cron rollover จะบันทึกหลังจบไตรมาสแรก</p>
+      )}
+      {seasons && seasons.length > 0 && (
+        <ul className="season-hof-list">
+          {seasons.map((s) => (
+            <li key={s.id}>
+              <button
+                className="season-hof-row"
+                onClick={() => setOpenId(openId === s.id ? null : s.id)}
+              >
+                <span><strong>{s.label}</strong></span>
+                <span className="label-aside">
+                  ปิด {s.closedAt ? new Date(s.closedAt).toLocaleDateString('th-TH') : '—'}
+                </span>
+              </button>
+              {openId === s.id && winners && (
+                <div className="season-hof-winners">
+                  {winners.winners.length === 0 ? (
+                    <span className="label-aside">ไม่มีผู้ชนะบันทึก</span>
+                  ) : (
+                    winners.winners.map((w, i) => (
+                      <div key={i} className="season-hof-winner">
+                        <span className="label-aside">{w.scope}</span>
+                        <span>#{w.rank} · {w.displayName} · {w.rating}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
