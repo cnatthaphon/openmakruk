@@ -92,16 +92,27 @@ const ExhibitionPage = lazy(lazyRetry(() =>
 const MoveTrainerPage = lazy(lazyRetry(() =>
   import('./pages/MoveTrainerPage').then((m) => ({ default: m.MoveTrainerPage })),
 ));
+const BossRushPage = lazy(lazyRetry(() =>
+  import('./pages/BossRushPage').then((m) => ({ default: m.BossRushPage })),
+));
 const CertPage = lazy(lazyRetry(() =>
   import('./pages/CertPage').then((m) => ({ default: m.CertPage })),
 ));
-import { loadSettings, type Settings } from './lib/settings';
+import { loadSettings, saveSettings, type Settings } from './lib/settings';
 import {
   clearChallengeTarget,
   loadChallengeTarget,
+  setChallengeTarget,
   type ChallengeTarget,
 } from './lib/challenge';
 import { findNarrative } from './lib/personalities/narrative';
+import {
+  loadActiveRush,
+  activeRushBotId,
+  advanceRush,
+  abandonRush,
+} from './lib/bossRush';
+import { PERSONALITIES } from './lib/personalities/personalities';
 import {
   playCapture,
   playCheck,
@@ -197,6 +208,7 @@ const TAB_LABELS: Record<Tab, string> = {
   rush:     '', // hidden — visited via /#/rush
   exhibition: '', // hidden — visited via /#/exhibition or /#/exhibition/<id>
   movetrainer: '', // hidden — visited via /#/movetrainer
+  bossrush: '', // hidden — visited via /#/bossrush
 };
 const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
   (t) => TAB_LABELS[t] !== '',
@@ -695,6 +707,66 @@ export default function App() {
         toast.info(`🎯 ${activeEvent.name}: +${activeEvent.pointsPerWin} pt`);
       }
     }
+    // Boss Rush auto-advance — only if the just-finished game was
+    // against the bot the active rush is currently facing. Win →
+    // advance to next bot + auto-set challenge target. Loss/draw →
+    // abandon (records partial score).
+    if (challenge) {
+      const activeRush = loadActiveRush();
+      if (activeRush && activeRushBotId() === challenge.botId) {
+        const userColor2: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+        const result2 = forcedResult ?? state.result;
+        const userWonRush =
+          (result2 === '1-0' && userColor2 === 'white') ||
+          (result2 === '0-1' && userColor2 === 'black');
+        if (userWonRush) {
+          const advanced = advanceRush();
+          if (advanced) {
+            // Set up next bot — fetch its details from the registry
+            // via the existing backend.fetchBots cache. Async but
+            // we don't need to await here; the user will see the
+            // new challenge banner shortly.
+            const nextBotId = activeRushBotId();
+            const backendForBots = getBackend();
+            if (nextBotId && backendForBots.fetchBots) {
+              backendForBots.fetchBots().then((bots) => {
+                const nb = bots.find((b) => b.id === nextBotId);
+                if (nb) {
+                  setChallengeTarget({
+                    botId: nb.id,
+                    displayName: nb.displayName,
+                    avatar: nb.avatar,
+                    personality: nb.personality,
+                    tier: nb.tier,
+                    rating: nb.rating,
+                  });
+                  saveSettings({
+                    ...loadSettings(),
+                    engineId: `personality:${nb.personality}`,
+                  });
+                  setChallenge(loadChallengeTarget());
+                  toast.success(
+                    `🏆 ผ่าน ${advanced.index}/${PERSONALITIES.length} · ต่อกับ ${nb.avatar} ${nb.displayName}`,
+                  );
+                }
+              }).catch(() => undefined);
+            }
+          } else {
+            // null return = full clear (recorded in advanceRush itself)
+            toast.success(`🏆 จบ Rush ครบทั้ง ${PERSONALITIES.length} บอต! ⭐`);
+            clearChallengeTarget();
+            setChallenge(null);
+          }
+        } else {
+          // Loss or draw — abandon, record partial score
+          abandonRush('loss');
+          toast.info(`🏆 จบ Rush · ผ่าน ${activeRush.index} / ${PERSONALITIES.length}`);
+          clearChallengeTarget();
+          setChallenge(null);
+        }
+      }
+    }
+
     // Cloud sync — fire-and-forget. Falls through quietly if backend is
     // NoOp or recordGame is not supported. We compute the outcome from
     // the same state above; duplicating the small switch here is cheaper
@@ -1834,6 +1906,9 @@ export default function App() {
       )}
       {currentTab === 'movetrainer' && (
         <ErrorBoundary scope="movetrainer"><MoveTrainerPage openingId={route.id} /></ErrorBoundary>
+      )}
+      {currentTab === 'bossrush' && (
+        <ErrorBoundary scope="bossrush"><BossRushPage /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (

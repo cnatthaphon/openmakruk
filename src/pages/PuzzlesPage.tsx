@@ -24,6 +24,7 @@ import {
 } from '../lib/puzzleSchema';
 import { PuzzleView } from './PuzzleView';
 import { navigate } from '../lib/router';
+import { toast } from '../components/Toast';
 import { SkeletonGrid } from '../components/Skeleton';
 
 type Props = {
@@ -129,7 +130,29 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
 
   const activePuzzle = puzzles?.find((p) => p.id === activePuzzleId) ?? null;
 
+  // Escalation gates — category X requires Y prior solves in category Z
+  // before it unlocks. Keeps new learners from bouncing off mate-in-2
+  // before they've internalised mate-in-1. Honest gate, not restrictive:
+  // only 3 mate-1 solves needed.
+  const CATEGORY_GATES: Partial<Record<PuzzleCategory, { requires: PuzzleCategory; count: number }>> = {
+    'mate-2': { requires: 'mate-1', count: 3 },
+  };
+  const solvedCountByCategory = (cat: PuzzleCategory): number => {
+    return (byCategory[cat] ?? []).filter((p) => isPuzzleSolved(progress, p.id)).length;
+  };
+  const isCategoryLocked = (cat: PuzzleCategory): boolean => {
+    const gate = CATEGORY_GATES[cat];
+    if (!gate) return false;
+    return solvedCountByCategory(gate.requires) < gate.count;
+  };
+
   const handleCategoryClick = (cat: PuzzleCategory) => {
+    if (isCategoryLocked(cat)) {
+      const gate = CATEGORY_GATES[cat]!;
+      const need = gate.count - solvedCountByCategory(gate.requires);
+      toast.info(`🔒 ปลดล็อกหมวดนี้ — แก้ ${gate.requires} อีก ${need} ข้อ`);
+      return;
+    }
     const list = byCategory[cat];
     // Pick first unsolved, else first
     const next = list.find((p) => !isPuzzleSolved(progress, p.id)) ?? list[0];
@@ -276,19 +299,32 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
           const solved = list.filter((p) => isPuzzleSolved(progress, p.id)).length;
           const total = list.length;
           const disabled = total === 0;
+          const locked = isCategoryLocked(cat);
+          const gate = CATEGORY_GATES[cat];
+          const need = gate ? gate.count - solvedCountByCategory(gate.requires) : 0;
           return (
             <button
               key={cat}
-              className="puzzle-category-card"
+              className={`puzzle-category-card ${locked ? 'is-locked' : ''}`}
               disabled={disabled}
               onClick={() => handleCategoryClick(cat)}
               title={
-                disabled ? 'ยังไม่มีปริศนาในหมวดนี้ (เติมใน Phase 4)' : meta.description
+                disabled
+                  ? 'ยังไม่มีปริศนาในหมวดนี้ (เติมใน Phase 4)'
+                  : locked && gate
+                    ? `🔒 ปลดล็อกหลังแก้ ${gate.requires} ${need} ข้อ`
+                    : meta.description
               }
             >
-              <div className="puzzle-category-emoji">{meta.emoji}</div>
+              <div className="puzzle-category-emoji">
+                {locked ? '🔒' : meta.emoji}
+              </div>
               <div className="puzzle-category-title">{meta.title}</div>
-              <div className="puzzle-category-desc">{meta.description}</div>
+              <div className="puzzle-category-desc">
+                {locked && gate
+                  ? `🔒 แก้ ${gate.requires} อีก ${need} ข้อเพื่อปลดล็อก`
+                  : meta.description}
+              </div>
               <div className="puzzle-category-meta">
                 <span>
                   {solved} / {total} ข้อ

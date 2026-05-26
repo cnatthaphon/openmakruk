@@ -921,12 +921,20 @@ function BotHallOfFameSection() {
       <p className="label-aside">
         Bots ที่คุณแข่งด้วย · rating ขยับจริงตามทุกเกม · ทุกคนเริ่มฝึกที่ Rookie แล้วเอาชนะ Master ก่อนจะปะทะ 👑 boss
       </p>
-      <button
-        className="profile-bots-live-link"
-        onClick={() => navigate({ tab: 'exhibition' })}
-      >
-        🎬 ดู bot vs bot · live (cron ทุก 30 นาที) →
-      </button>
+      <div className="profile-bots-links">
+        <button
+          className="profile-bots-live-link"
+          onClick={() => navigate({ tab: 'exhibition' })}
+        >
+          🎬 ดู bot vs bot · live (cron ทุก 30 นาที) →
+        </button>
+        <button
+          className="profile-bots-live-link"
+          onClick={() => navigate({ tab: 'bossrush' })}
+        >
+          🏆 Boss Rush · ผ่าน 7 บอตต่อรอบ →
+        </button>
+      </div>
 
       <div className="profile-bots-tabs" role="tablist">
         {(['all', 'rookie', 'veteran', 'master'] as const).map((t) => (

@@ -1389,6 +1389,15 @@ main {
   opacity: 0.5;
   cursor: not-allowed;
 }
+.puzzle-category-card.is-locked {
+  opacity: 0.75;
+  border-style: dashed;
+  background: rgba(255,255,255,0.02);
+}
+.puzzle-category-card.is-locked:hover {
+  background: rgba(255,255,255,0.05);
+  transform: none;
+}
 
 .puzzle-category-title {
   font-weight: 700;
@@ -6797,10 +6806,11 @@ footer a:hover {
 }
 
 /* ─── Bot Exhibition ─────────────────────────────────────────── */
+.profile-bots-links {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 8px; margin-bottom: 12px;
+}
 .profile-bots-live-link {
-  display: inline-block;
-  margin-top: 8px;
-  margin-bottom: 12px;
   padding: 8px 14px;
   background: rgba(232,90,74,0.08);
   border: 1px solid rgba(232,90,74,0.3);
@@ -6950,6 +6960,69 @@ footer a:hover {
 }
 .study-trainer-banner:hover {
   background: linear-gradient(135deg, rgba(163,123,245,0.25), rgba(212,162,60,0.18));
+}
+
+/* ─── Boss Rush ──────────────────────────────────────────────── */
+.rush-mode-page { max-width: 880px; margin: 0 auto; padding: 24px 16px 60px; }
+.rush-mode-back {
+  background: transparent; border: 1px solid rgba(255,255,255,0.15);
+  color: var(--fg); padding: 6px 14px; border-radius: 6px;
+  font-size: 13px; cursor: pointer; margin-bottom: 18px;
+}
+.rush-mode-header { margin-bottom: 20px; }
+.rush-mode-header h2 { margin: 0 0 4px; }
+.rush-mode-subheader { font-size: 1rem; margin: 22px 0 12px; color: var(--fg-dim); }
+.rush-mode-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.rush-mode-tier-card {
+  text-align: left;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--fg);
+  cursor: pointer;
+}
+.rush-mode-tier-card:hover {
+  background: rgba(232,90,74,0.1);
+  border-color: rgba(232,90,74,0.35);
+}
+.rush-mode-tier-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 4px;
+}
+.rush-mode-tier-best { font-size: 12px; color: #d4a23c; font-weight: 600; }
+.rush-mode-tier-desc {
+  margin: 0 0 6px; font-size: 13px;
+  color: rgba(255,255,255,0.85); line-height: 1.4;
+}
+.rush-mode-active {
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(232,90,74,0.15), rgba(212,162,60,0.1));
+  border: 1px solid rgba(232,90,74,0.4);
+  border-radius: 10px;
+  margin-bottom: 22px;
+}
+.rush-mode-active-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.rush-mode-active-current {
+  font-size: 1.1rem; font-weight: 600; margin: 10px 0;
+}
+.rush-mode-active-actions { display: flex; gap: 8px; }
+.rush-mode-resume {
+  padding: 8px 16px; background: var(--accent);
+  color: var(--accent-fg); border: 0; border-radius: 6px;
+  font-weight: 600; cursor: pointer;
+}
+.rush-mode-cancel {
+  padding: 8px 14px; background: transparent;
+  color: var(--fg-dim); border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px; cursor: pointer; font-size: 13px;
 }
 
 /* ─── Move Trainer ───────────────────────────────────────────── */

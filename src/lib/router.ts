@@ -48,6 +48,8 @@ export const TAB_IDS = [
   'exhibition',
   // Move Trainer — `/#/movetrainer` (picker) or `/#/movetrainer/<openId>` (drill).
   'movetrainer',
+  // Boss Rush — `/#/bossrush` (picker + active progress).
+  'bossrush',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];
