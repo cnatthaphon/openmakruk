@@ -274,6 +274,29 @@ test.describe('launch-readiness · account security flows', () => {
   });
 });
 
+test.describe('launch-readiness · URL aliases (forgiving routing)', () => {
+  // Real-user UX flag: someone tried /#/boss-rush expecting it to work
+  // because /#/move-trainer "looks like" it would. The canonical slug
+  // is the single-word form, but we accept the dashed form too so URL
+  // guessing doesn't punish the user with a silent fallback to /play.
+  for (const variant of ['boss-rush', 'BossRush', 'move-trainer']) {
+    test(`/#/${variant} resolves to the canonical drill, not the play fallback`, async ({ page }) => {
+      await pinTestApiBase(page);
+      await page.goto('/');
+      await clearAppState(page);
+      await page.goto(`/#/${variant}`);
+      // After alias normalization, the canonical hash should be set.
+      const expected = variant.replace(/-/g, '').toLowerCase();
+      // Page renders the drill surface, not the Play tab. Body text
+      // 'ตาคุณ' / 'รอบที่' is play-tab-specific; absence is the cleanest
+      // signal that the alias was honored.
+      await page.waitForTimeout(800);
+      const isPlay = await page.locator('body').filter({ hasText: 'ตาคุณ' }).count();
+      expect(isPlay, `alias ${variant} (expected ${expected}) routed to play`).toBe(0);
+    });
+  }
+});
+
 test.describe('launch-readiness · hidden drill routes load', () => {
   for (const route of [
     { hash: 'counting', expect: /Counting Trainer/ },

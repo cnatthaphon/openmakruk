@@ -99,6 +99,22 @@ function isTab(s: string): s is Tab {
   return (TAB_IDS as readonly string[]).includes(s);
 }
 
+/** Resolve a path slug to a canonical Tab, accepting common variants
+ *  someone might guess from the feature name:
+ *    boss-rush  → bossrush
+ *    move-trainer → movetrainer
+ *    bossRush    → bossrush  (camelCase)
+ *  Returns null if nothing matches — caller falls back to 'play'.
+ *  Convention rationale: we ship the canonical single-word form
+ *  (lowercase, no separator) but multi-word features are easier to
+ *  type with a dash, so we accept both. */
+function resolveTabAlias(raw: string): Tab | null {
+  if (isTab(raw)) return raw;
+  const noDash = raw.replace(/-/g, '').toLowerCase();
+  if (isTab(noDash)) return noDash;
+  return null;
+}
+
 /** Parse a hash string of the form `#/tab[/id][?k=v&...]` into a Route. */
 export function parseRoute(hash: string): Route {
   if (!hash || !hash.startsWith('#/')) return { ...DEFAULT_ROUTE };
@@ -106,7 +122,7 @@ export function parseRoute(hash: string): Route {
   const [pathPart, queryPart = ''] = hash.slice(2).split('?', 2);
   const segments = pathPart.split('/').filter(Boolean);
   const rawTab = segments[0] ?? 'play';
-  const tab: Tab = isTab(rawTab) ? rawTab : 'play';
+  const tab: Tab = resolveTabAlias(rawTab) ?? 'play';
   // Decode the id segment — buildHash encodes characters like ':' that
   // are valid in our id format but get %-escaped per URI spec. Without
   // this mirror-decode, ids like `bot:wanderer-rookie` round-trip as
