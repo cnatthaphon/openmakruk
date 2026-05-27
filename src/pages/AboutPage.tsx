@@ -115,8 +115,8 @@ export function AboutPage() {
       <header className="about-header">
         <h2>ℹ️ เกี่ยวกับ OpenMakruk</h2>
         <p className="about-tag">
-          เว็บฝึก / เล่น / วิเคราะห์ <strong>หมากรุกไทย</strong> · MIT licensed ·
-          ไม่มี server เก็บข้อมูลผู้ใช้
+          แพลตฟอร์ม <strong>single-player</strong> ที่ดีที่สุดสำหรับฝึก
+          หมากรุกไทย · MIT licensed · ไม่มี server เก็บข้อมูลส่วนตัว
         </p>
       </header>
 
@@ -130,10 +130,32 @@ export function AboutPage() {
           อยากได้ — สร้างโดยเด็กคนนั้นเอง.
         </p>
         <p>
-          เป้าหมาย: <em>lichess-style training platform สำหรับ
-          หมากรุกไทยโดยเฉพาะ</em> — ภาษาไทย, เปิด source, ฟรีตลอด,
-          เริ่มเล่นทันทีไม่ต้องสมัคร.
+          เป้าหมาย: <strong>ฝึก single-player ครบทุกมิติ</strong> —
+          22 bot characters · counting drill · pattern recognition ·
+          survive defensive · boss rush · move trainer · auto-game review
+          พร้อม motif breakdown — รวมกันในที่เดียว ที่ไม่มีใครในโลก
+          Makruk ทำ.
         </p>
+      </section>
+
+      <section className="about-section">
+        <h3>ทำไม "ไม่มี PvP" (by design)</h3>
+        <p>
+          PvP (Player vs Player) สด ๆ ต้องการ critical mass ของผู้เล่น
+          พร้อมกัน + ทีม anti-cheat real-time + WebSocket infra =
+          ใช้งบและเวลาที่ทีมเดียวคนเดียวให้ไม่ได้. เลือก
+          single-player แทนเพราะ:
+        </p>
+        <ul className="about-bullets">
+          <li>22 bot characters มี personality + lore + dynamic rating
+              · "คู่ต่อสู้" จริง ๆ ไม่ใช่ AI slider</li>
+          <li>Bot Exhibition cron เล่นกันเองทุก 30 นาที · feels like
+              community แม้ไม่มีคน</li>
+          <li>Match leaderboard · Bot Hall of Fame · Province ranking
+              · Season HoF — competitive surfaces ที่ไม่ต้องรอคู่ต่อสู้</li>
+          <li>Custom mode + Auto-suggest solution — ออกแบบตำแหน่ง
+              ของคุณเอง · ให้คอมหา solution · แก้ได้ทั้งหมด</li>
+        </ul>
       </section>
 
       <section className="about-section">

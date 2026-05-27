@@ -63,14 +63,38 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
       const local = loadUserPuzzles();
       if (wantsServer && backend.fetchPuzzles) {
         try {
-          // Pull both sources in parallel so the user can solve a
-          // user-mined puzzle from someone else without enabling any
-          // extra filter.
+          // Pull both sources in parallel. Each source can have many
+          // pages — follow `nextCursor` until exhausted or the safety
+          // cap fires. Cap = 40 × 50 = 2000 puzzles per source, well
+          // beyond current scale (74 total) but a sane bound so a
+          // misconfigured cursor loop can't pin the worker forever.
+          const fetchAll = async (
+            source: 'curated' | 'user-mined' | 'auto-mined',
+          ): Promise<Puzzle[]> => {
+            const out: Puzzle[] = [];
+            let cursor: string | null = null;
+            for (let i = 0; i < 40; i++) {
+              const fetchPuzzlesFn = backend.fetchPuzzles;
+              if (!fetchPuzzlesFn) break;
+              const page = await fetchPuzzlesFn({
+                source,
+                ...(cursor ? { cursor } : {}),
+              });
+              // Worker returns category as string; the Puzzle type
+              // narrows it to PuzzleCategory. Cast through unknown is
+              // safe because the worker's VALID_CATEGORIES gate the
+              // insert + the seed JSON only contains valid values.
+              out.push(...(page.puzzles as unknown as Puzzle[]));
+              if (!page.nextCursor) break;
+              cursor = page.nextCursor;
+            }
+            return out;
+          };
           const [curated, userMined] = await Promise.all([
-            backend.fetchPuzzles({ source: 'curated' }),
-            backend.fetchPuzzles({ source: 'user-mined' }),
+            fetchAll('curated'),
+            fetchAll('user-mined'),
           ]);
-          const fromServer = [...curated.puzzles, ...userMined.puzzles] as Puzzle[];
+          const fromServer = [...curated, ...userMined];
           return dedupeById([...fromServer, ...local]);
         } catch (err) {
           // server reachable but errored — fall through to static
