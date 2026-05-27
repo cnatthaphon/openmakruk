@@ -61,6 +61,27 @@ test.describe('launch-readiness · bot detail deep link', () => {
     await expect(page.locator('.bot-detail-name')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('.bot-detail-error')).toHaveCount(0);
   });
+
+  test('clicking a bot card from Profile Hall of Fame opens detail (real click flow)', async ({ page }) => {
+    // The previous bug: clicking from Hall of Fame went through
+    // navigate() which encodeURIComponent's the ':' in bot:wanderer-rookie
+    // to bot%3Awanderer-rookie. parseRoute didn't decode, so the id
+    // arrived garbled and BotDetailPage 404'd. Earlier tests goto()'d
+    // /#/bots/<id> directly, which bypasses buildHash encoding and missed
+    // the regression. This test exercises the full click chain.
+    await page.goto('/');
+    await clearAppState(page);
+    await page.goto('/#/profile');
+    // Switch to the Compete tab where Bot Hall lives, then click the
+    // first bot card. The cards may take a moment to load (fetchBots).
+    await page.getByRole('tab', { name: /แข่งขัน/ }).click();
+    const firstCard = page.locator('.profile-bot-card').first();
+    await firstCard.waitFor({ state: 'visible', timeout: 15_000 });
+    await firstCard.click();
+    // Detail page should render the bot name, NOT the error state.
+    await expect(page.locator('.bot-detail-name')).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator('.bot-detail-error')).toHaveCount(0);
+  });
 });
 
 test.describe('launch-readiness · /#/stats public page', () => {

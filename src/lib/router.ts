@@ -107,7 +107,17 @@ export function parseRoute(hash: string): Route {
   const segments = pathPart.split('/').filter(Boolean);
   const rawTab = segments[0] ?? 'play';
   const tab: Tab = isTab(rawTab) ? rawTab : 'play';
-  const id = segments[1] ?? null;
+  // Decode the id segment — buildHash encodes characters like ':' that
+  // are valid in our id format but get %-escaped per URI spec. Without
+  // this mirror-decode, ids like `bot:wanderer-rookie` round-trip as
+  // `bot%3Awanderer-rookie` and downstream lookups 404. The try/catch
+  // guards against malformed inputs (e.g. a hand-typed URL with a
+  // stray %); decodeURIComponent throws on those and we'd rather pass
+  // the literal through than crash the router.
+  let id: string | null = segments[1] ?? null;
+  if (id !== null) {
+    try { id = decodeURIComponent(id); } catch { /* keep literal */ }
+  }
   const params: Record<string, string> = {};
   if (queryPart) {
     for (const pair of queryPart.split('&')) {

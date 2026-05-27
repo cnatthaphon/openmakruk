@@ -8200,3 +8200,112 @@ footer a:hover {
 .feedback-form.is-compact {
   gap: 8px;
 }
+
+/* ─── Profile · back button + sub-tabs + title-ladder explainer ──── */
+
+.profile-back-button {
+  margin: 4px 0 12px;
+  padding: 6px 14px;
+  background: rgba(255,255,255,0.04);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.profile-back-button:hover { background: rgba(255,255,255,0.10); }
+
+.profile-subtabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 14px 0 10px;
+  padding: 4px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 10px;
+  position: sticky;
+  top: 64px; /* below the app header */
+  z-index: 5;
+  backdrop-filter: blur(4px);
+}
+.profile-subtab {
+  flex: 1 1 auto;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--fg-dim);
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.profile-subtab:hover { color: var(--fg); }
+.profile-subtab.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.profile-rating-title {
+  border: 1px solid;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  cursor: help;
+}
+
+.profile-title-ladder {
+  margin: 8px 0 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 0 14px;
+}
+.profile-title-ladder summary {
+  padding: 10px 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
+  list-style: none;
+}
+.profile-title-ladder summary::-webkit-details-marker { display: none; }
+.profile-title-ladder summary::before {
+  content: '▸ ';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+.profile-title-ladder[open] summary::before { transform: rotate(90deg); }
+.profile-title-ladder-body {
+  padding-bottom: 14px;
+}
+.profile-title-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.profile-title-table th, .profile-title-table td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.profile-title-table th {
+  font-weight: 600;
+  color: var(--fg-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.profile-title-table tr.is-current {
+  background: rgba(212,162,60,0.08);
+  outline: 1px solid rgba(212,162,60,0.25);
+}
+.profile-title-table tr.is-current td:first-child::before {
+  content: '★ ';
+  color: var(--accent);
+}
+.profile-title-rating {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--fg-dim);
+}

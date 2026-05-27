@@ -19,7 +19,7 @@ import { toast } from '../components/Toast';
 import { loadStreak } from '../lib/streak';
 import { ACHIEVEMENTS, loadUnlocks } from '../lib/achievements';
 import { navigate } from '../lib/router';
-import { titleForRating, ratingToNextTitle } from '../lib/titles';
+import { titleForRating, ratingToNextTitle, TITLE_TIERS } from '../lib/titles';
 import { loadDrillProgress, DRILL_LEVELS } from '../lib/countingDrill';
 import { loadTrainerProgress } from '../lib/moveTrainer';
 import { loadRushProgress } from '../lib/bossRush';
@@ -67,9 +67,30 @@ type Props = {
   onResetAll: () => void;
 };
 
+// Sub-tab grouping — 18 stacked sections is too long for a single
+// scroll. These five tabs cluster sections by user-intent:
+//   Overview  — fast glance: rating, today, journey, streak/badges
+//   Stats     — performance numbers: match score, review mastery,
+//               insights, by-level breakdown, recent history
+//   Compete   — competitive surfaces: tournaments, leaderboards,
+//               bot hall, gauntlet, seasons, events
+//   Progress  — long-term: badges (full list), auto-mine factory
+//   Manage    — data: import/export/reset
+// Each section keeps its own component; tabs only toggle visibility.
+type ProfileSubTab = 'overview' | 'stats' | 'compete' | 'progress' | 'manage';
+
+const SUBTAB_LABELS: Record<ProfileSubTab, string> = {
+  overview: '🪪 ภาพรวม',
+  stats: '📊 สถิติ',
+  compete: '🏆 แข่งขัน',
+  progress: '🎖️ ความก้าวหน้า',
+  manage: '⚙️ จัดการ',
+};
+
 export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(stats.displayName);
+  const [subTab, setSubTab] = useState<ProfileSubTab>('overview');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const suggested = recommendedLevel(stats.rating);
@@ -121,6 +142,13 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
 
   return (
     <div className="profile-page">
+      <button
+        className="profile-back-button"
+        onClick={() => navigate({ tab: 'play' })}
+        title="กลับไปหน้าเล่น"
+      >
+        ← กลับไปเล่น
+      </button>
       <header className="profile-header">
         <div className="profile-identity">
           {editingName ? (
@@ -172,11 +200,13 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
             const next = ratingToNextTitle(stats.rating);
             return (
               <>
-                <div className="profile-rating-value">{stats.rating}</div>
+                <div className="profile-rating-value" title="Rating · คะแนน Elo ของคุณ · เพิ่มจากการชนะ bot ที่ rating สูงกว่า">
+                  {stats.rating}
+                </div>
                 <div
                   className="profile-rating-title"
-                  style={{ color: tier.color }}
-                  title={tier.descTh}
+                  style={{ color: tier.color, borderColor: tier.color }}
+                  title={`${tier.th} · ${tier.descTh}`}
                 >
                   {tier.th}
                 </div>
@@ -190,6 +220,8 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
           })()}
         </div>
       </header>
+
+      <TitleLadderExplainer rating={stats.rating} />
 
       <div className="profile-summary">
         <div className="profile-summary-card">
@@ -208,38 +240,57 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
         </div>
       </div>
 
-      <AchievementsAndStreakSection />
+      <nav className="profile-subtabs" role="tablist" aria-label="หน้าย่อยของโปรไฟล์">
+        {(Object.keys(SUBTAB_LABELS) as ProfileSubTab[]).map((k) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={subTab === k}
+            className={`profile-subtab${subTab === k ? ' is-active' : ''}`}
+            onClick={() => setSubTab(k)}
+          >
+            {SUBTAB_LABELS[k]}
+          </button>
+        ))}
+      </nav>
 
-      <MatchLeaderboardSection stats={stats} />
+      {subTab === 'overview' && (
+        <>
+          <SignalsSection />
+          <JourneySection />
+          <AchievementsAndStreakSection />
+        </>
+      )}
 
-      <SignalsSection />
+      {subTab === 'stats' && (
+        <>
+          <MatchLeaderboardSection stats={stats} />
+          <ReviewMasterySection />
+          <MasteryOverview />
+          <InsightsSection stats={stats} />
+        </>
+      )}
 
-      <JourneySection />
+      {subTab === 'compete' && (
+        <>
+          <TournamentsSection />
+          <GlobalMatchLeaderboardSection />
+          <BotHallOfFameSection />
+          <GauntletSection />
+          <EventsSection />
+          <SeasonSection />
+          <SeasonHallOfFameSection />
+        </>
+      )}
 
-      <TournamentsSection />
+      {subTab === 'progress' && (
+        <>
+          <BadgesSection />
+          <AutoMineSection />
+        </>
+      )}
 
-      <GlobalMatchLeaderboardSection />
-
-      <BotHallOfFameSection />
-
-      <BadgesSection />
-
-      <GauntletSection />
-
-      <EventsSection />
-
-      <AutoMineSection />
-
-      <SeasonSection />
-
-      <SeasonHallOfFameSection />
-
-      <MasteryOverview />
-
-      <ReviewMasterySection />
-
-      <InsightsSection stats={stats} />
-
+      {subTab === 'stats' && (
       <section className="profile-section">
         <h3>สถิติแต่ละระดับ</h3>
         <div className="profile-bylevel">
@@ -270,39 +321,91 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
           })}
         </div>
       </section>
+      )}
 
-      <HistorySection stats={stats} />
+      {subTab === 'stats' && <HistorySection stats={stats} />}
 
-      <section className="profile-section">
-        <h3>จัดการข้อมูล</h3>
-        <div className="profile-data-actions">
-          <button onClick={handleExport}>📤 Export profile (.json)</button>
-          <button onClick={() => fileInputRef.current?.click()}>📥 Import profile</button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,application/json"
-            style={{ display: 'none' }}
-            onChange={handleImport}
-          />
-          <button
-            className="profile-reset-button"
-            onClick={() => {
-              toast.confirm('ลบ profile ทั้งหมด? (rating, history, settings) — กู้ไม่ได้', {
-                confirmLabel: 'ลบทั้งหมด',
-                destructive: true,
-                onConfirm: onResetAll,
-              });
-            }}
-          >
-            🗑 ลบ profile ทั้งหมด
-          </button>
-        </div>
-        <p className="label-aside">
-          ข้อมูลเก็บใน localStorage ของ browser เท่านั้น — ไม่มี server
-        </p>
-      </section>
+      {subTab === 'manage' && (
+        <section className="profile-section">
+          <h3>จัดการข้อมูล</h3>
+          <div className="profile-data-actions">
+            <button onClick={handleExport}>📤 Export profile (.json)</button>
+            <button onClick={() => fileInputRef.current?.click()}>📥 Import profile</button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={handleImport}
+            />
+            <button
+              className="profile-reset-button"
+              onClick={() => {
+                toast.confirm('ลบ profile ทั้งหมด? (rating, history, settings) — กู้ไม่ได้', {
+                  confirmLabel: 'ลบทั้งหมด',
+                  destructive: true,
+                  onConfirm: onResetAll,
+                });
+              }}
+            >
+              🗑 ลบ profile ทั้งหมด
+            </button>
+          </div>
+          <p className="label-aside">
+            ข้อมูลเก็บใน localStorage ของ browser เท่านั้น · cloud sync เป็น
+            opt-in ใน <a href="#/settings">⚙️ ตั้งค่า</a>
+          </p>
+        </section>
+      )}
     </div>
+  );
+}
+
+// ─── Title-ladder explainer ──────────────────────────────────────────
+// Shows the full 8-tier ladder with the user's current position
+// highlighted. Addresses real user confusion ("ขุนทอง คืออะไร?"). Lives
+// at the top of every sub-tab so users learn the ladder once and the
+// answer is always one scroll away.
+function TitleLadderExplainer({ rating }: { rating: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const currentTier = titleForRating(rating);
+  return (
+    <details
+      className="profile-title-ladder"
+      open={expanded}
+      onToggle={(e) => setExpanded((e.target as HTMLDetailsElement).open)}
+    >
+      <summary>
+        💡 ระบบยศ · {currentTier.th} ({rating}) — กดดูทั้งหมด
+      </summary>
+      <div className="profile-title-ladder-body">
+        <p className="label-aside">
+          ยศ (title) คำนวณจาก <strong>rating</strong> โดยอัตโนมัติ — ไม่ใช่ชื่อผู้เล่น
+          (ที่ผู้ใช้ตั้งเอง). ขยับยศได้ด้วยการชนะ bot ที่ rating สูงกว่า.
+        </p>
+        <table className="profile-title-table">
+          <thead>
+            <tr><th>Rating</th><th>ยศ</th><th>ความหมาย</th></tr>
+          </thead>
+          <tbody>
+            {TITLE_TIERS.map((t) => (
+              <tr
+                key={t.minRating}
+                className={t.minRating === currentTier.minRating ? 'is-current' : ''}
+              >
+                <td className="profile-title-rating">
+                  {t.minRating === 0 ? '< 1000' : `${t.minRating}+`}
+                </td>
+                <td style={{ color: t.color }}>
+                  <strong>{t.th}</strong>
+                </td>
+                <td className="label-aside">{t.descTh}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }
 
