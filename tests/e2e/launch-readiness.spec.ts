@@ -128,7 +128,7 @@ test.describe('launch-readiness · feedback submission', () => {
     // Submit.
     await form.locator('.feedback-form-submit').click();
     // Success toast.
-    await expect(page.locator('.toast').last()).toContainText(/ส่งฟีดแบ็กแล้ว|ขอบคุณ/, { timeout: 10_000 });
+    await expect(page.getByText(/ส่งฟีดแบ็กแล้ว/)).toBeVisible({ timeout: 10_000 });
   });
 
   test('empty message disables the submit button', async ({ page }) => {
@@ -168,7 +168,7 @@ test.describe('launch-readiness · account security flows', () => {
     // Confirm in the toast.
     await page.getByRole('button', { name: 'ออกทุกเครื่อง', exact: true }).click();
     // Wait for the success toast.
-    await expect(page.locator('.toast').last()).toContainText(/Token ใหม่/, { timeout: 10_000 });
+    await expect(page.getByText(/Token ใหม่/)).toBeVisible({ timeout: 10_000 });
     // Token should have changed.
     const after = await page.evaluate(() => {
       const raw = localStorage.getItem('openmakruk_cloud_session');
@@ -241,8 +241,10 @@ test.describe('launch-readiness · account security flows', () => {
     await page.getByRole('button', { name: 'ลบถาวร', exact: true }).click();
     // Second toast confirm.
     await page.getByRole('button', { name: 'ลบบัญชี', exact: true }).click();
-    // Success toast.
-    await expect(page.locator('.toast').last()).toContainText(/บัญชีถูกลบ/, { timeout: 10_000 });
+    // Success toast — match by text rather than .last() because the
+    // streak welcome-back toast ("👋 ยินดีต้อนรับกลับ") may pop up
+    // mid-test and become the last toast, flaking this assertion.
+    await expect(page.getByText('บัญชีถูกลบแล้ว', { exact: false })).toBeVisible({ timeout: 10_000 });
     // Local session is gone.
     const after = await page.evaluate(() =>
       localStorage.getItem('openmakruk_cloud_session'),
