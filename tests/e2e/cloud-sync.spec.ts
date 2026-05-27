@@ -209,8 +209,11 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     }, { mate: MATE, winnerSide: WINNER_SIDE });
 
     // Navigate to Profile. The Global section only renders when
-    // backend.isOnline() (which we just enabled).
+    // backend.isOnline() (which we just enabled). Phase 27 grouped
+    // sections into sub-tabs — Global Match Leaderboard lives under
+    // 'แข่งขัน' (compete) now, so switch to that tab first.
     await page.goto('/#/profile');
+    await page.getByRole('tab', { name: /แข่งขัน/ }).click();
     await expect(page.getByRole('heading', { name: /Match Leaderboard/ })).toBeVisible({
       timeout: 10_000,
     });

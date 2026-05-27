@@ -258,6 +258,9 @@ test.describe('critical gap coverage', () => {
     await page.reload();
     await waitForContentReady(page);
 
+    // Phase 27 moved History into the 'สถิติ' (Stats) sub-tab.
+    await page.getByRole('tab', { name: /สถิติ/ }).click();
+
     // Click the "Download ทั้งหมด" bulk export — Playwright captures
     // the download event triggered by the Blob URL anchor click.
     const [download] = await Promise.all([

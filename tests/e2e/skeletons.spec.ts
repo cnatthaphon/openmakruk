@@ -127,6 +127,8 @@ test.describe('skeleton features', () => {
     await page.goto('/#/profile');
     await page.reload();
     await waitForContentReady(page);
+    // Phase 27 moved History into the 'สถิติ' (Stats) sub-tab.
+    await page.getByRole('tab', { name: /สถิติ/ }).click();
     // Both bulk + per-row PGN buttons must render
     await expect(page.locator('.profile-history-actions button')).toContainText('Download');
     await expect(page.locator('.history-pgn-button')).toBeVisible();
