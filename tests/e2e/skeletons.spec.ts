@@ -17,14 +17,19 @@ test.describe('skeleton features', () => {
   test('Settings page shows every section + a working toggle', async ({ page }) => {
     await page.goto('/#/settings');
     await waitForContentReady(page);
-    // All 5 section headings present
+    // Phase 29 split Settings into 4 sub-tabs. The five headings now
+    // live across different tabs — open each tab and assert that its
+    // expected heading appears. Visual tab is open by default.
     await expect(page.locator('body')).toContainText('🎨 หน้าตา');
     await expect(page.locator('body')).toContainText('🔊 เสียง');
+    await page.getByRole('tab', { name: /การเล่น/ }).click();
     await expect(page.locator('body')).toContainText('📊 การวิเคราะห์');
     await expect(page.locator('body')).toContainText('🌐 ภาษาและความปลอดภัย');
+    await page.getByRole('tab', { name: /รีเซ็ต/ }).click();
     await expect(page.locator('body')).toContainText('🔄 รีเซ็ต');
 
-    // Toggle a setting — "เปิดเสียงเอฟเฟกต์" is on by default
+    // Toggle a setting — "เปิดเสียงเอฟเฟกต์" lives in the visual tab.
+    await page.getByRole('tab', { name: /หน้าตา/ }).click();
     const soundsToggle = page
       .locator('.setting-row', { hasText: 'เปิดเสียงเอฟเฟกต์' })
       .locator('.settings-toggle');

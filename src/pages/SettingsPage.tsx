@@ -45,8 +45,33 @@ type Props = {
   onSettingsChange?: (s: Settings) => void;
 };
 
+// Settings sub-tab grouping — splits 8 sections into 4 super-tabs so
+// the page isn't a tall scroll. Tabs cluster by user intent:
+//   visual    — board look + audio (how it looks/sounds)
+//   gameplay  — engine + language + confirms (how it plays)
+//   account   — cosmetics + cloud sync + token security
+//   other     — feedback + reset
+// Default 'visual' (most common adjustment); deep links to #feedback
+// auto-switch to the 'other' tab via the hash fragment.
+type SettingsSubTab = 'visual' | 'gameplay' | 'account' | 'other';
+
+const SUBTAB_LABELS: Record<SettingsSubTab, string> = {
+  visual:   '🎨 หน้าตา + เสียง',
+  gameplay: '⚙️ การเล่น',
+  account:  '👤 บัญชี + cosmetic',
+  other:    '💬 ฟีดแบ็ก + รีเซ็ต',
+};
+
 export function SettingsPage({ onSettingsChange }: Props) {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  const [subTab, setSubTab] = useState<SettingsSubTab>(() => {
+    // If the URL fragment lands on #feedback, open the tab that has
+    // the form so the deep link works (AboutPage → Settings → feedback).
+    if (typeof window !== 'undefined' && window.location.hash.endsWith('#feedback')) {
+      return 'other';
+    }
+    return 'visual';
+  });
 
   useEffect(() => {
     saveSettings(settings);
@@ -64,6 +89,21 @@ export function SettingsPage({ onSettingsChange }: Props) {
         <p>การเปลี่ยนแปลงเก็บใน browser ของคุณ · ไม่ส่งไป server</p>
       </header>
 
+      <nav className="settings-subtabs" role="tablist" aria-label="หน้าย่อยของการตั้งค่า">
+        {(Object.keys(SUBTAB_LABELS) as SettingsSubTab[]).map((k) => (
+          <button
+            key={k}
+            role="tab"
+            aria-selected={subTab === k}
+            className={`settings-subtab${subTab === k ? ' is-active' : ''}`}
+            onClick={() => setSubTab(k)}
+          >
+            {SUBTAB_LABELS[k]}
+          </button>
+        ))}
+      </nav>
+
+      {subTab === 'visual' && (
       <section className="settings-section">
         <h3>🎨 หน้าตา (Visuals)</h3>
 
@@ -124,6 +164,8 @@ export function SettingsPage({ onSettingsChange }: Props) {
         </SettingRow>
       </section>
 
+      )}
+      {subTab === 'visual' && (
       <section className="settings-section">
         <h3>🔊 เสียง (Audio)</h3>
 
@@ -161,6 +203,8 @@ export function SettingsPage({ onSettingsChange }: Props) {
         </SettingRow>
       </section>
 
+      )}
+      {subTab === 'gameplay' && (
       <section className="settings-section">
         <h3>📊 การวิเคราะห์ (Analysis)</h3>
 
@@ -191,6 +235,8 @@ export function SettingsPage({ onSettingsChange }: Props) {
         </SettingRow>
       </section>
 
+      )}
+      {subTab === 'account' && (
       <section className="settings-section">
         <h3>🎨 Cosmetics · เลือกตราประจำตัว</h3>
         <p className="label-aside">
@@ -199,6 +245,8 @@ export function SettingsPage({ onSettingsChange }: Props) {
         <CosmeticPicker />
       </section>
 
+      )}
+      {subTab === 'gameplay' && (
       <section className="settings-section">
         <h3>🌐 ภาษาและความปลอดภัย</h3>
 
@@ -220,8 +268,10 @@ export function SettingsPage({ onSettingsChange }: Props) {
         </SettingRow>
       </section>
 
-      <CloudSyncSection />
+      )}
+      {subTab === 'account' && <CloudSyncSection />}
 
+      {subTab === 'other' && (
       <section className="settings-section" id="feedback">
         <h3>💬 ส่งฟีดแบ็ก / รายงานบั๊ก</h3>
         <p className="settings-hint">
@@ -232,6 +282,8 @@ export function SettingsPage({ onSettingsChange }: Props) {
         <FeedbackForm />
       </section>
 
+      )}
+      {subTab === 'other' && (
       <section className="settings-section">
         <h3>🔄 รีเซ็ต</h3>
         <button
@@ -253,6 +305,7 @@ export function SettingsPage({ onSettingsChange }: Props) {
           🔄 รีเซ็ตการตั้งค่าทั้งหมด
         </button>
       </section>
+      )}
     </div>
   );
 }

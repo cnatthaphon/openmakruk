@@ -149,9 +149,19 @@ function OpeningView({ opening, onClose }: { opening: Opening; onClose: () => vo
       const board = new ffish.Board('makruk', MAKRUK_START_FEN);
       const out: string[] = [MAKRUK_START_FEN];
       try {
-        for (const mv of opening.moves) {
-          board.push(mv);
-          out.push(board.fen());
+        // Guard: a malformed dataset entry shouldn't crash the page.
+        // ffish.push throws if the move is illegal in the current
+        // position; we surface the bad ply, freeze the replay at the
+        // last known-good FEN, and let the user navigate what's valid.
+        for (let i = 0; i < opening.moves.length; i++) {
+          const mv = opening.moves[i];
+          try {
+            board.push(mv);
+            out.push(board.fen());
+          } catch (e) {
+            console.warn('study.opening.invalidMove', { openingId: opening.id, ply: i, mv, err: String(e) });
+            break;
+          }
         }
         setFens(out);
       } finally {
@@ -160,8 +170,13 @@ function OpeningView({ opening, onClose }: { opening: Opening; onClose: () => vo
     });
     return () => { cancelled = true; };
   }, [opening.id]);
-  const currentFen = fens[ply] ?? MAKRUK_START_FEN;
-  const lastMoveUci = ply > 0 ? opening.moves[ply - 1] : null;
+  // Clamp ply to the validated-length we actually built — if the data
+  // had a bad move at ply N, fens has length N+1 and the slider can't
+  // step past it.
+  const maxPly = Math.max(0, fens.length - 1);
+  const safePly = Math.min(ply, maxPly);
+  const currentFen = fens[safePly] ?? MAKRUK_START_FEN;
+  const lastMoveUci = safePly > 0 ? opening.moves[safePly - 1] : null;
   return (
     <div className="study-view">
       <button className="study-back" onClick={onClose}>
@@ -260,9 +275,15 @@ function EndgameView({ endgame, onClose }: { endgame: EndgameStudy; onClose: () 
       const board = new ffish.Board('makruk', endgame.fen);
       const out: string[] = [endgame.fen];
       try {
-        for (const mv of endgame.moves) {
-          board.push(mv);
-          out.push(board.fen());
+        for (let i = 0; i < endgame.moves.length; i++) {
+          const mv = endgame.moves[i];
+          try {
+            board.push(mv);
+            out.push(board.fen());
+          } catch (e) {
+            console.warn('study.endgame.invalidMove', { endgameId: endgame.id, ply: i, mv, err: String(e) });
+            break;
+          }
         }
         setFens(out);
       } finally {
@@ -271,8 +292,10 @@ function EndgameView({ endgame, onClose }: { endgame: EndgameStudy; onClose: () 
     });
     return () => { cancelled = true; };
   }, [endgame.id]);
-  const currentFen = fens[ply] ?? endgame.fen;
-  const lastMoveUci = ply > 0 ? endgame.moves[ply - 1] : null;
+  const maxPly = Math.max(0, fens.length - 1);
+  const safePly = Math.min(ply, maxPly);
+  const currentFen = fens[safePly] ?? endgame.fen;
+  const lastMoveUci = safePly > 0 ? endgame.moves[safePly - 1] : null;
   const note = useMemo(
     () => endgame.commentary.find((c) => c.plyAfter === ply),
     [endgame.commentary, ply],
@@ -294,7 +317,13 @@ function EndgameView({ endgame, onClose }: { endgame: EndgameStudy; onClose: () 
           onMove={() => undefined}
         />
       </div>
-      {note && <div className="study-view-note">📝 {note.text}</div>}
+      {/* Note slot is always rendered (even when empty) so the page
+          height doesn't jump when stepping into / out of an annotated
+          ply. min-height reserves a stable two-line block; the dim
+          placeholder hints that other plies have commentary. */}
+      <div className={`study-view-note${note ? '' : ' is-empty'}`} aria-live="polite">
+        {note ? <>📝 {note.text}</> : <span className="label-aside">— ตานี้ไม่มีคำอธิบายเพิ่มเติม —</span>}
+      </div>
       <div className="study-view-stepper">
         <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
         <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
@@ -394,9 +423,15 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
       const board = new ffishAny.Board('makruk', MAKRUK_START_FEN);
       const out: string[] = [MAKRUK_START_FEN];
       try {
-        for (const mv of game.moves) {
-          board.push(mv);
-          out.push(board.fen());
+        for (let i = 0; i < game.moves.length; i++) {
+          const mv = game.moves[i];
+          try {
+            board.push(mv);
+            out.push(board.fen());
+          } catch (e) {
+            console.warn('study.masterGame.invalidMove', { gameId: game.id, ply: i, mv, err: String(e) });
+            break;
+          }
         }
         setFens(out);
       } finally {
@@ -408,8 +443,10 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
     };
   }, [game.id]);
 
-  const currentFen = fens[ply] ?? MAKRUK_START_FEN;
-  const lastMoveUci = ply > 0 ? game.moves[ply - 1] : null;
+  const maxPly = Math.max(0, fens.length - 1);
+  const safePly = Math.min(ply, maxPly);
+  const currentFen = fens[safePly] ?? MAKRUK_START_FEN;
+  const lastMoveUci = safePly > 0 ? game.moves[safePly - 1] : null;
   const note = useMemo(
     () => game.commentary.find((c) => c.plyAfter === ply),
     [game.commentary, ply],
@@ -435,7 +472,13 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
           onMove={() => undefined}
         />
       </div>
-      {note && <div className="study-view-note">📝 {note.text}</div>}
+      {/* Note slot is always rendered (even when empty) so the page
+          height doesn't jump when stepping into / out of an annotated
+          ply. min-height reserves a stable two-line block; the dim
+          placeholder hints that other plies have commentary. */}
+      <div className={`study-view-note${note ? '' : ' is-empty'}`} aria-live="polite">
+        {note ? <>📝 {note.text}</> : <span className="label-aside">— ตานี้ไม่มีคำอธิบายเพิ่มเติม —</span>}
+      </div>
       <div className="study-view-stepper">
         <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
         <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>

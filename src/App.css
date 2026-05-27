@@ -1699,6 +1699,11 @@ main {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   grid-template-rows: repeat(8, 1fr);
+  /* Force content-box so the 2px border lives OUTSIDE the 560px (which
+   * is divisible by 8 → 70px per square). With the default border-box
+   * sizing the content area was 556px = 69.5px/square — sub-pixel
+   * positioning made the grid lines look crooked ('เบี้ยว'). */
+  box-sizing: content-box;
   width: min(86vmin, 560px);
   aspect-ratio: 1 / 1;
   border: 2px solid #2c241c;
@@ -1707,11 +1712,10 @@ main {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   --sq-light: #e3c187;
   --sq-dark: #885e35;
-  background: repeating-conic-gradient(
-    var(--sq-light) 0% 25%,
-    var(--sq-dark) 0% 50%
-  );
-  background-size: 25% 25%;
+  /* Dropped the conic-gradient checker — squares now color themselves
+   * via the .light / .dark classes below. A gradient can mis-align by
+   * a fraction of a pixel when the container isn't a perfect multiple
+   * of the cell size; per-cell colors don't have that failure mode. */
 }
 
 .custom-square {
@@ -1721,10 +1725,11 @@ main {
   justify-content: center;
   padding: 0;
   border: none;
-  background: transparent;
   cursor: pointer;
   transition: background-color 0.12s ease;
 }
+.custom-square.light { background: var(--sq-light); }
+.custom-square.dark  { background: var(--sq-dark); }
 
 .custom-square:hover {
   background-color: rgba(212, 162, 60, 0.25);
@@ -6003,6 +6008,17 @@ footer a:hover {
   border-radius: 0 4px 4px 0;
   font-size: 0.92rem;
   line-height: 1.55;
+  /* Reserve a stable height so the layout doesn't jump when a ply
+     has commentary vs not. ~3 lines accommodates the longest current
+     commentary entry without growing on click. */
+  min-height: 3.3em;
+  display: flex;
+  align-items: center;
+}
+.study-view-note.is-empty {
+  background: rgba(255, 255, 255, 0.02);
+  border-left-color: rgba(255, 255, 255, 0.12);
+  font-style: italic;
 }
 .study-view-line {
   display: flex;
@@ -8359,23 +8375,52 @@ footer a:hover {
 
 /* ─── Custom page · piece picker + count summary ──────────────────
  *
- * Click any board cell → PiecePicker opens as a card below the board
- * (or to the right on wide desktops). Side toggle + 6 piece buttons
- * with per-role count chips; disabled when PIECE_LIMITS hit.
+ * Click any board cell → PiecePicker opens. Positioning rules:
+ *   - Desktop (≥ 720px wide): picker is a FLOATING overlay anchored
+ *     to the right of the board, so the user never has to scroll
+ *     down to interact with it.
+ *   - Mobile (< 720px): picker is a sheet that pins to the bottom
+ *     of the viewport, scrolls into view naturally below the board.
+ * Side toggle + 6 piece buttons with per-role count chips; disabled
+ * when PIECE_LIMITS hit.
  */
 .custom-square.is-picker-open {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+.custom-board-wrap {
+  position: relative;
+}
 .custom-piece-picker {
   margin-top: 14px;
   padding: 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(28, 24, 22, 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(212,162,60,0.40);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
   border-radius: 10px;
   display: flex; flex-direction: column;
   gap: 12px;
-  max-width: 360px;
+  max-width: 320px;
+}
+@media (min-width: 720px) {
+  .custom-piece-picker {
+    position: absolute;
+    top: 0;
+    /* 100% of the wrap = sits right of the board. Add a small gap. */
+    left: calc(100% + 12px);
+    margin-top: 0;
+    z-index: 20;
+  }
+}
+@media (max-width: 719px) {
+  .custom-piece-picker {
+    position: sticky;
+    bottom: 8px;
+    z-index: 20;
+    margin-left: auto;
+    margin-right: auto;
+  }
 }
 .custom-piece-picker-head {
   display: flex; justify-content: space-between; align-items: center;
@@ -8467,4 +8512,68 @@ footer a:hover {
 }
 .custom-piece-summary-icon {
   font-size: 12px;
+}
+
+/* ─── Learn page · sub-tabs (filter by group) ────────────────────── */
+
+.learn-subtabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 14px 0;
+  padding: 4px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 10px;
+  position: sticky;
+  top: 64px;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+}
+.learn-subtab {
+  flex: 1 1 auto;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--fg-dim);
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.learn-subtab:hover { color: var(--fg); }
+.learn-subtab.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* ─── Settings page · sub-tabs ─────────────────────────────────── */
+
+.settings-subtabs {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 12px 0 14px;
+  padding: 4px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 10px;
+  position: sticky;
+  top: 64px;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+}
+.settings-subtab {
+  flex: 1 1 auto;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--fg-dim);
+  border: 0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.settings-subtab:hover { color: var(--fg); }
+.settings-subtab.is-active {
+  background: var(--accent);
+  color: var(--accent-fg);
 }

@@ -11,7 +11,9 @@ import { test, expect } from '@playwright/test';
 test.describe('personality bots — contract', () => {
   test('catalog is registered as engines', async ({ page }) => {
     await page.goto('/#/settings');
-    // Wait for the Engine row to mount before reading options.
+    // Phase 29 grouped Settings into sub-tabs. The Engine row lives in
+    // the 'การเล่น' (gameplay) sub-tab — open it before reading.
+    await page.getByRole('tab', { name: /การเล่น/ }).click();
     await expect(page.getByText(/Engine/).first()).toBeVisible({ timeout: 10_000 });
     // Find the select whose options include the Fairy-Stockfish entry.
     const allOptionTexts = await page.locator('select option').allTextContents();

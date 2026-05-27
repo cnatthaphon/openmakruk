@@ -9,14 +9,11 @@
     "moves": [
       "d3d4", "d6d5",
       "e3e4", "e6e5",
-      "d1e2", "d8e7",
-      "f1e2",
-      "f8e7"
+      "d1e2", "d8e7"
     ],
     "commentary": [
       { "plyAfter": 4, "text": "เปิดเกมแบบคลาสสิก · ทั้งสองข้างยึดศูนย์กลาง · เป็น opening พื้นฐานที่สุดที่ผู้เล่นทุก rating ควรรู้" },
-      { "plyAfter": 6, "text": "เม็ดออกจาก d1 ไป e2 — ตอนนี้ Met คุม diagonal e2-h5 และทำงานร่วมกับ pawn structure ที่ d4-e4" },
-      { "plyAfter": 8, "text": "ดำตอบโต้ด้วย symmetric setup · จะเริ่มเข้าสู่ middlegame จากตาที่ 5 — ทั้งสองข้างต้องเลือกแล้วว่าจะ attack flank ไหน" }
+      { "plyAfter": 6, "text": "ขาวขยับขุน d1→e2 (ขุนเดินทแยง 1 ช่อง) เคลียร์เส้นทแยงให้เม็ดที่ e1 ออกได้ · ดำตอบโต้ด้วย d8→e7 ซึ่งเป็นการเดินเม็ด (ดำมีเม็ดอยู่ d8 ขุนอยู่ e8 — เป็น mirror ของขาว). ทั้งสองฝั่งเข้าสู่ middlegame พร้อมจะเลือก attack flank ไหนต่อไป" }
     ],
     "themes": ["classical", "central-control", "beginner-friendly"],
     "ratingBand": { "min": 0, "max": 1400 }

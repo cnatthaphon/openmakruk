@@ -49,8 +49,16 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     }, API_BASE);
   });
 
+  // Helper — Phase 29 split Settings into sub-tabs; Cloud Sync now
+  // lives behind the 'บัญชี' tab. Each test that uses the section
+  // calls this immediately after goto('/#/settings').
+  async function openAccountTab(page: import('@playwright/test').Page) {
+    await page.getByRole('tab', { name: /บัญชี/ }).click();
+  }
+
   test('Settings exposes Cloud Sync section with an enable button', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
     // The section's <h3> is the unambiguous anchor — exact match
     // since "Cloud Sync" might appear elsewhere as substring.
     await expect(page.getByRole('heading', { name: /Cloud Sync/ })).toBeVisible();
@@ -59,6 +67,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
 
   test('enable → registers a fresh anonymous account against the live worker', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
 
     // Click the enable button and wait for the UI to flip to the
     // "connected" state. enableCloud() does ONE network round-trip
@@ -86,6 +95,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
 
   test('reload re-attaches the same session (no double registration)', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
@@ -95,6 +105,10 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     });
 
     await page.reload();
+    // Sub-tab state is component-local; after reload it resets to the
+    // default 'visual'. Re-open the account tab to see the CloudSync
+    // section's connected banner.
+    await openAccountTab(page);
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
     const after = await page.evaluate(() => {
@@ -107,6 +121,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
 
   test('recordGame round-trips: a win raises server-side rating', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
@@ -141,6 +156,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
 
   test('after a rated win, this user appears on the match leaderboard', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
@@ -184,6 +200,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
 
   test('Profile shows the global match leaderboard once cloud sync is on', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
@@ -223,6 +240,7 @@ test.describe('cloud sync — frontend ↔ worker', () => {
 
   test('disable clears the session + reverts to offline', async ({ page }) => {
     await page.goto('/#/settings');
+    await openAccountTab(page);
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 

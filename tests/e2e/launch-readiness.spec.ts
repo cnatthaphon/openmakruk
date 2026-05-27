@@ -136,6 +136,8 @@ test.describe('launch-readiness · feedback submission', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto('/#/settings');
+    // Phase 29: Feedback lives in the 'ฟีดแบ็ก + รีเซ็ต' (other) tab.
+    await page.getByRole('tab', { name: /ฟีดแบ็ก/ }).click();
     // Section is collapsed under no <details> wrapper — it's a full
     // section. Scroll the form into view.
     const form = page.locator('.feedback-form').first();
@@ -156,6 +158,7 @@ test.describe('launch-readiness · feedback submission', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto('/#/settings');
+    await page.getByRole('tab', { name: /ฟีดแบ็ก/ }).click();
     const form = page.locator('.feedback-form').first();
     await form.scrollIntoViewIfNeeded();
     await expect(form.locator('.feedback-form-submit')).toBeDisabled();
@@ -169,6 +172,8 @@ test.describe('launch-readiness · account security flows', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto('/#/settings');
+    // Phase 29: Cloud Sync lives in the 'บัญชี' (account) sub-tab.
+    await page.getByRole('tab', { name: /บัญชี/ }).click();
     // Enable.
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
@@ -205,6 +210,8 @@ test.describe('launch-readiness · account security flows', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto('/#/settings');
+    // Phase 29: Cloud Sync lives in the 'บัญชี' (account) sub-tab.
+    await page.getByRole('tab', { name: /บัญชี/ }).click();
     // Step 1: register a fresh account, capture token.
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
@@ -224,6 +231,7 @@ test.describe('launch-readiness · account security flows', () => {
     });
     await page.reload();
     await page.goto('/#/settings');
+    await page.getByRole('tab', { name: /บัญชี/ }).click();
 
     // Step 3: sign-in-with-token details opens, paste, submit.
     await page.locator('.settings-signin-details > summary').click();
@@ -245,6 +253,7 @@ test.describe('launch-readiness · account security flows', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto('/#/settings');
+    await page.getByRole('tab', { name: /บัญชี/ }).click();
     await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 

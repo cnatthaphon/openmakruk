@@ -76,6 +76,12 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<LessonProgress>(() => loadLessonProgress());
   const [activeLessonId, setActiveLessonId] = useState<string | null>(initialLessonId);
+  // Sub-tab filter — 'all' default keeps the legacy single-scroll view
+  // for users who want to see everything; switching to a specific group
+  // narrows the list so a 28-lesson curriculum doesn't all stack at once.
+  // The existing "lists all 28 lessons" test relies on 'all' being the
+  // default, so don't change the initial value casually.
+  const [subTab, setSubTab] = useState<LessonGroup | 'all'>('all');
 
   useEffect(() => {
     loadLessons()
@@ -217,9 +223,44 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
         )}
       </header>
 
+      <nav className="learn-subtabs" role="tablist" aria-label="กรองตามหมวดบทเรียน">
+        <button
+          role="tab"
+          aria-selected={subTab === 'all'}
+          className={`learn-subtab${subTab === 'all' ? ' is-active' : ''}`}
+          onClick={() => setSubTab('all')}
+        >
+          ทั้งหมด · {lessons.length}
+        </button>
+        {LESSON_GROUP_ORDER.map((g) => {
+          const n = (groupedLessons.get(g) ?? []).length;
+          if (n === 0) return null;
+          // The group label includes a leading number prefix (e.g.
+          // "1. พื้นฐานกระดาน") that's redundant in a compact tab. Strip
+          // it for the tab button only — full label still shows on the
+          // group header below.
+          const tabLabel = LESSON_GROUP_LABELS[g].replace(/^\d+\.\s*/, '');
+          return (
+            <button
+              key={g}
+              role="tab"
+              aria-selected={subTab === g}
+              className={`learn-subtab${subTab === g ? ' is-active' : ''}`}
+              onClick={() => setSubTab(g)}
+            >
+              {tabLabel} · {n}
+            </button>
+          );
+        })}
+      </nav>
+
       {LESSON_GROUP_ORDER.map((g) => {
         const groupLessons = groupedLessons.get(g) ?? [];
         if (groupLessons.length === 0) return null;
+        // Filter: 'all' shows every group; any other value shows only
+        // that one. Render-time gate (vs hooks gate) so React doesn't
+        // re-mount cards when the filter changes.
+        if (subTab !== 'all' && subTab !== g) return null;
         const groupCompleted = groupLessons.filter(({ lesson }) =>
           isLessonCompleted(progress, lesson.id),
         ).length;
