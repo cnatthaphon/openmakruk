@@ -462,6 +462,18 @@ export type BackendAdapter = {
   /** Population-level stats for the public /#/stats page. */
   fetchStats?(): Promise<PopulationStats>;
 
+  /** Submit beta feedback. Auth is optional — anonymous OK. */
+  submitFeedback?(
+    body: {
+      message: string;
+      contact?: string;
+      kind: 'bug' | 'feature' | 'praise' | 'other';
+      buildSha?: string;
+      locale?: string;
+    },
+    token?: string,
+  ): Promise<{ ok: boolean; id: string; receivedAt: number }>;
+
   // ----- Puzzle catalog ---------------------------------------------
 
   /** Server puzzle list. When `source` omitted, defaults to 'curated'

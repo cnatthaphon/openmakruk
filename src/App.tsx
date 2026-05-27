@@ -144,6 +144,7 @@ import { fenToPieceMap } from './lib/makruk';
 import { letterToPiece, PIECE_VALUE } from './lib/chessAttacks';
 import { titleForRating } from './lib/titles';
 import { activeCosmetic } from './lib/cosmetics';
+import { VERSION, BUILD_SHA, buildTimeLabel, isBeta } from './lib/release';
 import { recordReviewSummary } from './lib/reviewMastery';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
@@ -1768,7 +1769,21 @@ export default function App() {
       <header className="app-header">
         <div className="app-header-brand">
           <h1>OpenMakruk</h1>
-          <span className="app-header-version">v0.1</span>
+          <span
+            className="app-header-version"
+            title={`build ${BUILD_SHA} · ${buildTimeLabel()}`}
+          >
+            v{VERSION}
+          </span>
+          {isBeta() && (
+            <span
+              className="app-header-beta"
+              title="ระบบทดสอบ · ฟีเจอร์อาจเปลี่ยนแปลงหรือมี bug · feedback ยินดีรับฟัง"
+              aria-label="beta build"
+            >
+              BETA
+            </span>
+          )}
         </div>
         <nav className="tabs" role="tablist">
           {VISIBLE_TABS.map((t) => (
@@ -2737,6 +2752,24 @@ export default function App() {
           >
             เกี่ยวกับ
           </button>
+          {' · '}
+          <button
+            type="button"
+            className="footer-about-link"
+            onClick={() => setCurrentTab('settings')}
+            title="ส่งฟีดแบ็ก / รายงานบั๊ก"
+          >
+            💬 ฟีดแบ็ก
+          </button>
+        </p>
+        <p className="footer-build">
+          <span title={BUILD_SHA}>v{VERSION}</span>
+          {' · อัปเดตล่าสุด '}
+          <time dateTime={typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : ''}>
+            {buildTimeLabel()}
+          </time>
+          {' · build '}
+          <code className="footer-build-sha">{BUILD_SHA}</code>
         </p>
       </footer>
       <BottomNav currentTab={currentTab} />

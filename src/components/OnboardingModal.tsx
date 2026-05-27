@@ -3,7 +3,7 @@
 // Three short steps:
 //   1. Welcome + 30-second intro to what Makruk is.
 //   2. Pick a display name (default: ผู้เล่น).
-//   3. Pick a starting opponent — Random Bot (gentlest), Wanderer, or
+//   3. Pick a starting opponent — Wanderer (gentlest, ~700 Elo) up to
 //      Defender for the user who wants something slightly trickier.
 //
 // On finish: save name + engineId to stores, set the onboarded flag,

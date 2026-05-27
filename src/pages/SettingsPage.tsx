@@ -39,6 +39,7 @@ import {
   loadCosmeticSelection,
   saveCosmeticSelection,
 } from '../lib/cosmetics';
+import { FeedbackForm } from '../components/FeedbackForm';
 
 type Props = {
   onSettingsChange?: (s: Settings) => void;
@@ -220,6 +221,16 @@ export function SettingsPage({ onSettingsChange }: Props) {
       </section>
 
       <CloudSyncSection />
+
+      <section className="settings-section" id="feedback">
+        <h3>💬 ส่งฟีดแบ็ก / รายงานบั๊ก</h3>
+        <p className="settings-hint">
+          OpenMakruk อยู่ในช่วง <strong>beta</strong> — ฟีเจอร์ใหม่
+          ออกถี่ พบ bug ได้ปกติ. ทุก message มาถึงผู้พัฒนาตรง ๆ
+          จะตอบกลับเมื่อปล่อย contact ไว้
+        </p>
+        <FeedbackForm />
+      </section>
 
       <section className="settings-section">
         <h3>🔄 รีเซ็ต</h3>

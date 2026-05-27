@@ -373,7 +373,10 @@ function AutoMineSection() {
     try {
       const author = loadStats().displayName;
       const result = await autoMineFromBots(
-        'greedy-bot',
+        // 'greedy-bot' baseline was removed (see lib/engine.ts).
+        // Hunter personality has the same "grab anything that hangs"
+        // tendency and produces similar blunder-rich games for mining.
+        'personality:hunter',
         'fairy-stockfish',
         3, // 3 games to keep it reasonable for browser
         author,

@@ -343,6 +343,24 @@ export class CloudflareBackend implements BackendAdapter {
     return (await res.json()) as PopulationStats;
   }
 
+  async submitFeedback(
+    body: {
+      message: string;
+      contact?: string;
+      kind: 'bug' | 'feature' | 'praise' | 'other';
+      buildSha?: string;
+      locale?: string;
+    },
+    token?: string,
+  ): Promise<{ ok: boolean; id: string; receivedAt: number }> {
+    const res = await this.request('/api/feedback', {
+      method: 'POST',
+      token,
+      body: JSON.stringify(body),
+    });
+    return (await res.json()) as { ok: boolean; id: string; receivedAt: number };
+  }
+
   async fetchExhibitionRecent(): Promise<ExhibitionSummary[]> {
     const res = await this.request('/api/exhibition/recent');
     const body = (await res.json()) as { games: ExhibitionSummary[] };

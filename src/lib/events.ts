@@ -89,31 +89,38 @@ export function saveEventScore(s: EventScore): void {
 //
 // Adding events:
 //   1. Append an entry below.
-//   2. Pick a unique id (e.g. 'evt-2026-06-random-friday').
-//   3. Reference an engine that's registered (fairy-stockfish /
-//      random-bot / greedy-bot for now).
+//   2. Pick a unique id (e.g. 'evt-2026-06-personality-friday').
+//   3. Reference an engine that's registered (fairy-stockfish or any
+//      `personality:<id>` from src/lib/personalities/personalities.ts).
+//
+// Note (2026-05-27): the old 'random-bot' / 'greedy-bot' baseline
+// engines were removed because they masked review-engine bugs (see
+// src/lib/engine.ts comment). The events below previously pointed at
+// those ids and would 404 on click — they're now rerouted to the
+// closest-feel personality bots (Wanderer for "random feel" / Hunter
+// for "capture-everything").
 
 const NOW = Date.now();
 const DAY = 24 * 60 * 60 * 1000;
 
 export const EVENTS: Event[] = [
   {
-    id: 'evt-random-week',
-    name: '🎲 Random Week',
-    description: 'แข่งกับ Random Bot · ทุกตา random หมด · ดูว่าคุณจัดการได้ดีแค่ไหน',
-    engineId: 'random-bot',
-    difficulty: 'easy', // ignored by RandomBot
+    id: 'evt-wanderer-week',
+    name: '🍃 Wanderer Week',
+    description: 'แข่งกับ 🍃 นักเดิน · เดินไปเรื่อย ๆ ไม่มีแผน · ลองเอาชนะให้เร็วที่สุด',
+    engineId: 'personality:wanderer',
+    difficulty: 'easy',
     startsAt: NOW - DAY,         // already started
     endsAt: NOW + 7 * DAY,       // +7 days
     pointsPerWin: 5,
     pointsPerDraw: 2,
   },
   {
-    id: 'evt-greedy-bot',
-    name: '🦈 Greedy Hunt',
-    description: 'แข่งกับ Greedy Bot ที่จับฟรีอย่างเดียว · ระวังให้ดี · มันจับทุกตัวที่ลอย',
-    engineId: 'greedy-bot',
-    difficulty: 'medium', // ignored by GreedyBot
+    id: 'evt-hunter-hunt',
+    name: '🦅 Hunter Hunt',
+    description: 'แข่งกับ 🦅 นักล่า ที่จับทุกตัวที่ลอย · ระวังให้ดี · ของฟรีไม่มี',
+    engineId: 'personality:hunter',
+    difficulty: 'medium',
     startsAt: NOW + 7 * DAY,
     endsAt: NOW + 14 * DAY,
     pointsPerWin: 8,

@@ -901,3 +901,69 @@ describe('input validation', () => {
     expect(body.reason).toBe('moves_length_mismatch');
   });
 });
+
+describe('feedback', () => {
+  test('POST /api/feedback accepts anonymous submission', async () => {
+    const res = await fetch(`${baseUrl()}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: 'ขอบคุณสำหรับเกมที่ดี',
+        kind: 'praise',
+        buildSha: 'test1234',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok: boolean; id: string };
+    expect(body.ok).toBe(true);
+    expect(body.id.length).toBeGreaterThan(10);
+  });
+
+  test('POST /api/feedback requires non-empty message', async () => {
+    const res = await fetch(`${baseUrl()}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '   ', kind: 'bug' }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { reason: string };
+    expect(body.reason).toBe('message_required');
+  });
+
+  test('POST /api/feedback with bearer token associates user_id', async () => {
+    const u = await createAnonUser('FeedbackUser');
+    const res = await fetch(`${baseUrl()}/api/feedback`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${u.token}`,
+      },
+      body: JSON.stringify({
+        message: 'พบบั๊กที่หน้า counting',
+        kind: 'bug',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok: boolean; id: string };
+    expect(body.ok).toBe(true);
+  });
+
+  test('POST /api/feedback rate-limits per user (5/hour)', async () => {
+    const u = await createAnonUser('RateLimited');
+    // First 5 should succeed, 6th should 429.
+    for (let i = 0; i < 5; i++) {
+      const r = await fetch(`${baseUrl()}/api/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+        body: JSON.stringify({ message: `msg ${i}`, kind: 'other' }),
+      });
+      expect(r.status).toBe(200);
+    }
+    const blocked = await fetch(`${baseUrl()}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${u.token}` },
+      body: JSON.stringify({ message: 'too many', kind: 'other' }),
+    });
+    expect(blocked.status).toBe(429);
+  });
+});

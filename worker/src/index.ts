@@ -32,6 +32,8 @@ import { exhibitionRoute } from './routes/exhibition';
 import { runExhibitionTick } from './exhibition';
 import { seasonsRoute } from './routes/seasons';
 import { statsRoute } from './routes/stats';
+import { feedbackRoute } from './routes/feedback';
+import { runIdleCleanup } from './cleanup';
 import { runSeasonRolloverIfDue } from './seasons';
 
 /** Cloudflare bindings configured in wrangler.toml. */
@@ -89,6 +91,7 @@ app.route('/api/signals', signalsRoute);
 app.route('/api/exhibition', exhibitionRoute);
 app.route('/api/seasons', seasonsRoute);
 app.route('/api/stats', statsRoute);
+app.route('/api/feedback', feedbackRoute);
 
 /** DB readiness — separate from /health because hitting D1 costs a
  *  read and we don't want every monitoring probe to drive that bill. */
@@ -139,6 +142,20 @@ async function scheduled(
       })
       .catch((err) => {
         console.error('seasons.rollover.error', err);
+      }),
+  );
+  // Ghost-account cleanup — wipes anonymous accounts that registered
+  // but never played a verified game and have been idle > 24h. Keeps
+  // /api/stats truthful instead of accumulating CI test artifacts.
+  ctx.waitUntil(
+    runIdleCleanup(env)
+      .then((res) => {
+        if (res.removed > 0) {
+          console.log('cleanup.idle', { removed: res.removed });
+        }
+      })
+      .catch((err) => {
+        console.error('cleanup.idle.error', err);
       }),
   );
 }
