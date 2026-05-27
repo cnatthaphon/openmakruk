@@ -14,13 +14,27 @@
 // and the user lands on the same hash route they were on so the only
 // observable cost is a sub-second flash.
 //
-// Loop guard: we set a sessionStorage flag before reloading. If the
-// reload happens and the *new* bundle ALSO fails to load (genuine
-// network issue, hard server problem), we don't loop — the second
-// failure bubbles to the ErrorBoundary and the user sees the normal
-// error UI.
+// Two-layer resilience:
+//   1. Import-level retry with backoff. A deploy-transition window can
+//      briefly 404 a chunk that still exists (edge node mid-swap). A
+//      couple of retries over ~1s ride that out WITHOUT a jarring reload.
+//   2. One-shot reload as last resort. When the chunk is genuinely
+//      replaced (old hash gone after deploy), retrying the same URL can
+//      never succeed — only reloading fetches a fresh index.html with
+//      new chunk URLs. After reload, layer-1 retries run again on the
+//      fresh bundle.
+//
+// Loop guard is TIMESTAMP-based, not boolean: we store the reload time.
+// A fresh failure within RELOAD_WINDOW_MS of a reload means "we already
+// reloaded and STILL can't load it" → genuine breakage → surface to
+// ErrorBoundary. Outside the window (e.g. a new deploy days later) the
+// guard has naturally expired and a fresh reload is allowed. This fixes
+// the previous bug where clearing the flag on every boot (which happens
+// ~1s after the reload) defeated the guard entirely.
 
-const RELOAD_FLAG = 'openmakruk_chunk_reload';
+const RELOAD_FLAG = 'openmakruk_chunk_reload_at';
+const RELOAD_WINDOW_MS = 15_000;
+const IMPORT_RETRIES = 2;
 
 function isStaleChunkError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
@@ -32,33 +46,40 @@ function isStaleChunkError(err: unknown): boolean {
   );
 }
 
-/** Wrap a dynamic import factory so a stale-chunk error triggers a
- *  one-shot page reload instead of crashing the ErrorBoundary. */
+/** Wrap a dynamic import factory so a stale-chunk error first retries the
+ *  import a few times (transient edge blip), then falls back to a one-
+ *  shot reload (genuinely replaced chunk), and only surfaces to the
+ *  ErrorBoundary if even a post-reload retry fails. */
 export function lazyRetry<T>(factory: () => Promise<T>): () => Promise<T> {
-  return () =>
-    factory().catch((err) => {
-      if (!isStaleChunkError(err)) throw err;
-      if (typeof window === 'undefined') throw err;
-      const alreadyReloaded =
-        sessionStorage.getItem(RELOAD_FLAG) === '1';
-      if (alreadyReloaded) {
-        // We already reloaded once this session — the bundle is
-        // genuinely broken, not stale. Surface the error.
-        throw err;
+  return async () => {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt <= IMPORT_RETRIES; attempt++) {
+      try {
+        return await factory();
+      } catch (err) {
+        lastErr = err;
+        if (!isStaleChunkError(err)) throw err;
+        if (attempt < IMPORT_RETRIES) {
+          // Backoff: 350ms, 700ms — ~1s total covers most edge-swap blips.
+          await new Promise((r) => setTimeout(r, 350 * (attempt + 1)));
+        }
       }
-      sessionStorage.setItem(RELOAD_FLAG, '1');
-      // Reload preserves the hash route so the user lands back where
-      // they were trying to go. Promise never resolves — navigation
-      // takes over.
-      window.location.reload();
-      return new Promise<T>(() => undefined);
-    });
-}
+    }
 
-/** Clear the reload flag once the app has successfully booted. Called
- *  from App.tsx after the first successful render so the next stale-
- *  chunk encounter (potentially weeks later) gets a fresh retry. */
-export function clearChunkReloadFlag(): void {
-  if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(RELOAD_FLAG);
+    if (typeof window === 'undefined') throw lastErr;
+
+    const reloadedAt = Number(sessionStorage.getItem(RELOAD_FLAG) || 0);
+    const recentlyReloaded = reloadedAt > 0 && Date.now() - reloadedAt < RELOAD_WINDOW_MS;
+    if (recentlyReloaded) {
+      // Already reloaded moments ago and retries STILL fail → genuine
+      // breakage (server/network), not a stale chunk. Surface it.
+      throw lastErr;
+    }
+
+    sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
+    // Reload preserves the hash route so the user lands back where they
+    // were going. Promise never resolves — navigation takes over.
+    window.location.reload();
+    return new Promise<T>(() => undefined);
+  };
 }

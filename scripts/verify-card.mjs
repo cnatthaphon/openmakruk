@@ -1,0 +1,22 @@
+import { chromium } from '@playwright/test';
+const browser = await chromium.launch();
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+const page = await ctx.newPage();
+await page.addInitScript(() => { try { localStorage.setItem('openmakruk_onboarded','1'); } catch { /* ignore */ } });
+await page.goto('https://www.openmakruk.com/#/learn', { waitUntil: 'domcontentloaded' });
+await page.waitForTimeout(2000);
+// Precise: the button element, not the container
+const cardBtn = page.locator('button.learn-card').first();
+const count = await page.locator('button.learn-card').count();
+console.log(`button.learn-card count: ${count}`);
+const enabled = await cardBtn.isEnabled().catch(()=>false);
+console.log(`first card enabled (not locked): ${enabled}`);
+await cardBtn.click().catch(e => console.log('click err:', e.message));
+await page.waitForTimeout(1800);
+const url = page.url();
+const inLesson = await page.locator('button:has-text("ถัดไป"), .lesson-step, [class*=lesson]').count() > 0;
+const onIndex = await page.locator('.learn-cards').count() > 0;
+console.log(`URL after click: ${url}`);
+console.log(`Navigated into lesson: ${inLesson} · still on index: ${onIndex}`);
+await page.screenshot({ path: '/tmp/verify-card-click.png' });
+await browser.close();

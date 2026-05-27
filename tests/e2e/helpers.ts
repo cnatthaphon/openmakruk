@@ -2,6 +2,26 @@
 
 import type { Page, Locator } from '@playwright/test';
 
+/** Port the playwright webServer runs wrangler dev on. Pinned via
+ *  playwright.config.ts — keep this in sync with that file. */
+export const TEST_API_BASE = 'http://localhost:8789';
+
+/** Apply BEFORE the bundle loads so the singleton adapter doesn't
+ *  cache the default 8788 dev port. Drop into any spec that touches
+ *  the network via `test.beforeEach(({ page }) => pinTestApiBase(page))`. */
+export async function pinTestApiBase(page: Page): Promise<void> {
+  await page.addInitScript((apiBase) => {
+    try {
+      localStorage.setItem('openmakruk_api_base', apiBase);
+      // Skip the welcome modal so deep-link tests don't fight it.
+      localStorage.setItem('openmakruk_onboarded', '1');
+    } catch {
+      // private mode / quota exceeded — fall through; the test will
+      // surface the real error
+    }
+  }, TEST_API_BASE);
+}
+
 /** Clear all localStorage but preserve the onboarding flag so the
  *  first-time welcome modal doesn't block tests. Use this from a
  *  beforeEach hook instead of `localStorage.clear()`. */
