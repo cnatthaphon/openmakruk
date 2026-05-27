@@ -44,3 +44,13 @@
 
 /
   Cache-Control: public, max-age=0, must-revalidate
+
+# Service worker must not be cached — bumping CACHE_VERSION in sw.js
+# is useless if browsers keep serving the old sw.js for hours from the
+# HTTP cache. Force a fresh check on every navigation. The browser
+# treats `no-cache` as "ALWAYS revalidate with If-None-Match", which
+# is what we want: cheap 304 in the common case, fresh fetch when the
+# bytes changed.
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Service-Worker-Allowed: /

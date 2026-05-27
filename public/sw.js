@@ -1,19 +1,40 @@
 // OpenMakruk service worker.
 //
-// Strategy:
-//   1. App shell (HTML/JS/CSS/icons/piece SVGs/Stockfish WASM/ffish WASM)
-//      → cache-first. Stable assets, OK to serve from cache on first hit.
-//   2. /content/*.json (lessons, puzzles, manifest)
-//      → network-first with cache fallback. So content updates show up
-//      as soon as the user is online, but offline users still see the
-//      last-known content.
-//   3. Engine searches go through the page's normal JS — the SW doesn't
-//      try to intercept WebAssembly heap traffic.
+// Strategy (revised after a stale-HTML production incident, 2026-05-27):
+//
+//   1. HTML navigation routes ('/', '/index.html', any hash-route URL)
+//      → NETWORK-FIRST. The HTML embeds Vite's hashed chunk filenames
+//      (e.g. <script src="/assets/index-XXX.js">) — when a new build
+//      deploys, every chunk hash changes. If we cache-first the HTML,
+//      a returning user sees old HTML that points at chunks that 404'd
+//      out of existence in the latest deploy → MIME-blocked module
+//      fetch → broken Profile tab. Network-first means a new deploy
+//      shows up on the user's next navigation without a hard reload.
+//
+//   2. /assets/<hashed-filename> + /pieces/ + /piece-sets/ + WASM
+//      → CACHE-FIRST. These are content-hashed and immutable. Once
+//      cached, they're correct forever. A different hash = a different
+//      URL = a different cache entry, so this can never serve stale.
+//
+//   3. /content/*.json (lessons, puzzles, manifest)
+//      → NETWORK-FIRST with cache fallback. Lets us push new puzzles
+//      without a code deploy and have them show up immediately online,
+//      while still working offline.
+//
+//   4. Cross-origin (jsDelivr NNUE blob) — skip. The engine has its
+//      own IndexedDB cache for the network weights file.
 //
 // Bumping CACHE_VERSION below evicts the old caches on next activate.
+// Bump whenever the caching strategy changes (NOT every deploy — chunk
+// hashes already partition the cache namespace).
 
-const CACHE_VERSION = 'openmakruk-v1';
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
+const CACHE_VERSION = 'openmakruk-v2';
+
+// App-shell entries we pre-cache on install. Keep this list short —
+// it's prefetched on first SW install and slows the first paint. The
+// hashed chunks are NOT pre-cached; they're cached on first runtime
+// fetch instead, so a new build doesn't bloat the install step.
+const APP_SHELL = ['/manifest.webmanifest', '/icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -21,6 +42,9 @@ self.addEventListener('install', (event) => {
       // Some assets may 404 in dev — non-fatal, runtime cache catches them.
     }),
   );
+  // skipWaiting + clients.claim below means a new SW activates without
+  // waiting for tabs to close. Combined with network-first HTML this
+  // means a deploy reaches users in one navigation, not two.
   self.skipWaiting();
 });
 
@@ -42,17 +66,37 @@ self.addEventListener('fetch', (event) => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  // Skip cross-origin (jsDelivr for NNUE) — let the page handle it. The
-  // engine already has its own IndexedDB cache for the network blob.
+  // Skip cross-origin (jsDelivr for NNUE) — let the page handle it.
   if (url.origin !== self.location.origin) return;
 
-  // Content JSON — network-first
+  // HTML navigation → network-first. `mode === 'navigate'` is the
+  // outer document fetch (address bar, link click, refresh) — exactly
+  // what serves index.html in our SPA. This is the critical case: if
+  // we cache-first this, a stale index references chunk hashes that
+  // 404'd out in the latest deploy and Profile/etc fail to load.
+  if (req.mode === 'navigate') {
+    event.respondWith(networkFirst(req));
+    return;
+  }
+  // Also catch explicit text/html requests just in case (rare; some
+  // crawlers / share-preview bots request '/' directly without
+  // mode === 'navigate').
+  const accept = req.headers.get('accept') || '';
+  if (accept.includes('text/html')) {
+    event.respondWith(networkFirst(req));
+    return;
+  }
+
+  // Content JSON — network-first so puzzle/lesson updates land
+  // immediately online and still work offline via cache fallback.
   if (url.pathname.startsWith('/content/')) {
     event.respondWith(networkFirst(req));
     return;
   }
 
-  // App shell + everything else — cache-first
+  // Hashed assets + WASM + piece SVGs — cache-first. Safe because
+  // every change to the underlying content changes the URL (Vite's
+  // content-hashing). Anything cached is by definition correct.
   event.respondWith(cacheFirst(req));
 });
 

@@ -61,4 +61,19 @@ test.describe('PWA install-readiness', () => {
     );
     expect(errors.filter((e) => /service worker|sw\.js/i.test(e))).toEqual([]);
   });
+
+  test('sw.js declares network-first for HTML navigation (deploy-staleness fix)', async ({ request }) => {
+    // Post-incident contract test: if anyone removes the navigation-mode
+    // branch from the SW, returning users get stale HTML after a deploy
+    // and lazy chunk loads start 404'ing. Catch that here.
+    const res = await request.get('/sw.js');
+    expect(res.ok()).toBe(true);
+    const body = await res.text();
+    // Must check for navigate mode AND route it through network-first.
+    expect(body).toMatch(/req\.mode\s*===\s*['"]navigate['"]/);
+    expect(body).toMatch(/networkFirst\(req\)/);
+    // Cache version must be bumped past v1 — v1 was the cache-first-HTML
+    // version that caused the production stale-chunk incident.
+    expect(body).toMatch(/openmakruk-v[2-9]/);
+  });
 });
