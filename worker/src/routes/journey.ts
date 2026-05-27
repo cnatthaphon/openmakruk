@@ -11,6 +11,7 @@ import { Hono } from 'hono';
 import type { Env } from '../index';
 import { authMiddleware, getUser, type AuthVars } from '../auth';
 import { LEVELS, levelForRating, type Checkpoint, type LevelId } from '../journey';
+import { BOSS_BOT_ID } from '../bots';
 
 export const journeyRoute = new Hono<{ Bindings: Env; Variables: AuthVars }>();
 
@@ -46,9 +47,9 @@ journeyRoute.get('/me', authMiddleware, async (c) => {
 
   const beatBossRes = await c.env.DB.prepare(
     `SELECT 1 AS hit FROM games
-     WHERE user_id = ? AND opponent = 'bot:fairy-stockfish-boss'
+     WHERE user_id = ? AND opponent = ?
        AND outcome = 'win' AND verified = 1 LIMIT 1`,
-  ).bind(u.id).first<{ hit: number }>();
+  ).bind(u.id, BOSS_BOT_ID).first<{ hit: number }>();
   const beatBoss = beatBossRes !== null;
 
   const puzzleRes = await c.env.DB.prepare(

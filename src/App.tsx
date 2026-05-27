@@ -24,6 +24,7 @@ import {
   DIFFICULTY_LABELS,
   DIFFICULTY_PRESETS,
   getActiveEngineId,
+  getActiveEngineSync,
   isNNUELoaded,
   loadNNUE,
   searchBestMove,
@@ -818,12 +819,17 @@ export default function App() {
           //   1. If user is in a bot-challenge run, use the bot's full
           //      id (e.g. `bot:attacker-master`) — backs the per-bot
           //      head-to-head stats in Bot Hall of Fame.
-          //   2. Else for Fairy-Stockfish, use the difficulty bucket.
-          //   3. Else (personality engines without challenge), use the
-          //      engine id (`personality:attacker`).
+          //   2. Else if the active engine declares ratedAsDifficulty,
+          //      use the difficulty bucket as the opponent label.
+          //   3. Else use the engine id directly (personality engines).
+          // The engine-name conditional that used to live here was
+          // replaced with a capability check — see capabilities.ratedAsDifficulty
+          // in lib/engines/types.ts. Adding a new "leveled" engine no
+          // longer requires editing this file.
+          const activeEngine = getActiveEngineSync();
           const opponentId = challenge
             ? challenge.botId
-            : settings.engineId === 'fairy-stockfish'
+            : activeEngine?.capabilities.ratedAsDifficulty
               ? difficulty
               : settings.engineId;
           backend
@@ -2584,36 +2590,14 @@ export default function App() {
             <button onClick={() => setFlipped((f) => !f)}>
               ⇅ พลิกกระดาน
             </button>
-            {(mode === 'play-white' || mode === 'play-black') &&
-              !state.isGameOver &&
-              !forcedResult &&
-              history.length > 0 && (
-                <>
-                  <button
-                    className="draw-button"
-                    onClick={handleOfferDraw}
-                    disabled={thinking || drawOfferPending}
-                    title="ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน"
-                  >
-                    {drawOfferPending ? (
-                      <>
-                        <span className="spinner-sm" aria-hidden="true" />
-                        กำลังพิจารณา...
-                      </>
-                    ) : (
-                      <>🤝 ขอเสมอ</>
-                    )}
-                  </button>
-                  <button
-                    className="resign-button"
-                    onClick={handleResign}
-                    disabled={thinking}
-                    title="ยอมแพ้ — บันทึกเป็น loss"
-                  >
-                    🏳 ยอมแพ้
-                  </button>
-                </>
-              )}
+            {/* Resign + Draw live ONLY in the always-visible
+                .play-quick-actions strip above the board now. The
+                former sidebar copies here were a visible duplicate
+                whenever the "ตาเดิน" sub-tab was open (QA 2026-05-27:
+                "ยอมแพ้"/"ขอเสมอ" each rendered ×2). The quick-actions
+                strip already satisfies the discoverability fix from
+                the earlier audit, so the muscle-memory copies are
+                removed rather than shown twice. */}
           </div>
           {drawOfferRefused && (
             <div className="draw-refused-banner">{drawOfferRefused}</div>

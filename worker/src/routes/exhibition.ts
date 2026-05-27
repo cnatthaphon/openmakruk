@@ -23,6 +23,12 @@ type ExhibitionRow = {
   black_name: string | null;
   white_avatar: string | null;
   black_avatar: string | null;
+  // Tier comes straight from the bot row (bot_tier column). Surfacing
+  // it in the API lets the client filter by tier without parsing the
+  // bot id slug — i.e. no `'bot:fairy-stockfish'` literal needed in
+  // the UI to special-case the boss.
+  white_tier: string | null;
+  black_tier: string | null;
 };
 
 exhibitionRoute.get('/recent', async (c) => {
@@ -32,7 +38,9 @@ exhibitionRoute.get('/recent', async (c) => {
     SELECT g.id, g.white_bot_id, g.black_bot_id, g.outcome, g.ply_count,
            g.final_fen, g.created_at,
            wu.display_name AS white_name, wu.bot_avatar AS white_avatar,
-           bu.display_name AS black_name, bu.bot_avatar AS black_avatar
+           wu.bot_tier AS white_tier,
+           bu.display_name AS black_name, bu.bot_avatar AS black_avatar,
+           bu.bot_tier AS black_tier
     FROM bot_exhibition_games g
     LEFT JOIN users wu ON wu.id = g.white_bot_id
     LEFT JOIN users bu ON bu.id = g.black_bot_id
@@ -49,6 +57,8 @@ exhibitionRoute.get('/recent', async (c) => {
       blackName: g.black_name,
       whiteAvatar: g.white_avatar,
       blackAvatar: g.black_avatar,
+      whiteTier: g.white_tier,
+      blackTier: g.black_tier,
       outcome: g.outcome,
       plyCount: g.ply_count,
       finalFen: g.final_fen,
@@ -63,7 +73,9 @@ exhibitionRoute.get('/:id', async (c) => {
     SELECT g.id, g.white_bot_id, g.black_bot_id, g.outcome, g.ply_count,
            g.moves_json, g.final_fen, g.created_at,
            wu.display_name AS white_name, wu.bot_avatar AS white_avatar,
-           bu.display_name AS black_name, bu.bot_avatar AS black_avatar
+           wu.bot_tier AS white_tier,
+           bu.display_name AS black_name, bu.bot_avatar AS black_avatar,
+           bu.bot_tier AS black_tier
     FROM bot_exhibition_games g
     LEFT JOIN users wu ON wu.id = g.white_bot_id
     LEFT JOIN users bu ON bu.id = g.black_bot_id
@@ -88,6 +100,8 @@ exhibitionRoute.get('/:id', async (c) => {
     blackName: row.black_name,
     whiteAvatar: row.white_avatar,
     blackAvatar: row.black_avatar,
+    whiteTier: row.white_tier,
+    blackTier: row.black_tier,
     outcome: row.outcome,
     plyCount: row.ply_count,
     moves,

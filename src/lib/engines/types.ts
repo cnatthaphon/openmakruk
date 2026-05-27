@@ -81,6 +81,15 @@ export type EngineCapabilities = {
   /** Mapping from UX difficulty level → engine SearchOpts. */
   difficulty: Record<DifficultyLevel, SearchOpts>;
   /**
+   * Whether this engine's games are bucketed by difficulty for
+   * leaderboard purposes. True for calibrated UCI engines (a "win vs
+   * hard" is a distinct leaderboard cell from "win vs medium"). False
+   * for engines whose strength is fixed per-id (personality bots — the
+   * id IS the opponent label). Defaults to false to keep the safer
+   * "use engine id" path for any new engine added in the future.
+   */
+  ratedAsDifficulty?: boolean;
+  /**
    * SearchOpts used by post-game analysis + auto-mine. Different
    * engines parameterise differently: alpha-beta engines use `depth`;
    * MCTS engines use `nodes`. Declaring these here lets callers

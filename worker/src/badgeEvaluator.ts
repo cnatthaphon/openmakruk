@@ -17,6 +17,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import { BADGES, findBadge, makeShareableSlug } from './badges';
+import { BOSS_BOT_ID } from './bots';
 
 const MATCH_WEIGHTS: Record<string, number> = {
   easy: 1,
@@ -87,7 +88,7 @@ export async function evaluateBadges(
     .all<{ tier: string; personality: string; bot_id: string; wins: number }>();
   const winRows = botWinsRes.results ?? [];
   const tierWins = new Set(winRows.map((r) => r.tier));
-  const beatBoss = winRows.some((r) => r.bot_id === 'bot:fairy-stockfish-boss');
+  const beatBoss = winRows.some((r) => r.bot_id === BOSS_BOT_ID);
   const distinctPersonalities = new Set(winRows.map((r) => r.personality)).size;
 
   if (!already.has('bot-rookie')  && tierWins.has('rookie'))  candidates.push('bot-rookie');

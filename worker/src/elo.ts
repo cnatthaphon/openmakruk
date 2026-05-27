@@ -30,10 +30,10 @@ export function opponentRating(opponent: string): number {
     return CPU_RATINGS[opponent as Difficulty];
   }
   if (opponent.startsWith('personality:')) return PERSONALITY_DEFAULT_ELO;
-  if (opponent === 'random-bot') return 600;
-  if (opponent === 'greedy-bot') return 850;
   // Unknown opponent — pessimistic default so an exotic engine name
   // can't be used to inflate user rating against an unrated bot.
+  // Historical 'random-bot' (600) / 'greedy-bot' (850) branches were
+  // removed when those baselines were retired (see src/lib/engine.ts).
   return 1000;
 }
 

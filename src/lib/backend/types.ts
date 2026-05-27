@@ -125,6 +125,12 @@ export type ExhibitionSummary = {
   blackName: string | null;
   whiteAvatar: string | null;
   blackAvatar: string | null;
+  /** Tier comes from users.bot_tier directly — exposed in the API so
+   *  the client can filter without parsing bot-id slugs. 'boss' is
+   *  the special case for Fairy-Stockfish; rookie/veteran/master for
+   *  personality tiers; null only if the bot row predates Phase 4. */
+  whiteTier: string | null;
+  blackTier: string | null;
   outcome: 'white-wins' | 'black-wins' | 'draw' | 'truncated' | string;
   plyCount: number;
   finalFen: string;

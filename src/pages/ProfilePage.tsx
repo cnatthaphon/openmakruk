@@ -14,6 +14,7 @@ import {
   type UserStats,
 } from '../lib/stats';
 import { DIFFICULTY_LABELS, type Difficulty } from '../lib/engine';
+import { personalityEngineId } from '../lib/personalities/scoredBot';
 import { downloadPgn, gameToPgn, gamesToPgn } from '../lib/pgn';
 import { toast } from '../components/Toast';
 import { loadStreak } from '../lib/streak';
@@ -479,7 +480,7 @@ function AutoMineSection() {
         // 'greedy-bot' baseline was removed (see lib/engine.ts).
         // Hunter personality has the same "grab anything that hangs"
         // tendency and produces similar blunder-rich games for mining.
-        'personality:hunter',
+        personalityEngineId('hunter'),
         'fairy-stockfish',
         3, // 3 games to keep it reasonable for browser
         author,

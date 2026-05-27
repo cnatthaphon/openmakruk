@@ -18,13 +18,12 @@ import { Board } from '../components/Board';
 import { loadFfish, MAKRUK_START_FEN } from '../lib/makruk';
 import { navigate } from '../lib/router';
 
-/** Bot id pattern: `bot:<personality>-<tier>` (e.g. `bot:attacker-master`).
- *  Special case: the boss bot `bot:fairy-stockfish` has no trailing
- *  tier suffix — we treat it as `boss` for filter purposes. */
-function botTier(botId: string): 'rookie' | 'veteran' | 'master' | 'boss' | 'unknown' {
-  if (botId === 'bot:fairy-stockfish') return 'boss';
-  const last = botId.split('-').pop();
-  if (last === 'rookie' || last === 'veteran' || last === 'master') return last;
+/** Normalize a server-supplied bot tier string into the constrained
+ *  TierFilter union. The API returns the raw `users.bot_tier` column
+ *  (e.g. 'master', 'boss') — this function just guards against null
+ *  (legacy rows) or any unexpected string from a future schema. */
+function normalizeTier(tier: string | null): 'rookie' | 'veteran' | 'master' | 'boss' | 'unknown' {
+  if (tier === 'rookie' || tier === 'veteran' || tier === 'master' || tier === 'boss') return tier;
   return 'unknown';
 }
 
@@ -78,7 +77,7 @@ function ExhibitionFeed() {
     if (!games) return null;
     if (tierFilter === 'all') return games;
     return games.filter(
-      (g) => botTier(g.whiteBotId) === tierFilter || botTier(g.blackBotId) === tierFilter,
+      (g) => normalizeTier(g.whiteTier) === tierFilter || normalizeTier(g.blackTier) === tierFilter,
     );
   }, [games, tierFilter]);
 
@@ -91,7 +90,7 @@ function ExhibitionFeed() {
     if (!games) return out;
     out.all = games.length;
     for (const g of games) {
-      const tiers = new Set([botTier(g.whiteBotId), botTier(g.blackBotId)]);
+      const tiers = new Set([normalizeTier(g.whiteTier), normalizeTier(g.blackTier)]);
       for (const t of tiers) {
         if (t in out) out[t as TierFilter] += 1;
       }
@@ -163,8 +162,8 @@ function ExhibitionFeed() {
       {filtered && filtered.length > 0 && (
         <div className="exhibition-list">
           {filtered.map((g) => {
-            const wTier = botTier(g.whiteBotId);
-            const bTier = botTier(g.blackBotId);
+            const wTier = normalizeTier(g.whiteTier);
+            const bTier = normalizeTier(g.blackTier);
             return (
               <button
                 key={g.id}

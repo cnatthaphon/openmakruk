@@ -20,6 +20,7 @@
 
 import { defineStore } from './stores';
 import type { Difficulty } from './engine';
+import { personalityEngineId } from './personalities/scoredBot';
 
 const EVENTS_VERSION = 1;
 
@@ -29,9 +30,15 @@ export type Event = {
   description: string;
   /** Engine id to play against — must match a registered engine. */
   engineId: string;
-  /** Default difficulty preset for Fairy-Stockfish-family engines.
-   *  No-op for random/greedy. */
+  /** Default difficulty for the event. Decorative for engines that
+   *  don't use a difficulty slider (personality bots have fixed
+   *  strength); enforced when `difficultyStrict` is set. */
   difficulty: Difficulty;
+  /** When true, the event ONLY counts games played at the exact
+   *  difficulty above. Used for leveled engines (Fairy-Stockfish)
+   *  where 'win vs medium' is a different challenge from 'win vs
+   *  hard'. Omit / false for personality-bot events. */
+  difficultyStrict?: boolean;
   /** ms epoch — event starts. */
   startsAt: number;
   /** ms epoch — event ends. */
@@ -108,7 +115,7 @@ export const EVENTS: Event[] = [
     id: 'evt-wanderer-week',
     name: '🍃 Wanderer Week',
     description: 'แข่งกับ 🍃 นักเดิน · เดินไปเรื่อย ๆ ไม่มีแผน · ลองเอาชนะให้เร็วที่สุด',
-    engineId: 'personality:wanderer',
+    engineId: personalityEngineId('wanderer'),
     difficulty: 'easy',
     startsAt: NOW - DAY,         // already started
     endsAt: NOW + 7 * DAY,       // +7 days
@@ -119,7 +126,7 @@ export const EVENTS: Event[] = [
     id: 'evt-hunter-hunt',
     name: '🦅 Hunter Hunt',
     description: 'แข่งกับ 🦅 นักล่า ที่จับทุกตัวที่ลอย · ระวังให้ดี · ของฟรีไม่มี',
-    engineId: 'personality:hunter',
+    engineId: personalityEngineId('hunter'),
     difficulty: 'medium',
     startsAt: NOW + 7 * DAY,
     endsAt: NOW + 14 * DAY,
@@ -130,7 +137,7 @@ export const EVENTS: Event[] = [
     id: 'evt-personality-festival',
     name: '🎭 Personality Festival',
     description: 'พบกับสไตล์ต่างๆ · ตั้งค่า bot เป็น personality ใดก็ได้ · คะแนนเท่ากัน',
-    engineId: 'personality:hunter',
+    engineId: personalityEngineId('hunter'),
     difficulty: 'medium',
     startsAt: NOW + 7 * DAY,
     endsAt: NOW + 14 * DAY,
@@ -200,8 +207,13 @@ export function applyEventOutcome(
 }
 
 /** Quick utility: which event (if any) should this game count toward,
- *  given the user's current settings? Match on engineId + difficulty
- *  + time window. */
+ *  given the user's current settings? Match on engineId + (optionally)
+ *  difficulty + time window. An event whose `difficultyStrict` is true
+ *  requires the difficulty to match exactly; otherwise difficulty is
+ *  decorative (e.g. for personality bots whose strength is fixed by
+ *  the personality, not the slider). Replaces a prior engine-name
+ *  conditional that hardcoded 'fairy-stockfish' as the only leveled
+ *  engine — see lib/engines/types.ts capabilities.ratedAsDifficulty. */
 export function matchEvent(
   engineId: string,
   difficulty: Difficulty,
@@ -210,7 +222,7 @@ export function matchEvent(
   for (const e of EVENTS) {
     if (e.startsAt <= now && now < e.endsAt) {
       if (e.engineId !== engineId) continue;
-      if (e.engineId === 'fairy-stockfish' && e.difficulty !== difficulty) continue;
+      if (e.difficultyStrict && e.difficulty !== difficulty) continue;
       return e;
     }
   }
