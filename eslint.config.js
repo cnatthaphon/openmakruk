@@ -115,6 +115,13 @@ export default [
       'no-empty': ['error', { allowEmptyCatch: true }],
       // Prefer `const` for non-reassigned bindings.
       'prefer-const': 'warn',
+      // Production CSP allows 'unsafe-eval' SPECIFICALLY because the
+      // bundled ffish-es6 needs it. Our own code must never reach for
+      // eval/Function — these rules make a new eval() in our source
+      // fail CI, keeping the CSP allowance scoped to vendor code only.
+      'no-eval': 'error',
+      'no-new-func': 'error',
+      'no-implied-eval': 'error',
     },
     settings: {
       react: { version: 'detect' },

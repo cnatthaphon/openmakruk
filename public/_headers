@@ -48,7 +48,34 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), midi=()
-  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://openmakruk-api.cnatthaphon.workers.dev https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+  # Content Security Policy — enforcing mode (moved from
+  # Content-Security-Policy-Report-Only on 2026-05-28 once the inline
+  # script + style violations were eliminated).
+  #
+  # Each allowance is intentional:
+  #   script-src 'self'              — only bundled chunks; no third-party scripts
+  #              'wasm-unsafe-eval'  — required by WebAssembly.compile() for
+  #                                    the Fairy-Stockfish engine WASM module
+  #              'unsafe-eval'       — required by ffish-es6 (emscripten output
+  #                                    that uses new Function() to bind WASM
+  #                                    exports). Without it, the rules engine
+  #                                    cannot load. Mitigations: no third-party
+  #                                    scripts, no remote module loading, and
+  #                                    our own code contains zero eval()/
+  #                                    Function() calls (verified by ESLint
+  #                                    `no-eval` + `no-new-func` rules).
+  #              static.cloudflareinsights.com — first-party analytics shim
+  #                                    Cloudflare injects automatically
+  #   style-src  'unsafe-inline'     — chessground sets inline transform on
+  #                                    every piece during drag/drop. Removing
+  #                                    requires a chessground fork.
+  #   img-src    data: blob:         — SVG piece sprites + share-image blobs
+  #   connect-src                    — the openmakruk-api worker + jsDelivr
+  #                                    for the NNUE network blob
+  #   worker-src blob:               — Fairy-Stockfish runs in a Web Worker
+  #                                    spawned from a Blob URL (Vite default)
+  #   frame-ancestors 'none'         — clickjacking lockdown
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://openmakruk-api.cnatthaphon.workers.dev https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
 
 /
   Cache-Control: public, max-age=0, must-revalidate

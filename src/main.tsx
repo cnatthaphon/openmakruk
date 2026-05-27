@@ -8,6 +8,23 @@ import { setBackend } from './lib/backend';
 import { cloudflareBackend } from './lib/backend/cloudflareBackend';
 import './App.css';
 
+// Service worker registration. Previously lived as an inline <script>
+// in index.html which violated CSP `script-src` (no 'unsafe-inline').
+// Bundled main.tsx satisfies 'self' so the violation goes away while
+// behavior is identical — same load-event timing, same hostname guard,
+// same silent failure on dev.
+function registerServiceWorker(): void {
+  if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+  const host = typeof location !== 'undefined' ? location.hostname : '';
+  if (host.includes('localhost') || host.includes('127.0.0.1')) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
+registerServiceWorker();
+
 // Note: the stale-chunk reload guard in lazyRetry.ts is now timestamp-
 // based and self-expiring (15s window), so it no longer needs a boot-
 // time clear. Clearing on boot was actively harmful — boot happens ~1s

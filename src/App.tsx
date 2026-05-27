@@ -1807,20 +1807,23 @@ export default function App() {
         <button
           className="app-profile-widget"
           onClick={() => setCurrentTab('profile')}
-          title="ดูโปรไฟล์ + ประวัติเกม"
+          title="กดเพื่อเปิดโปรไฟล์ + ประวัติเกม + การจัดการบัญชี"
           aria-label={`โปรไฟล์: ${stats.displayName} · rating ${stats.rating}`}
         >
           {(() => {
             const streak = loadStreak();
             const days = streak.current;
             return days > 0 ? (
-              <span
-                className="app-profile-streak"
-                title={`เข้ามาเล่น ${days} วันติดต่อกัน · longest ${streak.longest}`}
-                aria-label={`streak ${days} วันติด`}
-              >
-                🔥 {days}<span className="app-profile-unit">d</span>
-              </span>
+              <>
+                <span
+                  className="app-profile-streak"
+                  title={`Streak: เข้ามาเล่น ${days} วันติดต่อกัน · longest ${streak.longest}`}
+                  aria-label={`streak ${days} วันติด`}
+                >
+                  🔥 {days}<span className="app-profile-unit">d</span>
+                </span>
+                <span className="app-profile-sep" aria-hidden="true" />
+              </>
             ) : null;
           })()}
           {(() => {
@@ -1832,7 +1835,7 @@ export default function App() {
             return (
               <span
                 className="app-profile-title"
-                title={`${tier.th} · ${tier.descTh}`}
+                title={`ยศ: ${tier.th} (rating ≥ ${tier.minRating}) · ${tier.descTh}`}
                 style={{ color: tier.color, borderColor: tier.color }}
               >
                 {tier.th}
@@ -1845,17 +1848,23 @@ export default function App() {
             return (
               <span
                 className="app-profile-cosmetic"
-                title={`${cosm.nameTh} · ${cosm.descTh}`}
+                title={`Cosmetic: ${cosm.nameTh} · ${cosm.descTh}`}
                 aria-label={`cosmetic ${cosm.nameTh}`}
               >
                 {cosm.glyph}
               </span>
             );
           })()}
-          <span className="app-profile-name">{stats.displayName}</span>
+          <span
+            className="app-profile-name"
+            title={`ชื่อผู้เล่น (เปลี่ยนได้ในหน้าโปรไฟล์)`}
+          >
+            {stats.displayName}
+          </span>
+          <span className="app-profile-sep" aria-hidden="true" />
           <span
             className="app-profile-rating"
-            title={`rating ${stats.rating} · K-factor 32`}
+            title={`Elo rating ${stats.rating} (K-factor 32) · เพิ่มจากการชนะ bot ที่ rating สูงกว่า`}
             aria-label={`rating ${stats.rating}`}
           >
             <span className="app-profile-rating-label">R</span>
@@ -1998,7 +2007,12 @@ export default function App() {
       )}
       </Suspense>
       {currentTab === 'play' && (
-      <ErrorBoundary scope="play"><main>
+      <ErrorBoundary scope="play">
+      {/* Pre-main strip — TodayStrip, challenge banner, and quick-actions
+          live ABOVE the board, full-width horizontal. Previously they
+          were inside <main>'s flex row and produced an empty-looking
+          left column when those rows were narrow. */}
+      <div className="play-pre-main">
         {challenge && (
           <div className="challenge-banner" role="status">
             <span className="challenge-banner-icon">⚔️</span>
@@ -2070,6 +2084,8 @@ export default function App() {
               </button>
             </div>
           )}
+      </div>
+      <main>
         {settings.showEvalBar && (
           <div className="eval-bar-live-wrap">
             <EvalBar score={liveEval} flipped={flipped} />

@@ -3578,6 +3578,21 @@ footer a:hover {
   white-space: nowrap;
 }
 
+/* Small dot separator between groups of the profile widget. The 4
+ * pieces — streak, ยศ (title), display name, rating — are visually
+ * adjacent which confused users ("ผู้เล่น Cue R 1000" reads as one
+ * identity). Dots break the line into [streak]·[title][name]·[rating]
+ * so the eye groups them correctly. Cosmetic emoji sits flush with
+ * the title (one decorative unit) — no separator there. */
+.app-profile-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
 /* Title chip — shown before the name when rating ≥ 1000. Border-only
    style keeps it visually subordinate to the name itself; the per-
    tier accent color is set inline via the `color` style. */
@@ -8308,4 +8323,36 @@ footer a:hover {
 .profile-title-rating {
   font-family: 'JetBrains Mono', monospace;
   color: var(--fg-dim);
+}
+
+/* ─── Play · pre-main strip (above the board) ─────────────────────
+ *
+ * Holds TodayStrip + challenge banner + quick-actions in a horizontal
+ * row above <main>. Previously these lived as flex children of <main>
+ * and produced an empty-looking left column when the rows were narrow
+ * — see Phase 28 layout fix.
+ *
+ * On desktop the strip is centered (max-width: 920px matches the
+ * TodayStrip's own internal cap). On mobile each child wraps onto its
+ * own row via the existing component-level mobile rules.
+ */
+.play-pre-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+.play-pre-main > .today-strip {
+  margin: 0;
+  max-width: none;
+}
+.play-pre-main > .challenge-banner {
+  margin: 0;
+}
+.play-pre-main > .play-quick-actions {
+  margin: 0;
 }
