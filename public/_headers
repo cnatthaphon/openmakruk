@@ -21,6 +21,14 @@
 #   CSP             — report-only first; tighten + enforce in v0.2
 #                     once we've seen logs
 
+# /sw.js MUST be first — the rule needs to win over both the generic
+# /* security header rule (which carries no Cache-Control) and any
+# Cloudflare Pages default. Bumping CACHE_VERSION in sw.js does nothing
+# if browsers sit on a stale sw.js for hours per the default JS TTL.
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+  Service-Worker-Allowed: /
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
@@ -44,13 +52,3 @@
 
 /
   Cache-Control: public, max-age=0, must-revalidate
-
-# Service worker must not be cached — bumping CACHE_VERSION in sw.js
-# is useless if browsers keep serving the old sw.js for hours from the
-# HTTP cache. Force a fresh check on every navigation. The browser
-# treats `no-cache` as "ALWAYS revalidate with If-None-Match", which
-# is what we want: cheap 304 in the common case, fresh fetch when the
-# bytes changed.
-/sw.js
-  Cache-Control: public, max-age=0, must-revalidate
-  Service-Worker-Allowed: /
