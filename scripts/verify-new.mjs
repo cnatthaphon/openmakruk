@@ -3,7 +3,9 @@ const browser = await chromium.launch();
 for (const route of ['/#/stats', '/#/challenge']) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await ctx.newPage();
-  await page.addInitScript(() => { try { localStorage.setItem('openmakruk_onboarded','1'); } catch {} });
+  await page.addInitScript(() => {
+    try { localStorage.setItem('openmakruk_onboarded', '1'); } catch { /* storage may be blocked */ }
+  });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await page.goto('https://www.openmakruk.com' + route, { waitUntil: 'domcontentloaded' });
