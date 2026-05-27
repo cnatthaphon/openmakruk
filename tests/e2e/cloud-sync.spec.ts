@@ -224,10 +224,12 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
 
     // Disable triggers a confirm toast — pick the destructive option.
-    await page.getByRole('button', { name: /ปิด cloud sync/ }).click();
-    // Toast's destructive OK is exactly "ปิด" (no extra text). The
-    // section's own button reads "🔌 ปิด cloud sync" so we disambiguate
-    // by exact name match.
+    // Phase 25 renamed the button from "ปิด cloud sync" to
+    // "ออกจากระบบบนเครื่องนี้" because we now have three distinct
+    // sign-out levels (this device / everywhere / erase) and the old
+    // label was ambiguous.
+    await page.getByRole('button', { name: /ออกจากระบบบนเครื่องนี้/ }).click();
+    // Toast's destructive OK button is exactly "ปิด" (no extra text).
     await page.getByRole('button', { name: 'ปิด', exact: true }).click();
 
     // Section flips back to the enable state.
