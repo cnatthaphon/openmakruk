@@ -128,4 +128,14 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name openmakruk --branch main
+          # --commit-dirty=true silences the "working directory has
+          # uncommitted changes" warning (CI sometimes produces stray
+          # files during build/install). --commit-message overrides the
+          # default `git log -1 --format=%B` with an ASCII-safe summary
+          # — Cloudflare's deploy API rejected a previous commit with
+          # `Invalid commit message, it must be a valid UTF-8 string`
+          # even though the git-side bytes were valid UTF-8 (suspect:
+          # encoding mismatch in the API client). Using github.sha keeps
+          # the deploy traceable to a commit while sidestepping the
+          # rejection. --commit-hash provides the SHA explicitly.
+          command: pages deploy dist --project-name openmakruk --branch main --commit-dirty=true --commit-hash=${{ github.sha }} --commit-message="deploy ${{ github.sha }}"
