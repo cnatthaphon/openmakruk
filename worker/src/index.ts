@@ -31,6 +31,7 @@ import { signalsRoute } from './routes/signals';
 import { exhibitionRoute } from './routes/exhibition';
 import { runExhibitionTick } from './exhibition';
 import { seasonsRoute } from './routes/seasons';
+import { statsRoute } from './routes/stats';
 import { runSeasonRolloverIfDue } from './seasons';
 
 /** Cloudflare bindings configured in wrangler.toml. */
@@ -87,6 +88,7 @@ app.route('/api/tournaments', tournamentsRoute);
 app.route('/api/signals', signalsRoute);
 app.route('/api/exhibition', exhibitionRoute);
 app.route('/api/seasons', seasonsRoute);
+app.route('/api/stats', statsRoute);
 
 /** DB readiness — separate from /health because hitting D1 costs a
  *  read and we don't want every monitoring probe to drive that bill. */

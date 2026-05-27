@@ -1130,7 +1130,10 @@ function MatchLeaderboardSection({ stats }: { stats: UserStats }) {
   const lb = computeMatchLeaderboard(stats);
   return (
     <section className="profile-section">
-      <h3>🏆 Match Score</h3>
+      <h3>
+        <span className="score-family-tag score-family-b-tag" title="Family B — Competitive Result">B</span>
+        🏆 Match Score · <span className="profile-family-label">Competitive Result family</span>
+      </h3>
       <div className="profile-leaderboard-total">
         <span className="profile-lb-total-label">รวมคะแนน</span>
         <span className="profile-lb-total-value">{formatScore(lb.total)}</span>
@@ -1166,7 +1169,10 @@ function ReviewMasterySection() {
   if (m.reviewCount === 0) {
     return (
       <section className="profile-section">
-        <h3>📈 Review Mastery</h3>
+        <h3>
+          <span className="score-family-tag score-family-a-tag" title="Family A — Performance Quality">A</span>
+          📈 Review Mastery · <span className="profile-family-label">Performance Quality family</span>
+        </h3>
         <p className="label-aside">
           เล่นเกม + กด "🔍 ดูรีวิวเกม" เพื่อสะสมข้อมูล · ระบบจะ aggregate ค่า accuracy + จำนวน blunder/mistake ข้ามเกม
         </p>
@@ -1176,7 +1182,10 @@ function ReviewMasterySection() {
   const arrow = m.trend > 1 ? '↗' : m.trend < -1 ? '↘' : '→';
   return (
     <section className="profile-section">
-      <h3>📈 Review Mastery · จาก {m.reviewCount} รีวิวล่าสุด</h3>
+      <h3>
+        <span className="score-family-tag score-family-a-tag" title="Family A — Performance Quality">A</span>
+        📈 Review Mastery · จาก {m.reviewCount} รีวิวล่าสุด · <span className="profile-family-label">Performance Quality family</span>
+      </h3>
       <div className="mastery-grid">
         <div className="mastery-tile" style={{ borderColor: '#7aba7f55' }}>
           <div className="mastery-tile-label">Accuracy เฉลี่ย</div>

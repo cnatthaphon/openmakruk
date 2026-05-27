@@ -174,6 +174,66 @@ export function hasStoredSession(): boolean {
   return loadSession().token.length > 0;
 }
 
+/** Sign in with an existing token (recovery flow). Validates against
+ *  the server; if it accepts, replaces the local session entirely. If
+ *  the server rejects, the previous session is left untouched and the
+ *  caller learns via a thrown error. */
+export async function signInWithToken(token: string): Promise<CloudSessionStore> {
+  const trimmed = token.trim();
+  if (trimmed.length < 32) {
+    throw new Error('Token สั้นเกินไป · กรุณาตรวจสอบและลองอีกครั้ง');
+  }
+  const profile = await cloudflareBackend.getProfile(trimmed);
+  if (!profile) {
+    throw new Error('Token ไม่ถูกต้องหรือถูกยกเลิกแล้ว');
+  }
+  const session: CloudSessionStore = {
+    token: trimmed,
+    userId: profile.id,
+    displayName: profile.displayName,
+    province: profile.province,
+    region: profile.region,
+    lastSyncAt: Date.now(),
+  };
+  saveSession(session);
+  cloudflareBackend.setToken(trimmed);
+  setBackend(cloudflareBackend);
+  return session;
+}
+
+/** "Sign out everywhere" — rotates the server-side token and replaces
+ *  the local copy. Other devices instantly start receiving 401. */
+export async function rotateCurrentToken(): Promise<CloudSessionStore> {
+  const session = loadSession();
+  if (!session.token) throw new Error('ยังไม่ได้ login · ไม่มีอะไรให้ rotate');
+  if (!cloudflareBackend.rotateToken) {
+    throw new Error('Backend ปัจจุบันไม่รองรับ token rotation');
+  }
+  const { token: newToken } = await cloudflareBackend.rotateToken(session.token);
+  const next: CloudSessionStore = { ...session, token: newToken, lastSyncAt: Date.now() };
+  saveSession(next);
+  cloudflareBackend.setToken(newToken);
+  return next;
+}
+
+/** Permanent account deletion — wipes server-side + clears the local
+ *  session. The previous account id can never be re-attached after this. */
+export async function deleteCurrentAccount(): Promise<void> {
+  const session = loadSession();
+  if (!session.token) {
+    // No session to delete — just nuke local for parity.
+    store.clear();
+    return;
+  }
+  if (!cloudflareBackend.deleteAccount) {
+    throw new Error('Backend ปัจจุบันไม่รองรับการลบบัญชี');
+  }
+  await cloudflareBackend.deleteAccount(session.token);
+  store.clear();
+  cloudflareBackend.setToken(null);
+  setBackend(NoOpBackend);
+}
+
 /** Fetch server-side game history and merge into the local UserStats.
  *  Called after the cloud session activates so multi-device users see
  *  yesterday's games on tomorrow's browser.

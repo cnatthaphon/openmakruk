@@ -83,6 +83,66 @@ describe('anonymous registration', () => {
     const body = await res.json() as { error: string; reason: string };
     expect(body.reason).toBe('unknown_token');
   });
+
+  test('POST /users/me/rotate issues a new token; old token stops working', async () => {
+    const u = await createAnonUser('RotatorAlice');
+    // New token comes back from rotate.
+    const rotateRes = await fetch(`${baseUrl()}/api/users/me/rotate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(rotateRes.status).toBe(200);
+    const rotated = await rotateRes.json() as { id: string; token: string; rotatedAt: number };
+    expect(rotated.id).toBe(u.id);
+    expect(rotated.token).not.toBe(u.token);
+    expect(rotated.token.length).toBeGreaterThanOrEqual(32);
+
+    // Old token = 401 now (the "sign out everywhere" effect).
+    const stale = await fetch(`${baseUrl()}/api/users/me`, {
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(stale.status).toBe(401);
+
+    // New token works.
+    const fresh = await fetch(`${baseUrl()}/api/users/me`, {
+      headers: { Authorization: `Bearer ${rotated.token}` },
+    });
+    expect(fresh.status).toBe(200);
+    const profile = await fresh.json() as { id: string; displayName: string };
+    expect(profile.id).toBe(u.id);
+    expect(profile.displayName).toBe('RotatorAlice');
+  });
+
+  test('DELETE /users/me wipes the account; subsequent /me returns 401', async () => {
+    const u = await createAnonUser('DeletableDave');
+    // Play one game so we have non-trivial state to clean up.
+    await recordGame(u.token, { opponent: 'easy', outcome: 'win', plyCount: 30 });
+
+    const delRes = await fetch(`${baseUrl()}/api/users/me`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(delRes.status).toBe(200);
+    const body = await delRes.json() as { ok: boolean; id: string };
+    expect(body.ok).toBe(true);
+    expect(body.id).toBe(u.id);
+
+    // Subsequent requests with the same bearer = 401.
+    const after = await fetch(`${baseUrl()}/api/users/me`, {
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(after.status).toBe(401);
+  });
+
+  test('rotate without auth → 401', async () => {
+    const res = await fetch(`${baseUrl()}/api/users/me/rotate`, { method: 'POST' });
+    expect(res.status).toBe(401);
+  });
+
+  test('delete without auth → 401', async () => {
+    const res = await fetch(`${baseUrl()}/api/users/me`, { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
 });
 
 describe('play a game vs bot → record outcome', () => {
@@ -605,9 +665,22 @@ describe('bot character system', () => {
     expect(body.tier).toBe('veteran');
   });
 
-  test('GET /api/bots/:id non-bot id → 400', async () => {
+  test('GET /api/bots/:id unknown id → 404 (lenient: prefix-less ids accepted)', async () => {
+    // Phase 24 (2026-05-27): worker now normalizes both `attacker-master`
+    // and `bot:attacker-master` to the prefixed form before lookup, so
+    // share URLs can carry the cleaner slug. Unknown ids — bot:-less
+    // or not — return 404, not 400.
     const res = await fetch(`${baseUrl()}/api/bots/some-uuid-not-bot`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
+  });
+
+  test('GET /api/bots/:id prefix-less but valid → resolves like prefixed form', async () => {
+    // Cleaner share-URL form (`/api/bots/wanderer-rookie`) must return
+    // the same record as the legacy form (`/api/bots/bot:wanderer-rookie`).
+    const a = await fetch(`${baseUrl()}/api/bots/wanderer-rookie`);
+    expect(a.status).toBe(200);
+    const aBody = await a.json() as { id: string };
+    expect(aBody.id).toBe('bot:wanderer-rookie');
   });
 
   test('recordGame against a bot bumps the bot rating too', async () => {

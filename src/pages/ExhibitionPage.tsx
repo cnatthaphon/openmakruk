@@ -18,6 +18,25 @@ import { Board } from '../components/Board';
 import { loadFfish, MAKRUK_START_FEN } from '../lib/makruk';
 import { navigate } from '../lib/router';
 
+/** Bot id pattern: `bot:<personality>-<tier>` (e.g. `bot:attacker-master`).
+ *  Special case: the boss bot `bot:fairy-stockfish` has no trailing
+ *  tier suffix — we treat it as `boss` for filter purposes. */
+function botTier(botId: string): 'rookie' | 'veteran' | 'master' | 'boss' | 'unknown' {
+  if (botId === 'bot:fairy-stockfish') return 'boss';
+  const last = botId.split('-').pop();
+  if (last === 'rookie' || last === 'veteran' || last === 'master') return last;
+  return 'unknown';
+}
+
+type TierFilter = 'all' | 'rookie' | 'veteran' | 'master' | 'boss';
+const TIER_LABELS: Record<TierFilter, string> = {
+  all: 'ทุก tier',
+  rookie: '🥉 Rookie',
+  veteran: '🥈 Veteran',
+  master: '🥇 Master',
+  boss: '👑 Boss',
+};
+
 type Props = {
   gameId: string | null;
 };
@@ -34,6 +53,7 @@ function ExhibitionFeed() {
   const supports = backend.fetchExhibitionRecent !== undefined;
   const [games, setGames] = useState<ExhibitionSummary[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [tierFilter, setTierFilter] = useState<TierFilter>('all');
 
   useEffect(() => {
     if (!supports || !backend.fetchExhibitionRecent) return;
@@ -51,6 +71,48 @@ function ExhibitionFeed() {
     };
   }, [supports, backend]);
 
+  // Filter by tier of either participant — a "Master tier" view shows
+  // any game where at least one Master-tier bot played, so you don't
+  // miss matches where Master beat Veteran (both interesting).
+  const filtered = useMemo(() => {
+    if (!games) return null;
+    if (tierFilter === 'all') return games;
+    return games.filter(
+      (g) => botTier(g.whiteBotId) === tierFilter || botTier(g.blackBotId) === tierFilter,
+    );
+  }, [games, tierFilter]);
+
+  // Per-tier counts for the chip strip. Shows "Master · 3" so the
+  // user knows whether selecting a tier will give them content.
+  const tierCounts = useMemo(() => {
+    const out: Record<TierFilter, number> = {
+      all: 0, rookie: 0, veteran: 0, master: 0, boss: 0,
+    };
+    if (!games) return out;
+    out.all = games.length;
+    for (const g of games) {
+      const tiers = new Set([botTier(g.whiteBotId), botTier(g.blackBotId)]);
+      for (const t of tiers) {
+        if (t in out) out[t as TierFilter] += 1;
+      }
+    }
+    return out;
+  }, [games]);
+
+  // Time-to-next-cron estimate. The exhibition cron fires every 30
+  // min (wrangler.toml). Showing "next match in ~12 min" answers the
+  // reviewer's "feels stale" feedback when the last game is hours old.
+  const nextCronEta = useMemo(() => {
+    if (!games || games.length === 0) return null;
+    const last = games[0].createdAt;
+    const period = 30 * 60_000;
+    const next = last + period;
+    const diff = next - Date.now();
+    if (diff < 0) return 'เร็วๆ นี้';
+    const mins = Math.ceil(diff / 60_000);
+    return mins < 1 ? 'น้อยกว่า 1 นาที' : `~${mins} นาที`;
+  }, [games]);
+
   return (
     <main className="exhibition-page exhibition-feed">
       <button className="exhibition-back" onClick={() => navigate({ tab: 'profile' })}>
@@ -60,8 +122,28 @@ function ExhibitionFeed() {
         <h2>🎬 Bot Exhibition · live</h2>
         <p className="label-aside">
           บอตเล่นกันเองทุก 30 นาที · ดูได้แม้ไม่มีคนเล่นออนไลน์
+          {nextCronEta && (
+            <> · <strong>match ถัดไป {nextCronEta}</strong></>
+          )}
         </p>
       </header>
+
+      {games && games.length > 0 && (
+        <div className="exhibition-tier-chips" role="tablist" aria-label="กรองตาม tier">
+          {(Object.keys(TIER_LABELS) as TierFilter[]).map((t) => (
+            <button
+              key={t}
+              role="tab"
+              aria-selected={tierFilter === t}
+              className={`exhibition-tier-chip${tierFilter === t ? ' is-active' : ''}`}
+              onClick={() => setTierFilter(t)}
+              disabled={t !== 'all' && tierCounts[t] === 0}
+            >
+              {TIER_LABELS[t]} · {tierCounts[t]}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!supports && (
         <p className="label-aside">ต้องการ backend ออนไลน์ — รีเฟรชอีกครั้ง</p>
@@ -73,32 +155,51 @@ function ExhibitionFeed() {
           ยังไม่มีเกม — cron จะสร้างเกมแรกในอีกไม่กี่นาที
         </p>
       )}
-      {games && games.length > 0 && (
+      {filtered && filtered.length === 0 && games && games.length > 0 && (
+        <p className="label-aside">
+          ไม่มีเกมใน tier นี้ใน feed ล่าสุด — ลอง “ทุก tier” หรือรอเกมถัดไป
+        </p>
+      )}
+      {filtered && filtered.length > 0 && (
         <div className="exhibition-list">
-          {games.map((g) => (
-            <button
-              key={g.id}
-              className="exhibition-card"
-              onClick={() => navigate({ tab: 'exhibition', id: g.id })}
-            >
-              <div className="exhibition-card-vs">
-                <span className="exhibition-side">
-                  <span className="exhibition-avatar">{g.whiteAvatar ?? '🤖'}</span>
-                  {g.whiteName ?? g.whiteBotId}
-                </span>
-                <span className={`exhibition-result ${outcomeClass(g.outcome)}`}>
-                  {formatOutcome(g.outcome)}
-                </span>
-                <span className="exhibition-side">
-                  <span className="exhibition-avatar">{g.blackAvatar ?? '🤖'}</span>
-                  {g.blackName ?? g.blackBotId}
-                </span>
-              </div>
-              <div className="exhibition-card-meta label-aside">
-                {g.plyCount} ตา · {relativeTime(g.createdAt)} · ดู replay →
-              </div>
-            </button>
-          ))}
+          {filtered.map((g) => {
+            const wTier = botTier(g.whiteBotId);
+            const bTier = botTier(g.blackBotId);
+            return (
+              <button
+                key={g.id}
+                className="exhibition-card"
+                onClick={() => navigate({ tab: 'exhibition', id: g.id })}
+              >
+                <div className="exhibition-card-vs">
+                  <span className="exhibition-side">
+                    <span className="exhibition-avatar">{g.whiteAvatar ?? '🤖'}</span>
+                    <span className="exhibition-side-name">{g.whiteName ?? g.whiteBotId}</span>
+                    {wTier !== 'unknown' && (
+                      <span className={`exhibition-tier-badge is-${wTier}`}>
+                        {TIER_LABELS[wTier as TierFilter]}
+                      </span>
+                    )}
+                  </span>
+                  <span className={`exhibition-result ${outcomeClass(g.outcome)}`}>
+                    {formatOutcome(g.outcome)}
+                  </span>
+                  <span className="exhibition-side">
+                    <span className="exhibition-avatar">{g.blackAvatar ?? '🤖'}</span>
+                    <span className="exhibition-side-name">{g.blackName ?? g.blackBotId}</span>
+                    {bTier !== 'unknown' && (
+                      <span className={`exhibition-tier-badge is-${bTier}`}>
+                        {TIER_LABELS[bTier as TierFilter]}
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="exhibition-card-meta label-aside">
+                  {g.plyCount} ตา · {relativeTime(g.createdAt)} · ดู replay →
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </main>
@@ -106,10 +207,13 @@ function ExhibitionFeed() {
 }
 
 function formatOutcome(o: string): string {
-  if (o === 'white-wins') return 'ขาวชนะ';
-  if (o === 'black-wins') return 'ดำชนะ';
-  if (o === 'draw') return 'เสมอ';
-  if (o === 'truncated') return 'หมดเทิร์น';
+  if (o === 'white-wins') return '⚪ ขาวชนะ';
+  if (o === 'black-wins') return '⚫ ดำชนะ';
+  if (o === 'draw') return '🤝 เสมอ';
+  // 'truncated' = match hit the engine's max-ply cap with no winner.
+  // The previous "หมดเทิร์น" label was ambiguous — could mean "turn
+  // ended" or "out of time". Spell it out so the card reads cleanly.
+  if (o === 'truncated') return '⏱️ ครบจำนวนตา · ไม่มีฝ่ายชนะ';
   return o;
 }
 function outcomeClass(o: string): string {

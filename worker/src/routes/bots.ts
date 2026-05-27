@@ -84,10 +84,11 @@ botsRoute.get('/', async (c) => {
 /** Single bot — same shape as list entry; convenient for deep links
  *  like `/#/bots/bot:attacker-veteran`. */
 botsRoute.get('/:id', async (c) => {
-  const id = c.req.param('id');
-  if (!id.startsWith('bot:')) {
-    return c.json({ error: 'bad_request', reason: 'not_a_bot_id' }, 400);
-  }
+  const raw = c.req.param('id');
+  // Accept both `attacker-master` (clean share URL) and `bot:attacker-master`
+  // (legacy + internal form). Normalize once here so deep links from any
+  // surface — Hall of Fame click, LINE share, hand-typed URL — converge.
+  const id = raw.startsWith('bot:') ? raw : `bot:${raw}`;
   const bot = await c.env.DB.prepare(
     `SELECT id, display_name, rating, bot_personality, bot_tier,
             bot_lore_th, bot_avatar

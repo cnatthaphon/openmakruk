@@ -142,6 +142,63 @@ usersRoute.patch('/me', authMiddleware, async (c) => {
   });
 });
 
+/** Token rotation — "sign out everywhere".
+ *
+ *  Use case: user suspects a token leaked (shared computer, browser
+ *  history sync, etc.) and wants to invalidate every device at once
+ *  without losing rating + history. We swap the row's token_hash for
+ *  a new one and return the new plaintext token. All other devices
+ *  holding the previous token instantly start receiving 401.
+ *
+ *  The account row, rating, badges, games, and history are untouched —
+ *  only the credential changes. */
+usersRoute.post('/me/rotate', authMiddleware, async (c) => {
+  const u = getUser(c);
+  const newToken = generateToken();
+  const newHash = await hashToken(newToken);
+  await c.env.DB.prepare('UPDATE users SET token_hash = ? WHERE id = ?')
+    .bind(newHash, u.id)
+    .run();
+  return c.json({
+    id: u.id,
+    token: newToken, // PLAINTEXT — returned ONCE, just like /anon
+    rotatedAt: Date.now(),
+  });
+});
+
+/** Permanent account deletion — "erase me".
+ *
+ *  Wipes the user row + the games they played as the human side. Bot
+ *  rows are left alone (they're shared resources). Cascades are not
+ *  declared on the games FK because we want explicit control over the
+ *  delete order: games first (so a partially-deleted state can't leave
+ *  orphan rows referencing a missing user). Server-side badge rows and
+ *  any per-user state tables follow.
+ *
+ *  This is irreversible. Client must confirm with a destructive prompt
+ *  before calling. */
+usersRoute.delete('/me', authMiddleware, async (c) => {
+  const u = getUser(c);
+  // Use a batch so all deletions land in one transaction. D1 doesn't
+  // support nested transactions but batch() is atomic at the statement
+  // boundary which is enough here.
+  await c.env.DB.batch([
+    c.env.DB.prepare('DELETE FROM games WHERE user_id = ?').bind(u.id),
+    c.env.DB.prepare('DELETE FROM user_badges WHERE user_id = ?').bind(u.id),
+    c.env.DB.prepare('DELETE FROM puzzle_solves WHERE user_id = ?').bind(u.id),
+    c.env.DB.prepare('DELETE FROM puzzle_golf WHERE user_id = ?').bind(u.id),
+    c.env.DB.prepare('DELETE FROM leaderboard_cache WHERE user_id = ?').bind(u.id),
+    // season_winners holds a display-name snapshot — deleting also
+    // wipes that PII. Past-season leaderboards may show gaps for
+    // removed accounts, which is the correct privacy posture: a user
+    // who erased their account should not appear by name in any
+    // historical record we control.
+    c.env.DB.prepare('DELETE FROM season_winners WHERE user_id = ?').bind(u.id),
+    c.env.DB.prepare('DELETE FROM users WHERE id = ?').bind(u.id),
+  ]);
+  return c.json({ ok: true, id: u.id, deletedAt: Date.now() });
+});
+
 function sanitizeName(input: string | undefined): string {
   if (!input || typeof input !== 'string') return DEFAULT_NAME;
   const trimmed = input.trim();

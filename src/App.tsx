@@ -80,6 +80,12 @@ const LibraryPage = lazy(lazyRetry(() =>
 const BotDetailPage = lazy(lazyRetry(() =>
   import('./pages/BotDetailPage').then((m) => ({ default: m.BotDetailPage })),
 ));
+const StatsPage = lazy(lazyRetry(() =>
+  import('./pages/StatsPage').then((m) => ({ default: m.StatsPage })),
+));
+const ChallengePage = lazy(lazyRetry(() =>
+  import('./pages/ChallengePage').then((m) => ({ default: m.ChallengePage })),
+));
 const CountingDrillPage = lazy(lazyRetry(() =>
   import('./pages/CountingDrillPage').then((m) => ({ default: m.CountingDrillPage })),
 ));
@@ -219,6 +225,8 @@ const TAB_LABELS: Record<Tab, string> = {
   bossrush: '', // hidden — visited via /#/bossrush
   pattern: '', // hidden — visited via /#/pattern
   survive: '', // hidden — visited via /#/survive
+  stats:    '', // hidden — visited via /#/stats (public stats page)
+  challenge: '', // hidden — visited via /#/challenge or /#/challenge/<code>
 };
 const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
   (t) => TAB_LABELS[t] !== '',
@@ -1960,6 +1968,12 @@ export default function App() {
       )}
       {currentTab === 'survive' && (
         <ErrorBoundary scope="survive"><SurvivePage positionId={route.id} /></ErrorBoundary>
+      )}
+      {currentTab === 'stats' && (
+        <ErrorBoundary scope="stats"><StatsPage /></ErrorBoundary>
+      )}
+      {currentTab === 'challenge' && (
+        <ErrorBoundary scope="challenge"><ChallengePage code={route.id} /></ErrorBoundary>
       )}
       </Suspense>
       {currentTab === 'play' && (

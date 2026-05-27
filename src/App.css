@@ -7575,3 +7575,503 @@ footer a:hover {
   .trainer-layout { grid-template-columns: 1fr; }
 }
 
+
+/* ─── Stats page · /#/stats ──────────────────────────────────────── */
+
+.stats-page {
+  max-width: 880px; margin: 0 auto; padding: 16px 14px 60px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.stats-hero { text-align: center; padding: 8px 0 0; }
+.stats-title {
+  margin: 0; font-size: 1.45rem; color: rgba(255,255,255,0.95);
+}
+.stats-subtitle {
+  margin: 6px 0 0; color: var(--fg-dim); font-size: 13px;
+}
+.stats-section {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px; padding: 16px;
+}
+.stats-section h3 {
+  margin: 0 0 12px; font-size: 1.05rem;
+  color: rgba(255,255,255,0.92);
+}
+.stats-section-intro {
+  margin: 0 0 14px; color: var(--fg-dim);
+  font-size: 14px; line-height: 1.55;
+}
+.stats-headline-grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.stats-card {
+  padding: 14px 16px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 10px;
+  text-align: center;
+}
+.stats-card-online { border-color: rgba(122,186,127,0.4); }
+.stats-num {
+  font-size: 1.8rem; font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  color: rgba(255,255,255,0.96);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.stats-online-dot { color: #7aba7f; font-size: 0.7em; }
+.stats-label {
+  margin-top: 4px; font-size: 12px;
+  color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.stats-foot {
+  margin: 12px 0 0; font-size: 12px; color: var(--fg-dim);
+}
+.stats-table {
+  width: 100%; border-collapse: collapse; font-size: 14px;
+}
+.stats-table th, .stats-table td {
+  padding: 8px 6px; text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.stats-table th {
+  font-weight: 600; color: var(--fg-dim);
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.stats-rank { color: var(--fg-dim); font-family: 'JetBrains Mono', monospace; }
+.stats-dim { color: var(--fg-dim); }
+
+.stats-family-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+.stats-family {
+  padding: 14px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 10px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+/* A = Performance Quality (green), B = Competitive Result (gold),
+   C = Speed (blue). Color mapping is consistent with .score-family-*-tag
+   so users learn one visual language across every page. */
+.stats-family-a { border-left: 4px solid #7aba7f; }
+.stats-family-b { border-left: 4px solid #d4a23c; }
+.stats-family-c { border-left: 4px solid #6aa6ff; }
+.stats-family header { display: flex; flex-direction: column; gap: 4px; }
+.stats-family-tag {
+  display: inline-block; padding: 2px 8px;
+  background: rgba(255,255,255,0.08); border-radius: 4px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--fg-dim); align-self: flex-start;
+}
+.stats-family h4 { margin: 0; font-size: 1rem; }
+.stats-family-q {
+  margin: 0; font-style: italic;
+  color: rgba(255,255,255,0.78); font-size: 14px;
+}
+.stats-family-note {
+  margin: 0; font-size: 12px; color: var(--fg-dim); line-height: 1.5;
+}
+.stats-family-stats {
+  margin: 0; display: grid; grid-template-columns: 1fr auto;
+  gap: 4px 12px; font-size: 13px;
+}
+.stats-family-stats dt { color: var(--fg-dim); }
+.stats-family-stats dd {
+  margin: 0; font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+}
+.stats-family-link {
+  font-size: 13px; color: var(--accent);
+}
+.stats-cta { text-align: center; }
+.stats-cta-btn {
+  padding: 10px 20px; background: var(--accent);
+  color: var(--accent-fg); border: 0; border-radius: 8px;
+  font-weight: 600; cursor: pointer; margin-top: 8px;
+}
+
+/* ─── Challenge page · /#/challenge ──────────────────────────────── */
+
+.challenge-page {
+  max-width: 720px; margin: 0 auto; padding: 16px 14px 60px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.challenge-hero { text-align: center; padding: 4px 0 0; }
+.challenge-hero h2 { margin: 0; font-size: 1.45rem; }
+.challenge-tag {
+  margin: 8px 0 0; color: rgba(255,255,255,0.78);
+  line-height: 1.55; font-size: 14px;
+}
+
+.challenge-builder, .challenge-history, .challenge-accept-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px; padding: 16px;
+}
+.challenge-builder h3, .challenge-history h3 {
+  margin: 0 0 12px; font-size: 1.05rem;
+}
+.challenge-form {
+  display: flex; flex-direction: column; gap: 14px;
+}
+.challenge-field {
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 14px;
+}
+.challenge-field > span, .challenge-field legend {
+  color: var(--fg-dim); font-size: 13px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.challenge-field select {
+  padding: 8px 10px; background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+  color: var(--fg); font-size: 14px;
+}
+.challenge-radio {
+  display: flex; align-items: center; gap: 8px; padding: 4px 0;
+  cursor: pointer;
+}
+.challenge-create-btn {
+  padding: 12px; background: var(--accent);
+  color: var(--accent-fg); border: 0; border-radius: 8px;
+  font-weight: 700; cursor: pointer; font-size: 15px;
+}
+.challenge-create-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.challenge-share {
+  margin-top: 16px; padding: 14px;
+  background: rgba(212,162,60,0.08);
+  border: 1px solid rgba(212,162,60,0.3);
+  border-radius: 8px;
+}
+.challenge-share-label {
+  margin: 0 0 8px; font-size: 12px;
+  color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.challenge-share-url {
+  display: block; padding: 8px 10px;
+  background: rgba(0,0,0,0.25); border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  word-break: break-all; color: rgba(255,255,255,0.9);
+  margin-bottom: 10px;
+}
+.challenge-share-actions {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.challenge-share-actions button {
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.08); color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+  font-size: 13px; cursor: pointer;
+}
+.challenge-share-actions button:hover { background: rgba(255,255,255,0.14); }
+
+.challenge-history-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.challenge-history-list li {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px; background: rgba(0,0,0,0.18);
+  border-radius: 6px; font-size: 13px;
+}
+.challenge-history-role {
+  flex: 0 0 auto; font-weight: 600; color: var(--fg-dim);
+}
+.challenge-history-bot { flex: 1; }
+.challenge-history-result {
+  font-family: 'JetBrains Mono', monospace;
+}
+.challenge-history-link {
+  color: var(--accent); font-weight: 600;
+}
+
+.challenge-accept-header {
+  text-align: center; padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 14px;
+}
+.challenge-accept-from {
+  display: inline-block; padding: 4px 10px;
+  background: rgba(212,162,60,0.15);
+  border: 1px solid rgba(212,162,60,0.4);
+  border-radius: 4px; font-size: 12px;
+  color: rgba(255,255,255,0.85);
+}
+.challenge-accept-header h2 { margin: 8px 0 0; font-size: 1.25rem; }
+.challenge-accept-bot {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px; background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px; margin-bottom: 14px;
+}
+.challenge-accept-bot h3 { margin: 0; }
+.challenge-accept-bot-meta {
+  margin: 4px 0 0; color: var(--fg-dim); font-size: 13px;
+}
+.challenge-accept-rules {
+  margin: 0 0 16px; display: grid;
+  grid-template-columns: auto 1fr; gap: 6px 12px;
+  font-size: 14px;
+}
+.challenge-accept-rules dt { color: var(--fg-dim); }
+.challenge-accept-rules dd { margin: 0; font-weight: 600; }
+.challenge-accept-btn {
+  width: 100%; padding: 12px; background: var(--accent);
+  color: var(--accent-fg); border: 0; border-radius: 8px;
+  font-weight: 700; cursor: pointer; font-size: 15px;
+}
+.challenge-accept-note {
+  margin: 10px 0 0; text-align: center;
+  font-size: 12px; color: var(--fg-dim);
+}
+
+/* ─── Exhibition feed extras · tier filter + per-side badges ─────── */
+
+.exhibition-tier-chips {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin: 6px 0 12px;
+}
+.exhibition-tier-chip {
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.04);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  font-size: 12px; cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.exhibition-tier-chip:hover:not(:disabled) {
+  background: rgba(255,255,255,0.10);
+}
+.exhibition-tier-chip.is-active {
+  background: rgba(212,162,60,0.15);
+  border-color: rgba(212,162,60,0.5);
+  color: rgba(255,255,255,0.95);
+}
+.exhibition-tier-chip:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+.exhibition-side-name { margin-left: 4px; }
+.exhibition-tier-badge {
+  display: inline-block;
+  padding: 1px 6px; margin-left: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.exhibition-tier-badge.is-rookie  { border-color: rgba(205,127,50,0.5); }
+.exhibition-tier-badge.is-veteran { border-color: rgba(192,192,192,0.5); }
+.exhibition-tier-badge.is-master  { border-color: rgba(212,162,60,0.6); }
+.exhibition-tier-badge.is-boss {
+  border-color: rgba(180,80,200,0.6);
+  background: rgba(180,80,200,0.10);
+}
+
+/* ─── Score family tags · profile section labels ─────────────────── */
+
+.score-family-tag {
+  display: inline-block;
+  width: 1.6em; height: 1.6em; line-height: 1.6em;
+  margin-right: 6px;
+  border-radius: 4px; text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700; font-size: 0.75em;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+/* A = Performance Quality → green (learning / calm) */
+.score-family-a-tag {
+  background: rgba(122,186,127,0.22);
+  border: 1px solid rgba(122,186,127,0.55);
+  color: #a6d6a6;
+}
+/* B = Competitive Result → gold (winning / accent) */
+.score-family-b-tag {
+  background: rgba(212,162,60,0.22);
+  border: 1px solid rgba(212,162,60,0.55);
+  color: #f0d488;
+}
+.score-family-c-tag {
+  background: rgba(106,166,255,0.22);
+  border: 1px solid rgba(106,166,255,0.55);
+  color: #a6c4ff;
+}
+.profile-family-label {
+  font-size: 0.72em;
+  color: var(--fg-dim);
+  font-weight: 500;
+  letter-spacing: 0.03em;
+}
+
+/* ─── About page · positioning copy ──────────────────────────────── */
+
+.about-tag-en {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--fg-dim);
+  max-width: 640px; margin-left: auto; margin-right: auto;
+  line-height: 1.5;
+}
+.about-scoring-table {
+  display: flex; flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+.about-scoring-row {
+  display: flex; align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+}
+.about-scoring-row > span.score-family-tag {
+  flex: 0 0 auto;
+  width: 2em; height: 2em; line-height: 2em;
+  font-size: 0.95em;
+}
+.about-scoring-row strong {
+  display: block; margin-bottom: 2px;
+  font-size: 15px;
+  color: rgba(255,255,255,0.95);
+}
+.about-scoring-row p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+/* ─── Settings · Account & Security ──────────────────────────────── */
+
+.settings-account-security { margin-top: 12px; }
+.settings-account-details {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  padding: 0 12px;
+}
+.settings-account-details summary {
+  padding: 12px 0;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.settings-account-details summary::-webkit-details-marker { display: none; }
+.settings-account-details summary::before {
+  content: '▸ ';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+.settings-account-details[open] summary::before { transform: rotate(90deg); }
+.settings-account-body {
+  display: flex; flex-direction: column;
+  gap: 16px;
+  padding-bottom: 16px;
+}
+.settings-account-row {
+  display: flex; flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 6px;
+}
+.settings-account-row-head strong {
+  font-size: 14px;
+  color: rgba(255,255,255,0.95);
+}
+.settings-account-row-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.settings-token-display {
+  display: flex; gap: 8px; align-items: center;
+  flex-wrap: wrap;
+}
+.settings-token-value {
+  flex: 1 1 200px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  word-break: break-all;
+  color: rgba(255,255,255,0.85);
+  min-height: 30px;
+}
+.settings-account-btn {
+  padding: 7px 12px;
+  background: rgba(255,255,255,0.06);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  align-self: flex-start;
+  white-space: nowrap;
+}
+.settings-account-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.12);
+}
+.settings-account-btn:disabled {
+  opacity: 0.5; cursor: not-allowed;
+}
+.settings-account-warn {
+  background: rgba(212,162,60,0.10);
+  border-color: rgba(212,162,60,0.40);
+}
+.settings-account-warn:hover:not(:disabled) {
+  background: rgba(212,162,60,0.20);
+}
+.settings-account-danger {
+  background: rgba(232,90,74,0.10);
+  border-color: rgba(232,90,74,0.40);
+  color: #f5b3a8;
+}
+.settings-account-danger:hover:not(:disabled) {
+  background: rgba(232,90,74,0.20);
+}
+
+/* ─── Settings · Sign in with token (recovery) ────────────────────── */
+
+.settings-signin-details {
+  margin-top: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  padding: 0 12px;
+}
+.settings-signin-details summary {
+  padding: 12px 0;
+  font-size: 13px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  list-style: none;
+}
+.settings-signin-details summary::-webkit-details-marker { display: none; }
+.settings-signin-details summary::before {
+  content: '▸ ';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+.settings-signin-details[open] summary::before { transform: rotate(90deg); }
+.settings-signin-body {
+  display: flex; flex-direction: column;
+  gap: 10px;
+  padding-bottom: 14px;
+}
+.settings-signin-input {
+  width: 100%;
+  padding: 9px 10px;
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: var(--fg);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  box-sizing: border-box;
+}

@@ -169,6 +169,44 @@ export type ActivitySignals = {
   lastPuzzle: { at: number; displayName: string } | null;
 };
 
+/** Population-level stats for the public /#/stats page. Shape mirrors
+ *  the worker's /api/stats payload — humans only, region rollup derived
+ *  from province at query time. */
+export type PopulationStats = {
+  generatedAt: string;
+  onlineWindowMinutes: number;
+  population: {
+    total: number;
+    online: number;
+    undeclared: { total: number; online: number };
+  };
+  byRegion: Array<{
+    region: 'north' | 'northeast' | 'central' | 'east' | 'west' | 'south';
+    label: string;
+    total: number;
+    online: number;
+  }>;
+  topProvinces: Array<{
+    code: string;
+    nameTh: string;
+    region: string;
+    total: number;
+    online: number;
+  }>;
+  families: {
+    outcome: {
+      avgRating: number;
+      topRating: number;
+      totalGames: number;
+      wins: number;
+      losses: number;
+      draws: number;
+    };
+    quality: { note: string };
+    speed: { topGamesPlayed: number; note: string };
+  };
+};
+
 /** Server-computed journey state for the authenticated user. Each
  *  checkpoint carries its own progress numbers so the UI can render
  *  a progress bar without re-running the logic locally. */
@@ -311,6 +349,14 @@ export type BackendAdapter = {
     changes: { displayName?: string; province?: string | null },
   ): Promise<UserProfile>;
 
+  /** "Sign out everywhere" — rotate the server-side token_hash so all
+   *  other devices holding the previous token start getting 401. The
+   *  new plaintext token is returned ONCE. */
+  rotateToken?(token: string): Promise<{ id: string; token: string; rotatedAt: number }>;
+
+  /** Permanent account erase. Wipes user row + per-user records. */
+  deleteAccount?(token: string): Promise<{ ok: boolean; id: string; deletedAt: number }>;
+
   /**
    * Reconcile local stats against the server's copy. Caller hands in
    * the freshly-loaded local stats; receives the merged result they
@@ -412,6 +458,9 @@ export type BackendAdapter = {
   /** Honest engagement signals — games/puzzles played today + last
    *  player display name. All from real DB counts, no fakes. */
   fetchSignals?(): Promise<ActivitySignals>;
+
+  /** Population-level stats for the public /#/stats page. */
+  fetchStats?(): Promise<PopulationStats>;
 
   // ----- Puzzle catalog ---------------------------------------------
 

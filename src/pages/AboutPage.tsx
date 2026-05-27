@@ -115,8 +115,13 @@ export function AboutPage() {
       <header className="about-header">
         <h2>ℹ️ เกี่ยวกับ OpenMakruk</h2>
         <p className="about-tag">
-          แพลตฟอร์ม <strong>single-player</strong> ที่ดีที่สุดสำหรับฝึก
-          หมากรุกไทย · MIT licensed · ไม่มี server เก็บข้อมูลส่วนตัว
+          แพลตฟอร์มหมากรุกไทยแบบ <strong>single-player</strong> ที่ดีที่สุด —{' '}
+          เล่นกับ bot ที่ฉลาด · ฝึกจากทุกตาเดิน · เทียบฝีมือกับคนอื่นผ่าน{' '}
+          <em>challenge เดียวกัน</em> (bot-mediated competition)
+        </p>
+        <p className="about-tag-en">
+          The best single-player Makruk platform: play against intelligent bots,
+          learn from every move, and compete with others through shared bot challenges.
         </p>
       </header>
 
@@ -139,45 +144,207 @@ export function AboutPage() {
       </section>
 
       <section className="about-section">
-        <h3>ทำไม "ไม่มี PvP" (by design)</h3>
+        <h3>โหมดการแข่ง · Bot-mediated competition</h3>
         <p>
-          PvP (Player vs Player) สด ๆ ต้องการ critical mass ของผู้เล่น
-          พร้อมกัน + ทีม anti-cheat real-time + WebSocket infra =
-          ใช้งบและเวลาที่ทีมเดียวคนเดียวให้ไม่ได้. เลือก
-          single-player แทนเพราะ:
+          OpenMakruk <strong>ไม่ใช่ PvP platform</strong> — และเป็นการ
+          ออกแบบ ไม่ใช่ข้อจำกัด. การแข่งทุกชั้นของระบบใช้รูปแบบที่เรียกว่า{' '}
+          <em>asynchronous shared-benchmark challenge</em>:{' '}
+          ทุกคนเล่นกับ bot ตัวเดียวกันภายใต้กฎเดียวกัน แล้วเทียบผลที่ได้.
+        </p>
+        <p className="about-section-intro">
+          แนวคิดเดียวกับที่ <strong>Strava</strong> ใช้กับการวิ่ง (เทียบเวลาบน
+          segment เดียวกัน), <strong>Trackmania</strong> ใช้กับ racing (race
+          เทียบ ghost), หรือ <strong>Wordle</strong> ใช้กับเกมคำ (ทุกคน
+          เล่นคำเดียวกันต่อวัน). เอามาประยุกต์กับหมากรุกไทย:
         </p>
         <ul className="about-bullets">
-          <li>22 bot characters มี personality + lore + dynamic rating
-              · "คู่ต่อสู้" จริง ๆ ไม่ใช่ AI slider</li>
-          <li>Bot Exhibition cron เล่นกันเองทุก 30 นาที · feels like
-              community แม้ไม่มีคน</li>
-          <li>Match leaderboard · Bot Hall of Fame · Province ranking
-              · Season HoF — competitive surfaces ที่ไม่ต้องรอคู่ต่อสู้</li>
-          <li>Custom mode + Auto-suggest solution — ออกแบบตำแหน่ง
-              ของคุณเอง · ให้คอมหา solution · แก้ได้ทั้งหมด</li>
+          <li>
+            <strong>ไม่มี cold start</strong> — bot ออนไลน์ 24/7 ทุกระดับ
+            ความเก่ง · ผู้เล่นที่ขอนแก่นตอนตี 2 เจอคู่ต่อสู้คุณภาพเท่ากับ
+            ผู้เล่นที่กรุงเทพตอนเที่ยง
+          </li>
+          <li>
+            <strong>เปรียบเทียบยุติธรรมโดยโครงสร้าง</strong> — ทุกคนเจอ
+            bot ตัวเดียวกัน · ผลที่ต่างคือฝีมือต่าง ไม่ใช่ดวงในการ
+            จับคู่
+          </li>
+          <li>
+            <strong>Anti-cheat ง่ายมาก</strong> — ทุก rated game ถูก
+            replay ผ่าน server engine · ท่าเดินที่ไม่ถูกกฎ reject ทันที ·
+            ไม่มีผู้ร่วมมือ
+          </li>
+          <li>
+            <strong>Social loop แบบ async</strong> — สร้าง challenge ผ่าน{' '}
+            <a href="#/challenge">/#/challenge</a>, ได้ URL สั้น ๆ
+            ส่งให้เพื่อนทาง LINE / Twitter · ทั้งคู่เล่นเองตามเวลาว่าง
+            แล้วเทียบผล
+          </li>
+        </ul>
+        <p className="about-section-intro">
+          ใครที่อยากวิเคราะห์ตำแหน่งจาก PvP บนแพลตฟอร์มอื่นยังใช้
+          ตัวพิเคราะห์ของ OpenMakruk ได้ทั้งหมดผ่านโหมด{' '}
+          <strong>Custom + Library</strong> (รับ FEN ใด ๆ ก็ได้).
+        </p>
+      </section>
+
+      <section className="about-section">
+        <h3>ระบบคะแนน · 3 ตระกูล (3 measurement families)</h3>
+        <p>
+          OpenMakruk แยก "คุณเล่นดีแค่ไหน" ออกจาก "คุณชนะหรือไม่"
+          อย่างชัดเจน — เพราะ training platform <strong>ต้องไม่ลงโทษ
+          การแพ้ในเกมที่เล่นได้สะอาด</strong>. คะแนนจึงแบ่งเป็น 3 ตระกูล:
+        </p>
+        <div className="about-scoring-table">
+          <div className="about-scoring-row">
+            <span className="score-family-tag score-family-a-tag">A</span>
+            <div>
+              <strong>Performance Quality</strong> — "เล่นได้ดีแค่ไหน?"
+              <p className="label-aside">
+                Accuracy %, ACPL, best/good/inaccuracy/mistake/blunder,
+                motif counts (capture · check · fork · mate threat)
+              </p>
+            </div>
+          </div>
+          <div className="about-scoring-row">
+            <span className="score-family-tag score-family-b-tag">B</span>
+            <div>
+              <strong>Competitive Result</strong> — "ชนะ challenge ไหม?"
+              <p className="label-aside">
+                Elo rating, Match Score (ถ่วงตามความยากของคู่ต่อสู้),
+                สถิติ head-to-head ของแต่ละ bot, gauntlet / tournament
+              </p>
+            </div>
+          </div>
+          <div className="about-scoring-row">
+            <span className="score-family-tag score-family-c-tag">C</span>
+            <div>
+              <strong>Speed / Survival</strong> — "เร็วและทนแค่ไหน?"
+              <p className="label-aside">
+                Boss Rush best time, Puzzle Rush score, Survive rounds,
+                Counting Trainer star rating
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="about-section-intro">
+          ทุก section ในหน้า Profile + <a href="#/stats">Stats</a> ติด tag
+          A/B/C ไว้บอกว่ามาจาก family ไหน — เกมที่แพ้ด้วย accuracy 82%
+          ยังได้ Family-A signal เป็นบวก. ดูภาพรวมของทั้ง 3 family ของ
+          ผู้เล่นทุกคน + จำนวนผู้เล่นและ online breakdown ตามภูมิภาคที่
+          หน้า <a href="#/stats">Stats สาธารณะ</a>.
+        </p>
+      </section>
+
+      <section className="about-section">
+        <h3>🔒 Privacy · ข้อมูลที่เก็บ</h3>
+        <p>
+          OpenMakruk เก็บข้อมูล <strong>เท่าที่จำเป็น</strong> และ
+          แยกชั้นชัดเจน. หลักการ: ทุกอย่างทำงานในเครื่องคุณก่อน · cloud
+          sync เป็น opt-in สำหรับคนที่อยากเล่นข้ามเครื่อง + ขึ้น public
+          leaderboard.
+        </p>
+        <h4>📱 ใน browser ของคุณเท่านั้น (offline mode)</h4>
+        <ul className="about-bullets">
+          <li>
+            <strong>Settings, rating, ประวัติเกม, badge, puzzle progress,
+            cosmetics</strong> — เก็บใน <code>localStorage</code> และ
+            IndexedDB ของ browser. ลบประวัติ browser = ลบทุกอย่าง
+          </li>
+          <li>
+            <strong>NNUE network</strong> (46MB) cache ใน IndexedDB เมื่อ
+            opt-in ครั้งแรก · เก็บถาวรจนกว่าจะล้าง
+          </li>
+          <li>
+            <strong>ไม่มี cookies ติดตาม · ไม่มี ads · ไม่มี third-party
+            analytics</strong> — ตรวจสอบได้จาก source code
+          </li>
+        </ul>
+
+        <h4>☁️ บน server (เมื่อเปิด cloud sync เท่านั้น)</h4>
+        <ul className="about-bullets">
+          <li>
+            <strong>Account row</strong>: random user id (UUID v4) · display
+            name · province (opt-in) · rating · timestamp last_seen_at ·
+            SHA-256 ของ bearer token (token จริง ๆ server ไม่มี)
+          </li>
+          <li>
+            <strong>Games</strong>: ผลแพ้ชนะ · ตาที่เดิน (PGN-style) · rating
+            ก่อน/หลัง · ทุกเกม verify ผ่าน engine ก่อน insert
+          </li>
+          <li>
+            <strong>Badges + puzzle progress</strong>: ใช้ตัดสิน Hall of
+            Fame, tier, certificates
+          </li>
+          <li>
+            <strong>ไม่เก็บ</strong>: email · password · เบอร์โทร · IP
+            address · device fingerprint · location เกินกว่า province
+            ที่คุณเลือกเอง
+          </li>
         </ul>
       </section>
 
       <section className="about-section">
-        <h3>ความเป็นส่วนตัว (Privacy)</h3>
+        <h3>🔐 Security · model + การจัดการบัญชี</h3>
+        <p>
+          บัญชี OpenMakruk เป็น <strong>anonymous bearer token</strong>:
+        </p>
         <ul className="about-bullets">
           <li>
-            <strong>ไม่มี server</strong> ที่เก็บข้อมูลผู้ใช้ — เว็บนี้เป็น
-            static site ทำงาน 100% บน browser ของคุณ
+            <strong>Token = กุญแจของบัญชี</strong> — ใครที่มี token นี้
+            เข้าบัญชีคุณได้เต็มที่. ไม่มี password ให้ "ลืม" และไม่มี
+            email ให้ reset
           </li>
           <li>
-            <strong>Rating, ประวัติเกม, settings</strong> เก็บใน{' '}
-            <code>localStorage</code> ของ browser เท่านั้น — Export/Import
-            ได้ผ่านหน้า Profile
+            <strong>Token อยู่ใน browser ของคุณเท่านั้น</strong> · server
+            เก็บแค่ SHA-256 ของ token ลบกลับเป็น token จริงไม่ได้
           </li>
           <li>
-            <strong>NNUE network</strong> (46MB) ดาวน์โหลดครั้งเดียวเมื่อ
-            opt-in แล้ว cache ใน IndexedDB ของ browser
+            <strong>หา token เดิมเจอที่ Settings → "Backup token"</strong>{' '}
+            · คัดลอกเก็บไว้ใน password manager / กระดาษ / cloud drive
+            ส่วนตัว
           </li>
           <li>
-            ไม่มี cookies ติดตาม · ไม่มี ads · ไม่มี analytics ของ third-party
+            <strong>เข้าบัญชีบนเครื่องอื่น</strong> = Settings → "เข้าด้วย
+            token" · วาง token ที่ backup ไว้
           </li>
         </ul>
+
+        <h4>เมื่อไรควรทำอะไร</h4>
+        <ul className="about-bullets">
+          <li>
+            <strong>ออกจากระบบบนเครื่องนี้</strong> — ลบ token จาก browser
+            นี้ · device อื่นใช้ต่อได้
+          </li>
+          <li>
+            <strong>ออกจากระบบทุกเครื่อง (rotate token)</strong> — server
+            สร้าง token ใหม่ · device เดิมทุกเครื่องถูกตัดทันที · rating
+            + ประวัติเกมไม่หาย. ใช้เมื่อ:
+            <ul>
+              <li>สงสัยว่า token หลุดออกไป (commit เข้า GitHub โดยพลาด,
+                  share screen แล้วเห็น token)</li>
+              <li>ลืม sign-out บน computer สาธารณะ / เครื่องเพื่อน</li>
+              <li>ขายเครื่อง / ส่งซ่อม</li>
+            </ul>
+          </li>
+          <li>
+            <strong>ลบบัญชีถาวร</strong> — ลบทุกข้อมูลของ server (rating ·
+            ประวัติเกม · badge · puzzle progress · season records).
+            ทำซ้ำไม่ได้
+          </li>
+        </ul>
+
+        <h4>คำแนะนำเรื่อง shared computer</h4>
+        <p>
+          ถ้าใช้คอมสาธารณะหรือเครื่องที่ไม่ใช่ของคุณเอง: หลังเล่นเสร็จ
+          ให้กด <em>ออกจากระบบบนเครื่องนี้</em> ที่ Settings. ถ้าลืมและออก
+          จากร้านไปแล้ว: กลับมาที่บ้าน → Settings → <em>ออกจากระบบทุกเครื่อง</em>{' '}
+          (rotate token) — ตัดทุก device เดิมรวมถึงที่ร้านที่ลืมไว้ทันที.
+        </p>
+        <p>
+          <strong>หลักการสำคัญ:</strong> มี option ครบทั้ง 3 ระดับ —
+          ออกเฉพาะเครื่องนี้ / ออกทุกเครื่อง / ลบบัญชีถาวร — ตามระดับ
+          ความเป็นเรื่องใหญ่. ผู้ใช้ควบคุมข้อมูลตัวเองทั้งหมด.
+        </p>
       </section>
 
       <section className="about-section">

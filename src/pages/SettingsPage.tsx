@@ -23,6 +23,9 @@ import {
   hasStoredSession,
   loadSession,
   saveSession,
+  signInWithToken,
+  rotateCurrentToken,
+  deleteCurrentAccount,
 } from '../lib/backend/cloudSession';
 import { getBackend } from '../lib/backend';
 import {
@@ -355,19 +358,223 @@ function CloudSyncSection() {
           </div>
           <ProvincePicker token={session.token} currentProvince={session.province} onChange={refresh} />
           <button className="settings-reset-button" onClick={handleDisable}>
-            🔌 ปิด cloud sync
+            🔌 ออกจากระบบบนเครื่องนี้
           </button>
+          <AccountSecuritySection onRefresh={refresh} />
         </>
       ) : (
-        <button
-          className="settings-cloud-enable"
-          onClick={handleEnable}
-          disabled={busy}
-        >
-          {busy ? '⏳ กำลังเชื่อมต่อ…' : '☁️ เปิด cloud sync'}
-        </button>
+        <>
+          <button
+            className="settings-cloud-enable"
+            onClick={handleEnable}
+            disabled={busy}
+          >
+            {busy ? '⏳ กำลังเชื่อมต่อ…' : '☁️ เปิด cloud sync (สร้างบัญชีใหม่)'}
+          </button>
+          <SignInWithTokenForm onSignedIn={refresh} />
+        </>
       )}
     </section>
+  );
+}
+
+// ─── Account & Security — visible only when signed in ────────────────
+
+function AccountSecuritySection({ onRefresh }: { onRefresh: () => void }) {
+  const session = loadSession();
+  const [revealToken, setRevealToken] = useState(false);
+  const [rotateBusy, setRotateBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const handleCopyToken = () => {
+    navigator.clipboard.writeText(session.token)
+      .then(() => toast.success('คัดลอก token แล้ว · เก็บที่ปลอดภัย เช่น password manager'))
+      .catch(() => toast.error('คัดลอกไม่สำเร็จ'));
+  };
+
+  const handleRotate = () => {
+    toast.confirm(
+      'ออกจากระบบทุกเครื่อง? · device อื่นที่ใช้ token เดิมจะถูกตัด · rating + ประวัติเกมจะไม่หาย',
+      {
+        confirmLabel: 'ออกทุกเครื่อง',
+        destructive: true,
+        onConfirm: async () => {
+          if (rotateBusy) return;
+          setRotateBusy(true);
+          try {
+            await rotateCurrentToken();
+            toast.success('Token ใหม่สร้างแล้ว · device อื่นถูก sign-out · บันทึก token ใหม่ที่ปลอดภัย');
+            onRefresh();
+          } catch (err) {
+            toast.error(`Rotate ไม่สำเร็จ: ${String(err)}`);
+          } finally {
+            setRotateBusy(false);
+          }
+        },
+      },
+    );
+  };
+
+  const handleDelete = () => {
+    toast.confirm(
+      'ลบบัญชีถาวร? · rating · ประวัติเกม · badge · เพลย์เลิสต์ ทั้งหมดจะถูกลบจาก server · ทำซ้ำไม่ได้',
+      {
+        confirmLabel: 'ลบถาวร',
+        destructive: true,
+        onConfirm: () => {
+          toast.confirm(
+            'ยืนยันอีกครั้ง · นี่ลบของ server ทั้งหมดและกลับมาไม่ได้',
+            {
+              confirmLabel: 'ลบบัญชี',
+              destructive: true,
+              onConfirm: async () => {
+                if (deleteBusy) return;
+                setDeleteBusy(true);
+                try {
+                  await deleteCurrentAccount();
+                  toast.success('บัญชีถูกลบแล้ว · กลับเป็น offline mode');
+                  onRefresh();
+                } catch (err) {
+                  toast.error(`ลบบัญชีไม่สำเร็จ: ${String(err)}`);
+                } finally {
+                  setDeleteBusy(false);
+                }
+              },
+            },
+          );
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="settings-account-security">
+      <details className="settings-account-details">
+        <summary>🔐 ความปลอดภัย + จัดการบัญชี</summary>
+        <div className="settings-account-body">
+          <p className="settings-hint">
+            <strong>Token = กุญแจของบัญชี</strong> — ใครก็ตามที่มี token นี้
+            เข้าใช้บัญชีคุณได้เต็มที่. เก็บไว้ใน password manager
+            เพื่อ recover บัญชีถ้าล้าง browser หรือเปลี่ยนเครื่อง.
+          </p>
+
+          <div className="settings-account-row">
+            <div className="settings-account-row-head">
+              <strong>📤 Backup token (เพื่อย้ายเครื่อง)</strong>
+              <p className="label-aside">
+                คัดลอก token นี้ไปเก็บที่ปลอดภัย · ใช้ "Sign in with token"
+                บนเครื่องอื่นเพื่อกลับเข้าบัญชีเดิม
+              </p>
+            </div>
+            <div className="settings-token-display">
+              <code className="settings-token-value">
+                {revealToken ? session.token : '•'.repeat(40)}
+              </code>
+              <button
+                className="settings-account-btn"
+                onClick={() => setRevealToken((v) => !v)}
+              >
+                {revealToken ? '🙈 ซ่อน' : '👁️ แสดง'}
+              </button>
+              <button className="settings-account-btn" onClick={handleCopyToken}>
+                📋 คัดลอก
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-account-row">
+            <div className="settings-account-row-head">
+              <strong>🔄 ออกจากระบบทุกเครื่อง (rotate token)</strong>
+              <p className="label-aside">
+                ใช้เมื่อสงสัยว่า token หลุดหรือลืม sign-out บนเครื่องอื่น ·
+                server จะสร้าง token ใหม่ · device เดิมทั้งหมดถูกตัดทันที ·
+                rating + ประวัติเกมไม่หาย
+              </p>
+            </div>
+            <button
+              className="settings-account-btn settings-account-warn"
+              onClick={handleRotate}
+              disabled={rotateBusy}
+            >
+              {rotateBusy ? '⏳ กำลังทำ…' : '🔄 ออกจากทุกเครื่อง'}
+            </button>
+          </div>
+
+          <div className="settings-account-row">
+            <div className="settings-account-row-head">
+              <strong>🗑️ ลบบัญชีถาวร</strong>
+              <p className="label-aside">
+                ลบทุกข้อมูลของ server: rating · ประวัติเกม · badge ·
+                puzzle progress · season records · ไม่สามารถกู้คืนได้
+              </p>
+            </div>
+            <button
+              className="settings-account-btn settings-account-danger"
+              onClick={handleDelete}
+              disabled={deleteBusy}
+            >
+              {deleteBusy ? '⏳ กำลังลบ…' : '🗑️ ลบบัญชี'}
+            </button>
+          </div>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+// ─── Sign-in with existing token (recovery) ──────────────────────────
+
+function SignInWithTokenForm({ onSignedIn }: { onSignedIn: () => void }) {
+  const [token, setToken] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const handleSignIn = async () => {
+    if (busy || !token.trim()) return;
+    setBusy(true);
+    try {
+      await signInWithToken(token);
+      toast.success('เข้าสู่บัญชีเดิมสำเร็จ');
+      setToken('');
+      setOpen(false);
+      onSignedIn();
+    } catch (err) {
+      toast.error(String(err instanceof Error ? err.message : err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <details
+      className="settings-signin-details"
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
+      <summary>มีบัญชีเดิม? · เข้าด้วย token ที่เก็บไว้</summary>
+      <div className="settings-signin-body">
+        <p className="settings-hint">
+          วาง token ที่ backup ไว้จากเครื่องเดิม. ระบบจะตรวจกับ server
+          และคืน rating + ประวัติเกมของบัญชีนั้น.
+        </p>
+        <input
+          type="password"
+          className="settings-signin-input"
+          placeholder="วาง token ที่นี่"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button
+          className="settings-cloud-enable"
+          onClick={handleSignIn}
+          disabled={busy || !token.trim()}
+        >
+          {busy ? '⏳ กำลังเข้าสู่บัญชี…' : '🔑 เข้าด้วย token'}
+        </button>
+      </div>
+    </details>
   );
 }
 

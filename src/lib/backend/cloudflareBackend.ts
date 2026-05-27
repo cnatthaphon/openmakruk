@@ -38,6 +38,7 @@ import type {
   SeasonSummary,
   SeasonDetail,
   ActivitySignals,
+  PopulationStats,
 } from './types';
 
 /** Resolve the API base URL. Lookup order:
@@ -148,6 +149,29 @@ export class CloudflareBackend implements BackendAdapter {
       body: JSON.stringify(changes),
     });
     return (await res.json()) as UserProfile;
+  }
+
+  /** "Sign out everywhere" — server rotates token_hash so every device
+   *  holding the old token starts getting 401. The new plaintext token
+   *  is returned ONCE; caller must persist it. Rating, history, badges
+   *  are untouched. */
+  async rotateToken(token: string): Promise<{ id: string; token: string; rotatedAt: number }> {
+    const res = await this.request('/api/users/me/rotate', {
+      method: 'POST',
+      token,
+    });
+    return (await res.json()) as { id: string; token: string; rotatedAt: number };
+  }
+
+  /** Permanent account deletion. Wipes the user row + every per-user
+   *  record (games, badges, puzzle solves, golf, leaderboard cache,
+   *  season winner snapshots). Irreversible. */
+  async deleteAccount(token: string): Promise<{ ok: boolean; id: string; deletedAt: number }> {
+    const res = await this.request('/api/users/me', {
+      method: 'DELETE',
+      token,
+    });
+    return (await res.json()) as { ok: boolean; id: string; deletedAt: number };
   }
 
   // ─── games ────────────────────────────────────────────────────────
@@ -312,6 +336,11 @@ export class CloudflareBackend implements BackendAdapter {
   async fetchSignals(): Promise<ActivitySignals> {
     const res = await this.request('/api/signals');
     return (await res.json()) as ActivitySignals;
+  }
+
+  async fetchStats(): Promise<PopulationStats> {
+    const res = await this.request('/api/stats');
+    return (await res.json()) as PopulationStats;
   }
 
   async fetchExhibitionRecent(): Promise<ExhibitionSummary[]> {

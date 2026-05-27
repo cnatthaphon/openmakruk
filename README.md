@@ -2,15 +2,16 @@
 
 # OpenMakruk
 
-**Train · Play · Analyze Thai Chess (Makruk)**
+**The best single-player Makruk platform.**
+**Play intelligent bots · learn from every move · compete through shared bot challenges.**
 
-A modern, Thai-first training platform for หมากรุกไทย — the ancestor of modern chess, still played by millions in Thailand but underserved by the digital chess world.
+A modern, Thai-first training + analysis platform for หมากรุกไทย — the ancestor of modern chess, still played by millions in Thailand but underserved by the digital chess world. OpenMakruk is **bot-mediated**: instead of matchmaking against humans (cold-start hard, anti-cheat hard), every competitive surface routes through the same 22 deterministic bots, which makes results directly comparable across players without realtime sync.
 
 [**▶ Live at openmakruk.com**](https://openmakruk.com)  ·  [API](https://openmakruk-api.cnatthaphon.workers.dev/api/health)  ·  [Report an issue](https://github.com/cnatthaphon/openmakruk/issues)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 [![E2E: Playwright](https://img.shields.io/badge/e2e-81_passing-brightgreen)](tests/e2e)
-[![Worker: Vitest](https://img.shields.io/badge/worker-52_passing-brightgreen)](worker/tests)
+[![Worker: Vitest](https://img.shields.io/badge/worker-53_passing-brightgreen)](worker/tests)
 [![Live](https://img.shields.io/badge/status-live-success)](https://openmakruk.com)
 [![PWA](https://img.shields.io/badge/PWA-installable-blue)](https://openmakruk.com)
 [![Offline-first](https://img.shields.io/badge/offline-fully_playable-blue)](#architecture)
@@ -26,6 +27,17 @@ A modern, Thai-first training platform for หมากรุกไทย — th
 `pychess.org` supports Makruk but as one of 30+ variants — its UI is English-first and built for the variant generalist. Existing Thai-language Makruk sites are multiplayer-only and have no training tools. **Nowhere combines hint + post-game analysis + puzzles + lessons + opening/endgame study + personality bots + native Thai UI under one roof.** That's the gap OpenMakruk fills.
 
 The platform is **offline-first**: every feature works in the browser with no account, no server, no ads. Cloud sync is opt-in and only used for global leaderboards and cross-device history.
+
+## Why single-player (not PvP)
+
+OpenMakruk is **deliberately not a PvP platform**. The competitive layer is *bot-mediated* — what Strava is to running (compare your time on the same segment), what Trackmania is to racing (compare your lap against a friend's ghost), what Wordle is to word games (same daily puzzle, async results). Applied to Makruk:
+
+- **No matchmaking, no cold start** — bots are online 24/7 at every skill level (Rookie → Master + Fairy-Stockfish Boss). A learner in Khon Kaen at 2am gets the same opponent quality as a player in Bangkok at noon.
+- **Fair comparison by construction** — everyone faces *literally the same bot* under the same time control. Differences in result reflect differences in skill, not in pairing luck.
+- **Anti-cheat is trivial** — every recorded game replays through the server engine; an inconsistent move sequence rejects on insert. There is no human opponent to collude with.
+- **Async social loop** — the **/#/challenge** mechanism encodes "play this bot, this criterion, this time control" into a shareable URL. You and a friend each play it on your own time, then compare on outcome, move quality, or speed.
+
+For users who want to analyze positions from PvP games on other platforms, the **Custom + Library** tab accepts any FEN and runs the same coach/analysis pipeline.
 
 ---
 
@@ -52,15 +64,30 @@ The platform is **offline-first**: every feature works in the browser with no ac
 - **Personal puzzle rating** (Glicko-lite) + spaced repetition (SM-2 algorithm).
 - **3 content pipelines** — user authoring (Custom tab) · puzzle miner from your own blundered games · auto bot-vs-bot mining factory. All engine-verified server-side.
 
-### Compete
+### Compete (bot-mediated, async)
 - **22 bot characters** — 7 personalities × 3 tiers (Rookie / Veteran / Master) plus Fairy-Stockfish Boss. Each has lore, motto, strengths, weaknesses, and a live rating that updates with every human game.
-- **🎬 Bot Exhibition** — Cloudflare Worker cron picks two bots every 30 minutes and plays them against each other; the platform stays alive with fresh content even when no users are online. Public feed + step-through replay viewer.
+- **⚔️ Async Challenge** (`/#/challenge`) — pick a bot + criterion (outcome / move quality / speed / all) + time control → generate a shareable URL like `openmakruk.com/#/challenge/<code>`. Send to a friend; they play the same opponent under the same rule on their own time; both results are compared on the chosen axis. The URL **is** the database — no server table needed for v1.
+- **🎬 Bot Exhibition** — Cloudflare Worker cron picks two bots every 30 minutes and plays them against each other; the platform stays alive with fresh content even when no users are online. Public feed + step-through replay viewer. Tier filter chips + countdown to next match.
+- **📊 Population stats** (`/#/stats`) — total players, online right now, breakdown by 6 ภาค + top 10 จังหวัด. All server-verified, no fake numbers.
 - **Province + region leaderboards** — 77 จังหวัด, 6 ภาค. "กทม. vs เชียงใหม่" head-to-head.
 - **🏆 Sunday Showdown** — ×1.5 rating multiplier tournament every Sunday 14:00–18:00 Bangkok time.
+- **🏟️ Quarterly seasons** — auto-rolling ladder (Q1/Q2/Q3/Q4) with frozen top-3 per scope (global / region / province). Cron handles rollover at season boundaries.
 - **Badges + shareable cert pages** — server-side tier ladder (bronze → silver → gold → diamond). Each unlocked badge gets a public URL anyone can open.
 - **Journey path** — 6-level progression (beginner → master), each level a published checkpoint set.
-- **Gauntlet mode** — beat all 4 difficulty levels back-to-back.
+- **Gauntlet** + **Boss Rush** — beat the difficulty ladder back-to-back, or run the 22-bot gauntlet for personal-best time.
 - **Activity ticker** + "วันนี้" feed strip — real engagement signals on the home screen.
+
+### Scoring (three measurement families)
+
+OpenMakruk separates *how well you played* from *whether you won* — losing a clean game and winning a sloppy one should not produce the same number on a training platform.
+
+| Family | Question | Examples |
+| --- | --- | --- |
+| **A. Performance Quality** | "How well did you play?" | Accuracy %, ACPL, best/good/inaccuracy/mistake/blunder counts, motifs detected (capture · check · fork · mate threat) |
+| **B. Competitive Result** | "Did you win the challenge?" | Elo rating, Match Score (weighted by opponent difficulty), bot head-to-head record, tournament/gauntlet finishes |
+| **C. Speed / Survival** | "How fast / how durable?" | Boss Rush best time, Puzzle Rush score, Survive rounds, Counting Trainer star rating |
+
+The Profile and `/#/stats` pages label each section with its family tag (A / B / C) so users know which axis they're being measured on. A losing game with 82% accuracy still earns a positive Family-A signal.
 
 ### Custom + Library
 - Graphical position editor with drag-and-drop pieces. Play out from any FEN, save to a personal library, or convert into a puzzle.

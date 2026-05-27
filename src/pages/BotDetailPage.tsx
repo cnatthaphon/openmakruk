@@ -42,11 +42,15 @@ export function BotDetailPage({ botId }: Props) {
 
   useEffect(() => {
     if (!botId || !supports || !backend.fetchBot) return;
+    // Share-link normalization: `/#/bots/attacker-master` (cleaner URL,
+    // what a Hall-of-Fame click used to drop) and `/#/bots/bot:attacker-master`
+    // (what worker stores) must both resolve. Prepend `bot:` if missing.
+    const normalized = botId.startsWith('bot:') ? botId : `bot:${botId}`;
     let cancelled = false;
     setBot(null);
     setErr(null);
     backend
-      .fetchBot(botId)
+      .fetchBot(normalized)
       .then((b) => {
         if (cancelled) return;
         if (!b) setErr('ไม่พบ bot id นี้');
@@ -238,7 +242,12 @@ export function BotDetailPage({ botId }: Props) {
         <button
           className="bot-detail-share"
           onClick={() => {
-            const url = `${window.location.origin}/#/bots/${encodeURIComponent(bot.id)}`;
+            // Share the prefix-stripped slug so URLs read as
+            // `openmakruk.com/#/bots/attacker-master` instead of
+            // the ugly `bot:attacker-master`. BotDetailPage's effect
+            // normalizes either form back into the worker shape.
+            const slug = bot.id.startsWith('bot:') ? bot.id.slice(4) : bot.id;
+            const url = `${window.location.origin}/#/bots/${encodeURIComponent(slug)}`;
             const text = `เจอ bot ${bot.displayName} (rating ${bot.rating}) ที่ OpenMakruk · ท้าดวลกัน`;
             if (typeof navigator.share === 'function') {
               navigator.share({ title: bot.displayName, text, url }).catch(() => undefined);

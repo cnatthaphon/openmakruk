@@ -54,6 +54,10 @@ export const TAB_IDS = [
   'pattern',
   // Survive the attack — `/#/survive` (defensive challenge).
   'survive',
+  // Population stats — `/#/stats`. Total / online / region rollup.
+  'stats',
+  // Async challenge — `/#/challenge` (create) or `/#/challenge/<code>` (accept).
+  'challenge',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];
@@ -76,6 +80,8 @@ export const CONTENT_TABS: ReadonlySet<Tab> = new Set<Tab>([
   'bossrush',
   'pattern',
   'survive',
+  'stats',
+  'challenge',
 ]);
 
 export type Route = {
