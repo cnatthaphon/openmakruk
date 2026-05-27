@@ -123,11 +123,17 @@ statsRoute.get('/', async (c) => {
      FROM games WHERE verified = 1`,
   ).first<{ wins: number; losses: number; draws: number }>();
 
-  // Family C — speed/survival proxies. Best boss rush time + best
-  // puzzle rush count surfaced as platform records.
+  // Family C — speed/survival proxies. Boss rush + puzzle rush bests
+  // live in localStorage today, so the only server-side speed signal
+  // is "most active player" — derived from games table since the
+  // users row doesn't carry a denormalized count.
   const speedAgg = await c.env.DB.prepare(
-    `SELECT MAX(games_played) AS top_games
-     FROM users WHERE is_bot = 0`,
+    `SELECT MAX(gp) AS top_games FROM (
+       SELECT user_id, COUNT(*) AS gp
+       FROM games
+       WHERE verified = 1
+       GROUP BY user_id
+     )`,
   ).first<{ top_games: number | null }>();
 
   return c.json({

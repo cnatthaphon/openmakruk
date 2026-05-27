@@ -44,6 +44,28 @@ describe('infrastructure', () => {
     const body = await res.json() as { error: string };
     expect(body.error).toBe('not_found');
   });
+
+  test('GET /api/stats returns population shape (used by /#/stats page)', async () => {
+    // Ensure at least one human exists so the per-province scan has
+    // a row to count. createAnonUser is shared across the whole spec
+    // so the population will only grow.
+    await createAnonUser('StatsHuman');
+    const res = await fetch(`${baseUrl()}/api/stats`);
+    expect(res.ok).toBe(true);
+    const body = await res.json() as {
+      population: { total: number; online: number };
+      byRegion: unknown[];
+      topProvinces: unknown[];
+      families: { outcome: { totalGames: number }; speed: { topGamesPlayed: number } };
+    };
+    // Shape contract — every key the StatsPage reads must be present.
+    expect(body.population.total).toBeGreaterThanOrEqual(1);
+    expect(Array.isArray(body.byRegion)).toBe(true);
+    expect(body.byRegion.length).toBe(6); // exactly 6 ภาค
+    expect(Array.isArray(body.topProvinces)).toBe(true);
+    expect(typeof body.families.outcome.totalGames).toBe('number');
+    expect(typeof body.families.speed.topGamesPlayed).toBe('number');
+  });
 });
 
 describe('anonymous registration', () => {
