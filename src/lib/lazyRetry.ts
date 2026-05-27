@@ -77,9 +77,46 @@ export function lazyRetry<T>(factory: () => Promise<T>): () => Promise<T> {
     }
 
     sessionStorage.setItem(RELOAD_FLAG, String(Date.now()));
-    // Reload preserves the hash route so the user lands back where they
-    // were going. Promise never resolves — navigation takes over.
+    // Recovery sequence — go from cleanest to most aggressive:
+    //   1. Unregister every service-worker registration so a stale
+    //      cache-first SW can't intercept the reload.
+    //   2. Delete all CacheStorage entries owned by this origin so
+    //      even runtime-cached HTML can't serve.
+    //   3. Reload — at this point the browser has no SW + no cache,
+    //      so it MUST hit the network and get fresh index.html with
+    //      fresh chunk hashes. The hash route is preserved across
+    //      reload so the user lands back where they were going.
+    //
+    // This belt-and-braces sequence exists because the previous code
+    // path (reload only) didn't help users stuck on an older SW
+    // version that was still cache-first for HTML — the reload re-
+    // served the same stale HTML and the chunk error came right back.
+    //
+    // Promise never resolves; the navigation in step 3 takes over.
+    await purgeServiceWorkerAndCaches();
     window.location.reload();
     return new Promise<T>(() => undefined);
   };
+}
+
+/** Best-effort: unregister all SWs and wipe all caches. Errors are
+ *  swallowed because we're already in the reload path — surfacing a
+ *  cleanup error would block the recovery we want to succeed. */
+async function purgeServiceWorkerAndCaches(): Promise<void> {
+  try {
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister().catch(() => false)));
+    }
+  } catch {
+    /* ignore — cleanup is best-effort */
+  }
+  try {
+    if (typeof caches !== 'undefined') {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k).catch(() => false)));
+    }
+  } catch {
+    /* ignore */
+  }
 }

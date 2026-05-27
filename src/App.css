@@ -8356,3 +8356,115 @@ footer a:hover {
 .play-pre-main > .play-quick-actions {
   margin: 0;
 }
+
+/* ─── Custom page · piece picker + count summary ──────────────────
+ *
+ * Click any board cell → PiecePicker opens as a card below the board
+ * (or to the right on wide desktops). Side toggle + 6 piece buttons
+ * with per-role count chips; disabled when PIECE_LIMITS hit.
+ */
+.custom-square.is-picker-open {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.custom-piece-picker {
+  margin-top: 14px;
+  padding: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  display: flex; flex-direction: column;
+  gap: 12px;
+  max-width: 360px;
+}
+.custom-piece-picker-head {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.custom-piece-picker-close {
+  width: 26px; height: 26px;
+  background: transparent; color: var(--fg-dim);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 50%;
+  cursor: pointer; font-size: 13px;
+}
+.custom-piece-picker-close:hover {
+  background: rgba(255,255,255,0.08); color: var(--fg);
+}
+.custom-piece-picker-side {
+  display: flex; gap: 6px;
+}
+.custom-piece-picker-side button {
+  flex: 1; padding: 8px;
+  background: rgba(255,255,255,0.04);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+  cursor: pointer; font-size: 13px;
+}
+.custom-piece-picker-side button.is-active {
+  background: var(--accent); color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.custom-piece-picker-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.custom-piece-picker-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 6px;
+  cursor: pointer;
+}
+.custom-piece-picker-btn:hover:not(:disabled) {
+  background: rgba(212,162,60,0.12); border-color: rgba(212,162,60,0.45);
+}
+.custom-piece-picker-btn:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
+.custom-piece-picker-btn .palette-piece {
+  width: 36px; height: 36px;
+  background-size: contain; background-repeat: no-repeat; background-position: center;
+}
+.custom-piece-picker-count {
+  font-size: 10px;
+  color: var(--fg-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+.custom-piece-picker-clear {
+  padding: 8px; background: rgba(232,90,74,0.10);
+  color: #f5b3a8;
+  border: 1px solid rgba(232,90,74,0.40); border-radius: 6px;
+  cursor: pointer; font-size: 13px;
+}
+.custom-piece-picker-clear:hover {
+  background: rgba(232,90,74,0.20);
+}
+
+/* Sidebar count summary */
+.custom-piece-summary {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.custom-piece-summary-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 6px;
+  background: rgba(0,0,0,0.20); border-radius: 6px;
+}
+.custom-piece-summary-label {
+  font-size: 12px; font-weight: 600;
+  min-width: 50px;
+}
+.custom-piece-summary-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.10); border-radius: 4px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--fg-dim);
+}
+.custom-piece-summary-chip.is-full {
+  border-color: rgba(212,162,60,0.50);
+  background: rgba(212,162,60,0.10);
+  color: #f0d488;
+}
+.custom-piece-summary-icon {
+  font-size: 12px;
+}

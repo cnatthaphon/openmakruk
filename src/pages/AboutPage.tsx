@@ -128,18 +128,23 @@ export function AboutPage() {
       <section className="about-section">
         <h3>ทำไมโปรเจกต์นี้ถึงมีอยู่</h3>
         <p>
-          นานมาแล้วมีเด็กคนหนึ่งในไทยที่อยากเล่นหมากรุกไทยกับคอม
-          อยากฝึก อยากเรียน — แต่หาในเน็ตเจอแต่เวอร์ชั่นโบราณที่ไม่มี
-          hint, ไม่มี analysis, ไม่มี puzzle, ไม่มี learning path.
-          30 ปีต่อมายังไม่มีใครทำ. โปรเจกต์นี้คือเครื่องมือที่เด็กคนนั้น
-          อยากได้ — สร้างโดยเด็กคนนั้นเอง.
+          หมากรุกไทย (Makruk) เป็นบรรพบุรุษของหมากรุกสากล มีผู้เล่น
+          หลายล้านคนในไทยและบริเวณใกล้เคียง — แต่เครื่องมือดิจิทัล
+          สำหรับการฝึกยังจำกัด. เว็บที่รองรับ Makruk ส่วนใหญ่เน้น PvP
+          หรือเป็น variant หนึ่งใน 30+ ของ chess engine ทั่วไป (เช่น
+          pychess.org). <strong>OpenMakruk</strong> สร้างเพื่อ
+          เติมเต็มช่องว่าง: เครื่องมือ <em>training + analysis</em>{' '}
+          เป็นภาษาไทย ครบในที่เดียว.
         </p>
         <p>
           เป้าหมาย: <strong>ฝึก single-player ครบทุกมิติ</strong> —
           22 bot characters · counting drill · pattern recognition ·
-          survive defensive · boss rush · move trainer · auto-game review
-          พร้อม motif breakdown — รวมกันในที่เดียว ที่ไม่มีใครในโลก
-          Makruk ทำ.
+          survive defensive · boss rush · move trainer · post-game
+          review พร้อม motif breakdown — รวมกันในที่เดียว.
+        </p>
+        <p className="label-aside">
+          โปรเจกต์ส่วนตัวของผู้พัฒนาคนเดียว · ไม่มีทุนสนับสนุน · ไม่มี
+          การเก็บค่าใช้บริการ · ไม่มีโฆษณา.
         </p>
       </section>
 
@@ -174,15 +179,15 @@ export function AboutPage() {
             ไม่มีผู้ร่วมมือ
           </li>
           <li>
-            <strong>Social loop แบบ async</strong> — สร้าง challenge ผ่าน{' '}
-            <a href="#/challenge">/#/challenge</a>, ได้ URL สั้น ๆ
+            <strong>Social loop แบบ async</strong> — สร้าง challenge ที่{' '}
+            <a href="#/challenge">หน้า Async Challenge</a> · ได้ลิงก์
             ส่งให้เพื่อนทาง LINE / Twitter · ทั้งคู่เล่นเองตามเวลาว่าง
             แล้วเทียบผล
           </li>
         </ul>
         <p className="about-section-intro">
-          ใครที่อยากวิเคราะห์ตำแหน่งจาก PvP บนแพลตฟอร์มอื่นยังใช้
-          ตัวพิเคราะห์ของ OpenMakruk ได้ทั้งหมดผ่านโหมด{' '}
+          ใครที่อยากวิเคราะห์ตำแหน่งจาก PvP บนแพลตฟอร์มอื่น ยังใช้
+          ตัววิเคราะห์ของ OpenMakruk ได้ทั้งหมดผ่านโหมด{' '}
           <strong>Custom + Library</strong> (รับ FEN ใด ๆ ก็ได้).
         </p>
       </section>
@@ -423,12 +428,19 @@ export function AboutPage() {
       </section>
 
       <section className="about-section">
-        <h3>Source code & contributing</h3>
+        <h3>Source code · contributing · feedback</h3>
         <p>
+          Source code อยู่ที่{' '}
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
             github.com/cnatthaphon/openmakruk
           </a>
           {' '}— PR, issue, feature request ยินดีต้อนรับ.
+        </p>
+        <p>
+          พบบั๊กหรืออยากเสนอฟีเจอร์ใหม่? — ส่งข้อความตรงถึงผู้พัฒนา
+          ผ่าน{' '}
+          <a href="#/settings#feedback">หน้า Settings → ส่งฟีดแบ็ก</a>{' '}
+          (ไม่ต้องมี GitHub account · ไม่บังคับให้ติดต่อกลับ).
         </p>
         <p className="about-bullets-prose label-aside">
           ผู้เขียน: Natthaphon C. โปรเจกต์นี้สร้างเป็น portfolio

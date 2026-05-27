@@ -70,6 +70,9 @@ export default [
         TextEncoder: 'readonly',
         Worker: 'readonly',
         WebAssembly: 'readonly',
+        // CacheStorage — used by lazyRetry.ts to wipe stale caches on
+        // chunk-load failure recovery.
+        caches: 'readonly',
         // Audio
         Audio: 'readonly',
         AudioContext: 'readonly',

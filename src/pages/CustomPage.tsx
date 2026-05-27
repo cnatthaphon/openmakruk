@@ -13,6 +13,9 @@ import {
   fenToGrid,
   gridToFen,
   PIECE_ROLES,
+  PIECE_LIMITS,
+  ROLE_NAMES_TH,
+  countRole,
   startGrid,
   validateGrid,
   type Grid,
@@ -32,9 +35,9 @@ import { getEngineById } from '../lib/engines/registry';
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] as const;
 const RANKS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 
-const ROLE_LABELS: Record<Piece['role'], string> = {
-  k: 'ขุน', m: 'เม็ด', s: 'โคน', n: 'ม้า', r: 'เรือ', p: 'เบี้ย',
-};
+// Role names (Thai) are now exported from lib/fen.ts as ROLE_NAMES_TH
+// so the same labels are reused by validateGrid error messages and
+// the picker tooltip — no duplicate-source-of-truth risk.
 
 const ROLE_TO_CG: Record<Piece['role'], string> = {
   k: 'king', m: 'queen', s: 'bishop', n: 'knight', r: 'rook', p: 'pawn',
@@ -46,23 +49,44 @@ type Props = {
 };
 
 export function CustomPage({ initialFen, onLoadPosition }: Props) {
+  // Default = EMPTY board. Composing a position from scratch is the
+  // common case (endgame study, puzzle authoring, problem setup);
+  // starting with the full opening array forces the user to clear
+  // 32 pieces first. A "Load standard start" button is the opt-in
+  // for the rare case where they want it.
   const [grid, setGrid] = useState<Grid>(() =>
-    initialFen ? fenToGrid(initialFen) : startGrid(),
+    initialFen ? fenToGrid(initialFen) : emptyGrid(),
   );
   const [sideToMove, setSideToMove] = useState<'w' | 'b'>('w');
-  // `selection` drives clicks on the board. `null` = eraser.
-  const [selection, setSelection] = useState<Piece | null>({ role: 'p', color: 'white' });
+  // `pickerAt` = which cell is currently showing the piece-picker.
+  // null = no picker open. We use a per-cell picker (click-cell →
+  // choose piece) instead of a global palette so the user can't keep
+  // clicking the same square to "fill it" with random pieces.
+  const [pickerAt, setPickerAt] = useState<{ rankIdx: number; fileIdx: number } | null>(null);
+  // Picker remembers which side the user was placing for, so a streak
+  // of "place 8 white pawns" doesn't keep flipping back to ขาว/ดำ.
+  const [pickerSide, setPickerSide] = useState<Piece['color']>('white');
   const [showPuzzleAuthor, setShowPuzzleAuthor] = useState(false);
 
   const fen = gridToFen(grid, sideToMove);
   const validationError = validateGrid(grid);
 
-  const placeAt = (rankIdx: number, fileIdx: number) => {
+  const handleCellClick = (rankIdx: number, fileIdx: number) => {
+    // Toggle: clicking the same cell again closes the picker.
+    if (pickerAt && pickerAt.rankIdx === rankIdx && pickerAt.fileIdx === fileIdx) {
+      setPickerAt(null);
+      return;
+    }
+    setPickerAt({ rankIdx, fileIdx });
+  };
+
+  const placeChosen = (rankIdx: number, fileIdx: number, piece: Piece | null) => {
     setGrid((prev) => {
       const next = prev.map((row) => row.slice());
-      next[rankIdx][fileIdx] = selection; // null → erase
+      next[rankIdx][fileIdx] = piece; // null → clear cell
       return next;
     });
+    setPickerAt(null);
   };
 
   const handleLoad = () => {
@@ -112,8 +136,10 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
       <header className="custom-header">
         <h2>🎨 ออกแบบกระดาน</h2>
         <p>
-          คลิกตัวหมากในแถบขวา → คลิกบนช่องเพื่อวาง · คลิกที่ "ลบ" แล้วคลิกช่องเพื่อลบ ·
-          ตั้งฝ่ายเดิน แล้วกด "เล่นจาก position นี้"
+          เริ่มจากกระดานว่าง · คลิกช่องเพื่อเลือกตัวหมาก ·
+          ระบบจำกัดจำนวนตัวหมากตามกฎ Makruk (ขุน 1 · เม็ดสูงสุด 9 ·
+          โคน/ม้า/เรือ ฝ่ายละ 2 · เบี้ย 8) — กดปุ่ม "เริ่มต้นปกติ"
+          ถ้าต้องการตั้งหมากแบบเริ่มเกม
         </p>
       </header>
 
@@ -124,13 +150,16 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
               FILES.map((file, fileIdx) => {
                 const piece = grid[rankIdx][fileIdx];
                 const isDark = (rankIdx + fileIdx) % 2 === 1;
+                const pickerOpen = pickerAt
+                  ? pickerAt.rankIdx === rankIdx && pickerAt.fileIdx === fileIdx
+                  : false;
                 return (
                   <button
                     key={`${file}${rank}`}
                     className={`custom-square ${isDark ? 'dark' : 'light'} ${
                       piece ? 'has-piece' : ''
-                    }`}
-                    onClick={() => placeAt(rankIdx, fileIdx)}
+                    } ${pickerOpen ? 'is-picker-open' : ''}`}
+                    onClick={() => handleCellClick(rankIdx, fileIdx)}
                     aria-label={`${file}${rank}${piece ? ` ${piece.color} ${piece.role}` : ''}`}
                   >
                     {piece && (
@@ -150,43 +179,24 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
               }),
             )}
           </div>
+
+          {pickerAt && (
+            <PiecePicker
+              grid={grid}
+              rankIdx={pickerAt.rankIdx}
+              fileIdx={pickerAt.fileIdx}
+              side={pickerSide}
+              onSideChange={setPickerSide}
+              onPick={(p) => placeChosen(pickerAt.rankIdx, pickerAt.fileIdx, p)}
+              onClose={() => setPickerAt(null)}
+            />
+          )}
         </div>
 
         <aside className="custom-side">
           <div className="custom-palette-section">
-            <div className="custom-section-title">ตัวหมากขาว</div>
-            <div className="custom-palette">
-              {PIECE_ROLES.map((role) => (
-                <PaletteButton
-                  key={`w-${role}`}
-                  piece={{ role, color: 'white' }}
-                  selected={
-                    selection?.role === role && selection?.color === 'white'
-                  }
-                  onClick={() => setSelection({ role, color: 'white' })}
-                />
-              ))}
-            </div>
-            <div className="custom-section-title">ตัวหมากดำ</div>
-            <div className="custom-palette">
-              {PIECE_ROLES.map((role) => (
-                <PaletteButton
-                  key={`b-${role}`}
-                  piece={{ role, color: 'black' }}
-                  selected={
-                    selection?.role === role && selection?.color === 'black'
-                  }
-                  onClick={() => setSelection({ role, color: 'black' })}
-                />
-              ))}
-            </div>
-            <button
-              className={`custom-eraser ${selection === null ? 'is-active' : ''}`}
-              onClick={() => setSelection(null)}
-              title="คลิกแล้วคลิกช่องเพื่อลบ"
-            >
-              🩹 ลบ
-            </button>
+            <div className="custom-section-title">จำนวนตัวหมากบนกระดาน</div>
+            <PieceCountSummary grid={grid} />
           </div>
 
           <div className="custom-controls">
@@ -207,10 +217,12 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
               </button>
             </div>
             <div className="custom-actions">
-              <button onClick={() => setGrid(startGrid())}>
-                ⟳ Reset ปกติ
+              <button onClick={() => { setGrid(startGrid()); setPickerAt(null); }}>
+                ⟳ เริ่มต้นปกติ (32 ตัว)
               </button>
-              <button onClick={() => setGrid(emptyGrid())}>🧹 Clear</button>
+              <button onClick={() => { setGrid(emptyGrid()); setPickerAt(null); }}>
+                🧹 ล้างกระดาน
+              </button>
             </div>
             <button
               className="custom-load"
@@ -274,34 +286,156 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
   );
 }
 
-function PaletteButton({
-  piece,
-  selected,
-  onClick,
+/**
+ * Per-cell piece picker. Opens when the user clicks any board cell.
+ * Shows: side toggle (ขาว/ดำ), 6 piece buttons (each disabled when
+ * its PIECE_LIMITS cap is reached for the selected side), and a
+ * "clear this square" button. Closes on Escape or by clicking the
+ * same cell again.
+ *
+ * Why this instead of the old global palette:
+ *   - Old design: a sticky "selected piece" in the sidebar + click
+ *     board to place. Made it trivial to "fill the board" with 30
+ *     pawns because there was no per-cell affordance to STOP placing.
+ *   - New design: every placement is an explicit choice. Limits are
+ *     visible at the moment of placement (button greys out when the
+ *     cap is hit), not as a validation error after the fact.
+ */
+function PiecePicker({
+  grid,
+  rankIdx,
+  fileIdx,
+  side,
+  onSideChange,
+  onPick,
+  onClose,
 }: {
-  piece: Piece;
-  selected: boolean;
-  onClick: () => void;
+  grid: Grid;
+  rankIdx: number;
+  fileIdx: number;
+  side: Piece['color'];
+  onSideChange: (s: Piece['color']) => void;
+  onPick: (piece: Piece | null) => void;
+  onClose: () => void;
 }) {
-  const label = `${ROLE_LABELS[piece.role]} (${piece.color === 'white' ? 'ขาว' : 'ดำ'})`;
+  const file = FILES[fileIdx];
+  const rank = RANKS[rankIdx];
+  const currentPiece = grid[rankIdx][fileIdx];
+  const isLimitReached = (role: Piece['role']): boolean => {
+    // Replacing the existing piece doesn't increase the count, so the
+    // limit doesn't apply when we'd be swapping the same role+color.
+    if (currentPiece && currentPiece.role === role && currentPiece.color === side) return false;
+    return countRole(grid, role, side) >= PIECE_LIMITS[role];
+  };
+
   return (
-    <button
-      className={`custom-palette-btn ${selected ? 'is-selected' : ''}`}
-      onClick={onClick}
-      title={label}
-      aria-label={label}
+    <div
+      className="custom-piece-picker"
+      role="dialog"
+      aria-label={`เลือกตัวหมากสำหรับช่อง ${file}${rank}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
     >
-      <div
-        className="palette-piece"
-        style={{
-          backgroundImage: `url(/pieces/makruk/${piece.color}_${
-            ROLE_TO_CG[piece.role]
-          }.svg)`,
-        }}
-      />
-    </button>
+      <header className="custom-piece-picker-head">
+        <strong>ช่อง {file}{rank}</strong>
+        <button
+          className="custom-piece-picker-close"
+          onClick={onClose}
+          aria-label="ปิดตัวเลือก"
+        >✕</button>
+      </header>
+      <div className="custom-piece-picker-side">
+        <button
+          className={side === 'white' ? 'is-active' : ''}
+          onClick={() => onSideChange('white')}
+        >
+          ♔ ขาว
+        </button>
+        <button
+          className={side === 'black' ? 'is-active' : ''}
+          onClick={() => onSideChange('black')}
+        >
+          ♚ ดำ
+        </button>
+      </div>
+      <div className="custom-piece-picker-grid">
+        {PIECE_ROLES.map((role) => {
+          const disabled = isLimitReached(role);
+          const used = countRole(grid, role, side);
+          const cap = PIECE_LIMITS[role];
+          return (
+            <button
+              key={role}
+              className="custom-piece-picker-btn"
+              onClick={() => onPick({ role, color: side })}
+              disabled={disabled}
+              title={
+                disabled
+                  ? `${ROLE_NAMES_TH[role]}: เต็มแล้ว (${used}/${cap})`
+                  : `${ROLE_NAMES_TH[role]}: ${used}/${cap}`
+              }
+            >
+              <div
+                className="palette-piece"
+                style={{
+                  backgroundImage: `url(/pieces/makruk/${side}_${ROLE_TO_CG[role]}.svg)`,
+                }}
+                aria-hidden="true"
+              />
+              <span className="custom-piece-picker-count">{used}/{cap}</span>
+            </button>
+          );
+        })}
+      </div>
+      {currentPiece && (
+        <button
+          className="custom-piece-picker-clear"
+          onClick={() => onPick(null)}
+        >
+          🩹 ลบหมากในช่องนี้
+        </button>
+      )}
+    </div>
   );
 }
+
+/** Sidebar widget — at-a-glance piece census so the user can see what
+ *  they've placed without counting cells. Mirrors PIECE_LIMITS, so a
+ *  full column reads "K 1/1 · M 0/9 · S 0/2 · …" and immediately tells
+ *  the user how much room they have left per type. */
+function PieceCountSummary({ grid }: { grid: Grid }) {
+  return (
+    <div className="custom-piece-summary">
+      {(['white', 'black'] as const).map((color) => (
+        <div key={color} className={`custom-piece-summary-row is-${color}`}>
+          <span className="custom-piece-summary-label">
+            {color === 'white' ? '♔ ขาว' : '♚ ดำ'}
+          </span>
+          {PIECE_ROLES.map((role) => {
+            const n = countRole(grid, role, color);
+            const cap = PIECE_LIMITS[role];
+            const full = n >= cap;
+            return (
+              <span
+                key={role}
+                className={`custom-piece-summary-chip${full ? ' is-full' : ''}`}
+                title={`${ROLE_NAMES_TH[role]} ${n}/${cap}`}
+              >
+                <span className="custom-piece-summary-icon">{ROLE_GLYPH[role]}</span>
+                {n}/{cap}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const ROLE_GLYPH: Record<Piece['role'], string> = {
+  k: '♔', m: '♕', s: '♗', n: '♘', r: '♖', p: '♙',
+};
 
 /**
  * Form for saving the current Custom-page position as a user puzzle.

@@ -1905,7 +1905,12 @@ export default function App() {
       )}
       {currentTab === 'custom' && (
         <ErrorBoundary scope="custom"><CustomPage
-          initialFen={state.fen}
+          // Pass the current Play-tab FEN ONLY when there's an in-progress
+          // game to edit (history.length > 0). For a fresh visitor or
+          // someone opening Custom from a non-Play tab, default to empty
+          // — they came here to compose, not to import a default opening
+          // array they'd have to clear first.
+          initialFen={history.length > 0 ? state.fen : undefined}
           onLoadPosition={(fen: string) => {
             try {
               loadFfish().then((ffish) => {

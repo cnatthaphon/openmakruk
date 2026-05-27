@@ -84,24 +84,22 @@ test.describe('mobile + touch', () => {
     await expect(page.locator('.puzzle-feedback-text.good')).toBeVisible({ timeout: 5_000 });
   });
 
-  test('Custom palette: tap piece → tap board places it (no drag needed)', async ({ page }) => {
+  test('Custom: tap cell → picker opens → tap piece places it', async ({ page }) => {
     test.setTimeout(45_000);
     await page.goto('/#/custom');
     await waitForContentReady(page);
-    // First clear the board so we can place a single piece on a known
-    // empty square. The "🧹 Clear" button wipes the grid.
-    await page.locator('button', { hasText: 'Clear' }).first().tap();
-    // Pick a white piece from the palette (first button in the white row)
-    await page.waitForSelector('.custom-palette-btn', { timeout: 15_000 });
-    const firstWhitePiece = page.locator('.custom-palette').first().locator('.custom-palette-btn').first();
-    await firstWhitePiece.scrollIntoViewIfNeeded();
-    await firstWhitePiece.tap();
-    await expect(firstWhitePiece).toHaveClass(/is-selected/);
-    // Tap a known empty square — d4 (any middle square is fine after clear).
+    // Phase 28 rebuild: board starts empty. Tap a cell to open the picker,
+    // then tap a piece button in the picker to place it.
     const square = page.locator('.custom-square[aria-label^="d4"]');
     await square.scrollIntoViewIfNeeded();
     await square.tap();
-    // After placement, that square should now carry the .has-piece class.
+    const picker = page.locator('.custom-piece-picker');
+    await expect(picker).toBeVisible({ timeout: 5_000 });
+    // Tap the first piece button (any white piece is fine — we just want
+    // SOMETHING placed so .has-piece flips on the original square).
+    const firstPick = picker.locator('.custom-piece-picker-btn').first();
+    await firstPick.scrollIntoViewIfNeeded();
+    await firstPick.tap();
     await expect(square).toHaveClass(/has-piece/, { timeout: 3_000 });
   });
 

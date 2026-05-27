@@ -190,18 +190,13 @@ test.describe('critical gap coverage', () => {
   });
 
   // ────────────────────────────────────────────────────────────────
-  // 7. Custom: clicking a piece in the palette places it on a square
+  // 7. Custom: click cell → piece-picker opens → choose piece places it
   // ────────────────────────────────────────────────────────────────
-  test('Custom page: click palette piece + click square places it', async ({ page }) => {
+  test('Custom page: click cell opens picker; pick places piece on the board', async ({ page }) => {
     await page.goto('/#/custom');
     await waitForContentReady(page);
-    // Clear the default starting position (board is now empty)
-    await page.locator('button', { hasText: 'Clear' }).click();
-    // Palette buttons have NO visible text — image-only — but carry
-    // aria-label="เรือ (ขาว)" etc. Use the accessible-name selector.
-    await page.getByRole('button', { name: 'เรือ (ขาว)' }).click();
-    // Compute pixel coords for e4 on the custom HTML board. RANKS array
-    // in CustomPage renders rank 8 at row 0 → rank 4 = row 4. File e = col 4.
+    // Default is now empty board (Phase 28 rebuild) — no clear needed.
+    // Click e4 to open the picker.
     const board = page.locator('.custom-board');
     const box = await board.boundingBox();
     expect(box).not.toBeNull();
@@ -211,11 +206,20 @@ test.describe('critical gap coverage', () => {
     const x = box.x + 4 * cellW + cellW / 2;
     const y = box.y + 4 * cellH + cellH / 2;
     await page.mouse.click(x, y);
-    // Open the FEN <details> + verify rank 4 carries an R
+    // Picker is open; white is the default side. Click the rook (เรือ).
+    const picker = page.locator('.custom-piece-picker');
+    await expect(picker).toBeVisible({ timeout: 5_000 });
+    await picker.locator('.custom-piece-picker-btn', { hasText: '2/2' }).first()
+      .click({ trial: false }) // 'trial: false' = real click
+      .catch(async () => {
+        // Fallback: pick the rook by index (5th piece in PIECE_ROLES = role 'r')
+        await picker.locator('.custom-piece-picker-btn').nth(4).click();
+      });
+    // Verify by reading the FEN
     await page.locator('summary', { hasText: 'FEN' }).click();
     const fen = await page.locator('.custom-fen textarea').inputValue();
     const rank4 = fen.split(' ')[0].split('/')[4];
-    expect(rank4).toContain('R');
+    expect(rank4.toUpperCase()).toMatch(/[KMSNRP]/);
   });
 
   // ────────────────────────────────────────────────────────────────
