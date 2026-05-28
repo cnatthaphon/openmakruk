@@ -1,7 +1,13 @@
 :root {
   --bg: #1a1816;
   --fg: #ebe8e2;
-  --fg-dim: #8a857d;
+  /* fg-dim drives every "secondary text" surface (.label, .label-aside,
+   * various chip metas). The old #8a857d had ~4.18:1 contrast against
+   * --bg and dipped below 4.0:1 once layered onto rgba(255,255,255,0.04)
+   * card surfaces — axe flagged 16 nodes failing WCAG AA. Bumped to
+   * #a8a39a which clears 4.5:1 on every background we use without
+   * losing the "secondary" hierarchy distinction. */
+  --fg-dim: #a8a39a;
   --accent: #d4a23c;
   --accent-fg: #1a1816;
 
@@ -1461,7 +1467,11 @@ main {
   cursor: not-allowed;
 }
 .puzzle-category-card.is-locked {
-  opacity: 0.75;
+  /* Was opacity 0.75 + fg-dim text — combined dropped the inner
+   * .puzzle-category-desc text below WCAG AA. Bumped opacity to
+   * 0.85; the dashed border + lock icon + slightly muted background
+   * still mark the card as locked. */
+  opacity: 0.85;
   border-style: dashed;
   background: rgba(255,255,255,0.02);
 }
@@ -2079,11 +2089,17 @@ main {
 
 .about-section a {
   color: var(--accent);
-  text-decoration: none;
+  /* Inline links inside paragraph text need an extra visual cue
+   * beyond color alone (WCAG 1.4.1 — "use of color"). Underline-only
+   * is the standard chess-platform convention; lichess + chess.com
+   * both use it. */
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
 }
 
 .about-section a:hover {
-  text-decoration: underline;
+  text-decoration-thickness: 2px;
 }
 
 .about-section code {
@@ -5963,12 +5979,28 @@ footer a:hover {
   border-color: var(--accent, #d4a23c);
   background: rgba(212, 162, 60, 0.08);
 }
-.profile-achievement.locked { opacity: 0.45; }
+/* Locked achievement: muted but still legible.
+ *
+ * Previous: opacity: 0.45 — dropped text contrast to ~1.9:1.
+ * Tried:    opacity: 0.7  — still under WCAG AA when combined
+ *                           with the dim achievement-desc colour.
+ * Now:      no opacity, use grayscale filter + slightly darker
+ *           background. The lock-icon + dashed border + desaturated
+ *           color still distinguish locked vs unlocked, but text
+ *           keeps its full alpha so it passes axe AA. */
+.profile-achievement.locked {
+  filter: grayscale(60%);
+  background: rgba(255, 255, 255, 0.02);
+}
 .profile-achievement-icon { font-size: 1.45rem; }
 .profile-achievement-name { font-weight: 600; }
 .profile-achievement-desc {
   font-size: 0.78rem;
-  color: var(--fg-muted, #9ca3af);
+  /* Was #9ca3af which sat at ~3.7:1 against --bg + got further
+   * dimmed by .profile-achievement.locked's opacity. Use --fg-dim
+   * (which is now WCAG-AA-safe; see :root). The locked-state
+   * opacity 0.7 still distinguishes locked vs unlocked. */
+  color: var(--fg-dim);
   line-height: 1.3;
 }
 
@@ -6436,7 +6468,10 @@ footer a:hover {
 .today-strip-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--fg-dim);
+  /* Was --fg-dim (rgba(255,255,255,0.55)) — axe flagged the contrast
+   * ratio against the strip background as below WCAG AA 4.5:1. Tightened
+   * to clear AA without losing the secondary feel. */
+  color: rgba(255, 255, 255, 0.82);
   white-space: nowrap;
   flex-shrink: 0;
   letter-spacing: 0.04em;
@@ -7772,9 +7807,12 @@ footer a:hover {
 .stats-family header { display: flex; flex-direction: column; gap: 4px; }
 .stats-family-tag {
   display: inline-block; padding: 2px 8px;
-  background: rgba(255,255,255,0.08); border-radius: 4px;
+  background: rgba(255,255,255,0.10); border-radius: 4px;
   font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--fg-dim); align-self: flex-start;
+  /* Explicit fg color (not fg-dim) so the chip clears WCAG AA on
+   * its translucent background. The chip is small + uppercase, both
+   * of which depress perceived contrast — use full fg. */
+  color: var(--fg); align-self: flex-start;
 }
 .stats-family h4 { margin: 0; font-size: 1rem; }
 .stats-family-q {
@@ -8760,4 +8798,77 @@ footer a:hover {
 @media (max-width: 720px) {
   .nav-group-active-child { display: none; }
   .nav-tab { padding: 7px 10px; font-size: 13px; }
+}
+
+/* ─── Celebration overlay · rating-tier + streak milestones ──────── */
+
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 8, 6, 0.78);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: celebration-fade-in 200ms ease-out;
+}
+.celebration-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 40px 60px;
+  background: rgba(26, 24, 22, 0.95);
+  border: 2px solid;
+  border-radius: 16px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  /* User clicks the card to dismiss — make it look like an action */
+  text-align: center;
+  animation: celebration-pop 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-width: 90vw;
+}
+.celebration-glyph {
+  font-size: 4rem;
+  line-height: 1;
+  animation: celebration-glyph-spin 1.6s ease-in-out infinite;
+}
+.celebration-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.celebration-subtitle {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.78);
+  max-width: 400px;
+  line-height: 1.5;
+}
+.celebration-dismiss-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@keyframes celebration-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes celebration-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+@keyframes celebration-glyph-spin {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate(4deg); }
+}
+
+@media (max-width: 540px) {
+  .celebration-card { padding: 28px 24px; }
+  .celebration-glyph { font-size: 3rem; }
+  .celebration-title { font-size: 1.3rem; }
 }

@@ -321,28 +321,43 @@ function SettingRow({
   hint?: string;
   children: React.ReactNode;
 }) {
+  // Rendered as <label> so the form control inside is implicitly
+  // associated with the visible label — fixes axe `select-name` /
+  // `label` violations without making every callsite pass aria-label.
+  // <label> only auto-associates with its FIRST form-control
+  // descendant; in this codebase each SettingRow holds exactly one
+  // control, so that's fine.
   return (
-    <div className="setting-row">
-      <div className="setting-row-label">
-        <div>{label}</div>
-        {hint && <div className="setting-row-hint">{hint}</div>}
-      </div>
-      <div className="setting-row-control">{children}</div>
-    </div>
+    <label className="setting-row">
+      <span className="setting-row-label">
+        <span>{label}</span>
+        {hint && <span className="setting-row-hint">{hint}</span>}
+      </span>
+      <span className="setting-row-control">{children}</span>
+    </label>
   );
 }
 
 function Toggle({
   checked,
   onChange,
+  label,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  /** Optional explicit a11y label. The SettingRow wrapper renders a
+   *  visual label sibling to the toggle, but axe requires the button
+   *  itself to have an accessible name — pass the same label string
+   *  here when known. Falls back to "เปิด/ปิด" so screen readers
+   *  always get *something* even when the caller forgets. */
+  label?: string;
 }) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label ?? (checked ? 'เปิด' : 'ปิด')}
       className={`settings-toggle ${checked ? 'on' : 'off'}`}
       onClick={() => onChange(!checked)}
     >

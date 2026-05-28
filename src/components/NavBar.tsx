@@ -102,15 +102,15 @@ export function NavBar({ currentTab }: Props) {
   };
 
   return (
-    <nav className="nav-bar" role="tablist" ref={navRef}>
+    <nav className="nav-bar" aria-label="หน้าหลัก" ref={navRef}>
       {NAV.map((entry, idx) => {
         if (entry.kind === 'tab') {
           const isActive = currentTab === entry.item.tab;
           return (
             <button
               key={entry.item.tab}
-              role="tab"
-              aria-selected={isActive}
+              type="button"
+              aria-current={isActive ? 'page' : undefined}
               className={`nav-tab${isActive ? ' is-active' : ''}`}
               onClick={() => handleTabClick(entry.item.tab)}
             >

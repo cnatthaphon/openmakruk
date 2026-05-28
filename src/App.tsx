@@ -170,6 +170,8 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { ActivityTicker } from './components/ActivityTicker';
 import { BottomNav } from './components/BottomNav';
 import { NavBar } from './components/NavBar';
+import { CelebrationOverlay } from './components/CelebrationOverlay';
+import { detectCelebration, resetCelebrations, type CelebrationKind } from './lib/celebrations';
 import { TodayStrip } from './components/TodayStrip';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
@@ -406,6 +408,11 @@ export default function App() {
     return true;
   });
 
+  // Pending celebration — set by the rating/streak-watching effect
+  // below. Null = nothing to show. The overlay renders once, marks
+  // itself seen, then clears.
+  const [celebration, setCelebration] = useState<CelebrationKind | null>(null);
+
   // Cloud session restore: if a previous visit enabled cloud sync, the
   // bearer token is in localStorage. Re-attach to the active backend
   // registry asynchronously; UI doesn't block on it. Failure leaves
@@ -478,9 +485,29 @@ export default function App() {
         const { newlyUnlocked, updated } = evaluateAchievements(ctx, loadUnlocks());
         if (newlyUnlocked.length > 0) {
           saveUnlocks(updated);
+          // Coalesce multi-unlock bursts. The previous loop fired one
+          // toast per achievement, which stacked into a 7-toast wall
+          // when a returning user crossed multiple thresholds at once
+          // (rating + activity + streak all bumping past their gates
+          // in the same evaluation tick). 1-2 unlocks still fire as
+          // individual toasts so the user sees the specific name;
+          // beyond that we summarize.
           for (const a of newlyUnlocked) {
-            toast.success(`${a.icon} ปลดล็อก: ${a.name}`);
             log('achievement.unlock', { id: a.id });
+          }
+          if (newlyUnlocked.length <= 2) {
+            for (const a of newlyUnlocked) {
+              toast.success(`${a.icon} ปลดล็อก: ${a.name}`);
+            }
+          } else {
+            const preview = newlyUnlocked
+              .slice(0, 2)
+              .map((a) => `${a.icon} ${a.name}`)
+              .join(' · ');
+            const rest = newlyUnlocked.length - 2;
+            toast.success(
+              `🎉 ปลดล็อก ${newlyUnlocked.length} รายการ — ${preview} · และอีก ${rest} อย่าง · ดูทั้งหมดที่ Profile`,
+            );
           }
         }
       } catch (err) {
@@ -489,6 +516,22 @@ export default function App() {
     })();
     return () => { cancelled = true; };
   }, [stats.totalGames, stats.rating, state?.fen]);
+
+  // Celebration watcher — runs on the same triggers as the achievement
+  // effect so milestone crossings get noticed immediately. detectCelebration
+  // returns at most one pending moment + the overlay marks it seen,
+  // so re-renders don't loop. If a tier AND a streak both cross at
+  // once, the bigger one fires first; the other will surface on the
+  // next state change.
+  useEffect(() => {
+    if (celebration) return; // already showing one
+    const streak = loadStreak();
+    const pending = detectCelebration(stats.rating, streak.current);
+    if (pending) {
+      setCelebration(pending);
+      log('celebration.show', { kind: pending.kind });
+    }
+  }, [stats.rating, celebration]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1742,6 +1785,9 @@ export default function App() {
     gameRecordedRef.current = false;
     clearStats();
     setStats(loadStats());
+    // Wipe celebration seen-set so a re-tested flow replays the
+    // tier/streak moments instead of skipping them.
+    resetCelebrations();
   };
 
   return (
@@ -2327,6 +2373,7 @@ export default function App() {
             <span className="label">โหมด</span>
             <select
               value={mode}
+              aria-label="โหมดการเล่น"
               onChange={(e) => handleModeChange(e.target.value as Mode)}
             >
               {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
@@ -2339,6 +2386,7 @@ export default function App() {
             <span className="label">ระดับคอม</span>
             <select
               value={difficulty}
+              aria-label="ระดับความยากของคอมพิวเตอร์"
               onChange={(e) => setDifficulty(e.target.value as Difficulty)}
             >
               {(Object.keys(DIFFICULTY_LABELS) as Difficulty[]).map((d) => (
@@ -2351,6 +2399,7 @@ export default function App() {
             <span className="label">เวลา</span>
             <select
               value={timeControlId}
+              aria-label="time control"
               onChange={(e) => {
                 const next = e.target.value;
                 if (history.length > 0 && next !== timeControlId) {
@@ -2444,6 +2493,7 @@ export default function App() {
             <span className="label">ความเร็วคอม (ขั้นต่ำ)</span>
             <select
               value={speed}
+              aria-label="ความเร็วการตอบของคอมพิวเตอร์"
               onChange={(e) => setSpeed(e.target.value as Speed)}
             >
               {(Object.keys(SPEED_LABELS) as Speed[]).map((s) => (
@@ -2753,6 +2803,10 @@ export default function App() {
       {showOnboarding && (
         <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}
+      <CelebrationOverlay
+        celebration={celebration}
+        onDismiss={() => setCelebration(null)}
+      />
     </div>
   );
 }
