@@ -38,7 +38,11 @@ test.describe('launch-readiness · version + beta visibility', () => {
     await expect(page.locator('.app-header-version')).toContainText('v0.1-beta');
     // BETA chip visible while we're in pre-1.0.
     await expect(page.locator('.app-header-beta')).toHaveText(/BETA/);
-    // Footer build line has the localized date + the build sha.
+    // Footer build line has the localized date + the build sha. Phase
+    // 33 hides the footer on the Play tab to keep the board centered
+    // in the viewport, so navigate to any non-Play tab to assert
+    // footer presence.
+    await page.goto('/#/about');
     await expect(page.locator('.footer-build')).toBeVisible();
     await expect(page.locator('.footer-build-sha')).toBeVisible();
   });

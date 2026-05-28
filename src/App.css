@@ -83,16 +83,60 @@ main {
   max-width: 100%;
 }
 
+/* Play stack — flex column that owns the full viewport minus the
+ * app header. Contains:
+ *   .play-pre-main  (flex 0 0 auto — natural height: TodayStrip etc.)
+ *   <main>          (flex 1 1 auto — board + sidebar fill the rest)
+ *
+ * Previous design hardcoded `main { height: calc(100vh - 110px) }`
+ * which broke after Phase 28 added the pre-main strip — the board
+ * spilled off the bottom of the viewport because main didn't know
+ * the strip ate ~90px of vertical space above it. Letting main grow
+ * via flex makes the math self-balancing. */
+.play-stack {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 /* Desktop: keep board + sidebar side-by-side in one viewport, no scroll.
  * On wide screens main is a single non-wrapping row whose height is
- * capped at the viewport so the user never needs to scroll while
- * playing. The board scales to whatever height remains; aspect-ratio
- * keeps it square; sidebar takes the remaining width. */
+ * inherited from the flex-grow share of .play-stack. The board scales
+ * to whatever height remains; aspect-ratio keeps it square; sidebar
+ * takes the remaining width. */
 @media (min-width: 881px) {
+  .play-stack {
+    /* Chrome around the stack on Play tab (ticker + footer hidden
+     * via .app:has(.play-stack) below):
+     *   .app padding-top    24px
+     *   .app-header height  57px
+     *   .app row gap        16px
+     *   .app padding-bottom 24px
+     * Subtotal 121px; round to 128 for a small subpixel/future
+     * safety buffer. Don't widen further — every extra px shrinks
+     * the playable board. */
+    height: calc(100vh - 128px);
+    max-height: calc(100vh - 128px);
+    overflow: hidden;
+  }
+  /* Hide ActivityTicker on Play tab — distracting during a game AND
+   * reclaims 34px for the board to fit the viewport. The ticker is
+   * still visible on all other tabs (home tabs, profile, learn etc.)
+   * where its "X games today" signal is relevant. */
+  .app:has(.play-stack) > .activity-ticker {
+    display: none;
+  }
+  /* Hide footer on Play tab too — the version + GitHub link are
+   * accessible via the About tab and the More dropdown. Footer's
+   * absence avoids "scroll to see board" UX. */
+  .app:has(.play-stack) > footer {
+    display: none;
+  }
+
   main {
+    flex: 1 1 auto;
+    min-height: 0;
     flex-wrap: nowrap;
-    height: calc(100vh - 110px);
-    max-height: calc(100vh - 110px);
     overflow: hidden;
   }
 
@@ -104,17 +148,38 @@ main {
     flex: 0 0 auto;
   }
 
-  /* Board fits the available height. Hard-cap at 640px so a tall
-   * portrait monitor doesn't blow the piece SVGs up to comic size. */
+  /* Board sizing: viewport-math constrained by the actual chrome
+   * around it. Chrome budget on Play tab:
+   *   header  57   (brand + nav row)
+   *   preMain 90   (TodayStrip — varies with cosmetic chip rows)
+   *   gaps    20   (CSS gap between pre-main and main)
+   *   safety  20   (small buffer to avoid edge-kissing)
+   * Total ≈ 190; round to 200 for a clean number. The hard cap at
+   * 640px stops the board from blowing up to comic size on tall
+   * monitors. Both width AND height get the same value so the board
+   * is square regardless of which constraint dominates. */
   .cg-wrap {
-    width: min(calc(100vh - 130px), 640px) !important;
-    height: min(calc(100vh - 130px), 640px) !important;
+    /* Inside .play-stack (height 100vh-128) the board competes with
+     * the pre-main strip (~85-95px). So board edge ≤ 100vh - 128 -
+     * 95 = 100vh - 223. Use 230 for safety + cap at 640. */
+    --cg-edge: min(calc(100vh - 230px), 640px);
+    width: var(--cg-edge) !important;
+    height: var(--cg-edge) !important;
     aspect-ratio: 1 / 1;
   }
 }
 
-/* Mobile / narrow: original wrap-and-scroll behaviour. */
+/* Mobile / narrow: original wrap-and-scroll behaviour. The play
+ * stack doesn't constrain height here — let document flow handle
+ * the board + sidebar + below-the-fold scroll naturally. Cramming
+ * the board into a phone-height column would shrink it past
+ * usability. */
 @media (max-width: 880px) {
+  .play-stack {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
   main {
     flex-wrap: wrap;
   }

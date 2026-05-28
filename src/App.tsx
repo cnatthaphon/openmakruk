@@ -1975,6 +1975,14 @@ export default function App() {
       </Suspense>
       {currentTab === 'play' && (
       <ErrorBoundary scope="play">
+      {/* Play stack — flex column that fills the viewport minus the
+          app header. The pre-main strip + main share this space, with
+          main taking whatever is left after the strip natural-sizes.
+          Without this wrapper, main used a fixed calc(100vh - 110px)
+          that didn't account for the pre-main strip and the board
+          spilled off the bottom of the viewport (Phase 28 regression).
+          See .play-stack in App.css. */}
+      <div className="play-stack">
       {/* Pre-main strip — TodayStrip, challenge banner, and quick-actions
           live ABOVE the board, full-width horizontal. Previously they
           were inside <main>'s flex row and produced an empty-looking
@@ -2700,7 +2708,9 @@ export default function App() {
 
           </div>{/* end of .sidebar-tab-content */}
         </aside>
-      </main></ErrorBoundary>
+      </main>
+      </div>{/* end of .play-stack */}
+      </ErrorBoundary>
       )}
       {/* Footer kept minimal — version + a single source link. The
           old "v0.1 · Fairy-Stockfish · hint · review · NNUE-ready"

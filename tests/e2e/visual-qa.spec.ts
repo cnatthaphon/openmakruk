@@ -78,4 +78,36 @@ test.describe('visual-qa · render integrity across viewports', () => {
       });
     }
   }
+
+  // Phase 33 regression: Phase 28 moved TodayStrip out of <main> into
+  // a pre-main strip ABOVE main. main still used a fixed
+  // `calc(100vh - 110px)` height that didn't account for the strip,
+  // so the board overflowed the viewport at common desktop sizes
+  // (user reported "scroll + board ดันลงมาไม่กลาง"). This test
+  // asserts that at the typical desktop viewport, /#/play does NOT
+  // produce vertical document scroll AND the board's bottom edge is
+  // inside the viewport.
+  test('play page fits desktop viewport without vertical scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await pinTestApiBase(page);
+    await page.goto('/');
+    await clearAppState(page);
+    await page.goto('/#/play');
+    await page.locator('.cg-wrap').first().waitFor({ state: 'visible', timeout: 10_000 });
+
+    // No vertical document scroll. Allow tolerance for sub-pixel.
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    );
+    expect(overflow, `vertical scroll ${overflow}px at 1280x800`).toBeLessThanOrEqual(2);
+
+    // Board's bottom edge must be inside the viewport.
+    const boardBottom = await page.evaluate(() => {
+      const cg = document.querySelector('.cg-wrap');
+      if (!cg) return null;
+      return cg.getBoundingClientRect().bottom;
+    });
+    expect(boardBottom, 'board bottom-edge px').not.toBeNull();
+    expect(boardBottom).toBeLessThanOrEqual(800);
+  });
 });
