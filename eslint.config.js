@@ -38,6 +38,7 @@ export default [
       'scripts/qa-*.mjs',
       'scripts/smoke-prod-deep.mjs',
       'scripts/visual-audit.mjs',
+      'scripts/perf-audit.mjs',
     ],
   },
   js.configs.recommended,
