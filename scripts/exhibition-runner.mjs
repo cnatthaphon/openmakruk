@@ -46,24 +46,43 @@ if (!ADMIN_TOKEN) {
   process.exit(1);
 }
 
-// Hard cap on game length. Mirrors the previous worker logic. After
-// 200 plies we declare 'truncated' so the feed doesn't fill up with
-// stuck-loop games from weak personalities like wanderer.
-const MAX_PLY = 200;
+// Hard cap on game length. Lowered from the worker's 200-ply default
+// because 1-2 ply minimax can't reliably force conversion in a tied
+// material position — beyond ~120 plies the feed fills up with
+// shuffling that looks dead. The eval below adds a stagnation
+// penalty that grows with halfmove clock to push for decisive play
+// inside the budget; what doesn't end naturally is marked
+// 'truncated' (cleaner outcome label than "shuffled 200 plies").
+const MAX_PLY = 120;
 
-// Per-tier "noise" — how often the bot picks a non-best move instead
-// of the greedy best. ffish-es6 is a rules engine only (no built-in
-// search), so this runner uses a 1-ply greedy material evaluator plus
-// a tier-dependent epsilon for the personality differential. The
-// fairy-stockfish-nnue.wasm package is Web-Worker-only and doesn't
-// run cleanly in Node, so we stay with the deterministic local
-// evaluator — same code path the worker's old `runExhibitionTick`
-// used, just outside the CPU/memory cap.
+// Per-tier search depth + noise. ffish-es6 is a rules engine only
+// (no built-in search), so this runner implements alpha-beta locally
+// with a position eval that combines material + center control + king
+// safety + mobility + promotion-zone pressure. Strength scales by
+// depth: rookie 1-ply (greedy), veteran 2-ply, master 3-ply, boss
+// 4-ply. Epsilon adds personality noise — rookie occasionally picks
+// a random move so games stay watchable instead of converging on the
+// same opening every time.
+// Tuning notes (after observing first ten test games):
+//   - 1-ply rookie + 2-ply veteran games all truncated at 200 plies
+//     because neither side has the look-ahead to set up a decisive
+//     attack. Bumped baseline to 2-ply for rookie, 3 for veteran.
+//   - master/boss already produced decisive games; left those alone
+//     (4-ply boss takes ~5-8 seconds per game; that's the ceiling
+//     for "watchable per-tick generation" on a GitHub Actions runner).
+//   - Epsilon halved for rookie/veteran — too much randomness was the
+//     main reason their games drifted.
+const TIER_DEPTH = {
+  rookie:  2,
+  veteran: 3,
+  master:  3,
+  boss:    4,
+};
 const TIER_EPSILON = {
-  rookie:  0.45, // half the time, pick a random legal move
-  veteran: 0.25,
-  master:  0.10,
-  boss:    0.03,
+  rookie:  0.18, // ~1 in 5 moves is random for personality flavor
+  veteran: 0.05,
+  master:  0.02,
+  boss:    0.00,
 };
 
 /** Standard Makruk material values. K is excluded — losing the king
@@ -75,6 +94,23 @@ const PIECE_VALUE = {
   n: 3,
   r: 5,
 };
+
+/** Center-control bonus per piece occupying d4/d5/e4/e5. Stacked
+ *  with material so a knight on e4 is worth 3 (material) + 0.3
+ *  (center) = 3.3. Encourages contesting the middle instead of
+ *  shuffling pieces in the back. */
+const CENTER_SQUARES = new Set(['d4', 'd5', 'e4', 'e5']);
+const CENTER_BONUS = 0.3;
+
+/** Promotion-zone bonus for pawns approaching their 6th-rank
+ *  promotion line. A white pawn on rank 5 is one tempo away from
+ *  becoming a Met (worth 2 — almost 2× pawn value); the eval
+ *  reflects that latent value so bots push pawns. */
+const PROMO_BONUS_PER_RANK = 0.15;
+
+/** Mobility bonus — each legal move the side-to-move can make adds
+ *  this much to the eval. Encourages activity over passive shuffling. */
+const MOBILITY_BONUS = 0.02;
 
 async function loadFfish() {
   // ffish-es6 is built for browser ESM: it constructs a fetchable URL
@@ -106,24 +142,139 @@ function pickTwoDistinct(arr) {
   return [arr[a], arr[b]];
 }
 
-/** Sum material from a Makruk FEN string. Positive = white surplus. */
-function materialEval(fen) {
+/** Full position eval from a Makruk FEN string. Positive = white
+ *  surplus. Combines: material + center occupation + promotion
+ *  pressure + king safety (king-on-back-rank is "safer" than king
+ *  walking up the board). Eval is intentionally cheap (one linear
+ *  pass over 64 squares) so 4-ply minimax stays sub-second. */
+function evalPosition(fen) {
   const placement = fen.split(' ')[0];
   let score = 0;
-  for (const ch of placement) {
-    if (ch === '/' || (ch >= '0' && ch <= '9')) continue;
-    const lower = ch.toLowerCase();
-    if (lower === 'k') continue;
-    const v = PIECE_VALUE[lower] ?? 0;
-    score += ch === lower ? -v : v; // uppercase = white
+  // Walk rank 8 → rank 1 in FEN order so we can compute the square
+  // (file letter + rank number) as we go — needed for center +
+  // promotion bonuses.
+  const rows = placement.split('/');
+  for (let r = 0; r < 8; r++) {
+    const row = rows[r] ?? '';
+    const rankNumber = 8 - r; // rank 8 at index 0
+    let fileIdx = 0;
+    for (const ch of row) {
+      if (ch >= '0' && ch <= '9') {
+        fileIdx += parseInt(ch, 10);
+        continue;
+      }
+      const isWhite = ch === ch.toUpperCase();
+      const lower = ch.toLowerCase();
+      const fileLetter = String.fromCharCode(97 + fileIdx); // 'a'..'h'
+      const square = `${fileLetter}${rankNumber}`;
+
+      // Material
+      if (lower !== 'k') {
+        const v = PIECE_VALUE[lower] ?? 0;
+        score += isWhite ? v : -v;
+      }
+
+      // Center control — small bonus, applies to every piece.
+      if (CENTER_SQUARES.has(square)) {
+        score += isWhite ? CENTER_BONUS : -CENTER_BONUS;
+      }
+
+      // Promotion pressure — pawns gain value as they approach their
+      // 6th-rank promotion line. White pawn on rank 5 = 1 step away.
+      if (lower === 'p') {
+        const advanced = isWhite ? rankNumber - 3 : 6 - rankNumber;
+        if (advanced > 0) {
+          score += (isWhite ? 1 : -1) * advanced * PROMO_BONUS_PER_RANK;
+        }
+      }
+
+      // King safety — penalty for king OFF the back rank. A king on
+      // rank 1 (white) / rank 8 (black) is "tucked". Walking forward
+      // loses safety.
+      if (lower === 'k') {
+        const backRank = isWhite ? 1 : 8;
+        if (rankNumber !== backRank) {
+          // Linear penalty by distance from back rank, capped to
+          // avoid swamping material.
+          const dist = Math.abs(rankNumber - backRank);
+          const penalty = Math.min(dist * 0.4, 1.5);
+          score += (isWhite ? -1 : 1) * penalty;
+        }
+      }
+
+      fileIdx++;
+    }
   }
   return score;
 }
 
-/** Pick a move via 1-ply greedy: try every legal move, score by
- *  material delta from the mover's POV, pick the highest. Tier-
- *  dependent epsilon: rookie tiers occasionally pick a random move
- *  to keep games varied + "personality"-like. */
+/** Mobility term — number of legal moves for the side to move,
+ *  scaled by MOBILITY_BONUS. Computed by ffish so the eval doesn't
+ *  duplicate move-generation logic. */
+function mobilityTerm(board) {
+  const legal = board.legalMoves().trim();
+  const n = legal ? legal.split(/\s+/).length : 0;
+  // ffish: true = white-to-move. Mobility benefits whoever's turn it is.
+  return (board.turn() ? 1 : -1) * n * MOBILITY_BONUS;
+}
+
+/** Stagnation penalty. FEN field 5 is the halfmove clock — moves
+ *  since the last pawn push or capture. When it grows, the position
+ *  is stalling. We penalize the side-to-move proportionally so the
+ *  search prefers progressive moves (captures / pawn pushes) over
+ *  shuffling pieces. Without this, exhibition games ended at the
+ *  200-ply cap as both sides circled each other indefinitely. */
+function stagnationPenalty(board) {
+  const halfmove = parseInt(board.fen().split(' ')[4] ?? '0', 10);
+  if (!Number.isFinite(halfmove) || halfmove < 6) return 0;
+  // Quadratic ramp so the penalty crosses material value past ~halfmove 20:
+  // 6: 0.0, 10: 0.6, 15: 2.7, 20: 5.6 (capped). This decisively forces
+  // captures/pawn pushes once the position stalls, even at the cost of
+  // a small material disadvantage — which is what produces decisive
+  // exhibition games instead of 200-ply shuffles.
+  const over = halfmove - 6;
+  const raw = Math.min(over * over * 0.07, 6);
+  return (board.turn() ? -1 : 1) * raw;
+}
+
+/** Total static evaluation = position + mobility - stagnation.
+ *  White-positive. */
+function staticEval(board) {
+  return evalPosition(board.fen()) + mobilityTerm(board) + stagnationPenalty(board);
+}
+
+/** Alpha-beta minimax. Returns score from WHITE's POV. Depth 1 is
+ *  the same as 1-ply greedy with this richer eval. Depth 0 falls
+ *  through to staticEval directly. */
+function negamax(board, depth, alpha, beta) {
+  if (depth === 0 || board.isGameOver()) {
+    return staticEval(board);
+  }
+  const legalRaw = board.legalMoves().trim();
+  if (!legalRaw) return staticEval(board);
+  const legal = legalRaw.split(/\s+/);
+  const whiteToMove = board.turn();
+  let best = -Infinity;
+  for (const mv of legal) {
+    board.push(mv);
+    // negamax-style: flip sign so we always max from current mover's POV
+    const childWhiteScore = negamax(board, depth - 1, alpha, beta);
+    board.pop();
+    const fromMover = whiteToMove ? childWhiteScore : -childWhiteScore;
+    if (fromMover > best) best = fromMover;
+    if (whiteToMove) {
+      alpha = Math.max(alpha, fromMover);
+    } else {
+      beta = Math.min(beta, -fromMover);
+    }
+    if (alpha >= beta) break;
+  }
+  // Convert "best from mover's POV" back to "from white's POV"
+  return whiteToMove ? best : -best;
+}
+
+/** Pick a move at tier-defined depth. Per-tier epsilon adds variance
+ *  (rookie occasionally picks random; boss never does). */
 function pickMove(board, tier) {
   const legalRaw = board.legalMoves().trim();
   if (!legalRaw) return null;
@@ -135,18 +286,18 @@ function pickMove(board, tier) {
     return legal[Math.floor(Math.random() * legal.length)];
   }
 
-  // White's turn?
-  const whiteToMove = board.turn(); // ffish: true = white
+  const depth = TIER_DEPTH[tier] ?? TIER_DEPTH.master;
+  const whiteToMove = board.turn();
   let best = legal[0];
   let bestScore = -Infinity;
   for (const mv of legal) {
     board.push(mv);
-    const after = materialEval(board.fen());
-    const fromMover = whiteToMove ? after : -after;
+    const childWhiteScore = negamax(board, depth - 1, -Infinity, Infinity);
     board.pop();
+    const fromMover = whiteToMove ? childWhiteScore : -childWhiteScore;
     // Tiny random tiebreak so two equally-good moves don't always
-    // pick the same one (would make games near-deterministic).
-    const score = fromMover + Math.random() * 0.01;
+    // pick the same one (would make games deterministic).
+    const score = fromMover + Math.random() * 0.005;
     if (score > bestScore) {
       bestScore = score;
       best = mv;

@@ -29,10 +29,10 @@ import { journeyRoute } from './routes/journey';
 import { tournamentsRoute } from './routes/tournaments';
 import { signalsRoute } from './routes/signals';
 import { exhibitionRoute } from './routes/exhibition';
-// runExhibitionTick from './exhibition' is intentionally NOT imported
-// here — the scheduled handler stopped calling it in Phase 31. The
-// module itself stays (manual `curl /cdn-cgi/handler/scheduled` in dev
-// + future fallback option) but doesn't fire on the worker's cron.
+// Bot-vs-bot game generation now lives in scripts/exhibition-runner.mjs
+// (driven by .github/workflows/exhibition-tick.yml). The in-worker
+// runExhibitionTick + supporting scorers were deleted in Phase 32 — git
+// history has the old module if a fallback ever needs revival.
 import { seasonsRoute } from './routes/seasons';
 import { statsRoute } from './routes/stats';
 import { feedbackRoute } from './routes/feedback';
@@ -124,20 +124,14 @@ app.onError((err, c) => {
 
 // Scheduled handler — triggered by cron in wrangler.toml.
 //
-// Phase 31 change: the exhibition-tick portion moved OUT of this
-// handler into an external runner (scripts/exhibition-runner.mjs,
-// scheduled via .github/workflows/exhibition-tick.yml). Reason: the
-// worker's CPU budget forced us to port a subset of personality
-// scorers; the external runner uses the full Fairy-Stockfish + NNUE
-// for stronger, more representative games. runExhibitionTick is kept
-// in worker/src/exhibition.ts as a fallback (callable from a manual
-// `curl /cdn-cgi/handler/scheduled` in dev) but no longer fires here.
+// Does only cheap server-side maintenance: season rollover + ghost-
+// account cleanup. Bot-vs-bot exhibition games used to fire here too
+// but moved to an external GitHub Actions runner in Phase 31 so they
+// could use a deeper search than the worker's CPU budget allowed.
 //
-// This handler now does only the cheap server-side maintenance:
-// season rollover + ghost-account cleanup. Errors swallowed because
-// Cloudflare retries scheduled events on its own schedule, so a
-// failure here without a thrown exception leaves the next tick to
-// catch up cleanly.
+// Errors swallowed because Cloudflare retries scheduled events on
+// its own schedule, so a failure without a thrown exception leaves
+// the next tick to catch up cleanly.
 async function scheduled(
   _event: ScheduledEvent,
   env: Env,

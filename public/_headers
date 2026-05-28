@@ -47,7 +47,7 @@
   Strict-Transport-Security: max-age=15552000; includeSubDomains
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
-  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), midi=()
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), midi=()
   # Content Security Policy — enforcing mode (moved from
   # Content-Security-Policy-Report-Only on 2026-05-28 once the inline
   # script + style violations were eliminated).
