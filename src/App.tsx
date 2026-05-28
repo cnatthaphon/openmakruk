@@ -169,6 +169,7 @@ import { claimDailyRewardIfDue } from './lib/dailyReward';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActivityTicker } from './components/ActivityTicker';
 import { BottomNav } from './components/BottomNav';
+import { NavBar } from './components/NavBar';
 import { TodayStrip } from './components/TodayStrip';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
@@ -202,37 +203,10 @@ import { loadPuzzles } from './lib/content';
 import { loadPuzzleProgress } from './lib/puzzleProgress';
 import { loadLessonProgress } from './lib/learnProgress';
 
-// Visible-in-nav tabs only. `cert` is a route but doesn't show in the
-// tab bar (filtered out below); the type still covers it.
-const TAB_LABELS: Record<Tab, string> = {
-  play:     '♔ เล่น',
-  // Visual-audit feedback: "ฝึก" + "ศึกษา" both translated as "study"
-  // and felt overlapping. Rename to functional labels:
-  //   learn → "บทเรียน" (lessons / curriculum starting from rules)
-  //   study → "ทฤษฎี"  (theory: openings, endgames, tactical themes)
-  learn:    '🎓 บทเรียน',
-  study:    '📖 ทฤษฎี',
-  puzzles:  '🧩 ปริศนา',
-  custom:   '🎨 ออกแบบ',
-  library:  '📚 คลัง',
-  profile:  '👤 โปรไฟล์',
-  settings: '⚙️ ตั้งค่า',
-  about:    'ℹ️ เกี่ยวกับ',
-  cert:     '', // hidden — visited via shareable URL only
-  bots:     '', // hidden — visited via /#/bots/<bot-id> deep link
-  counting: '', // hidden — visited via /#/counting or /#/counting/<level>
-  rush:     '', // hidden — visited via /#/rush
-  exhibition: '', // hidden — visited via /#/exhibition or /#/exhibition/<id>
-  movetrainer: '', // hidden — visited via /#/movetrainer
-  bossrush: '', // hidden — visited via /#/bossrush
-  pattern: '', // hidden — visited via /#/pattern
-  survive: '', // hidden — visited via /#/survive
-  stats:    '', // hidden — visited via /#/stats (public stats page)
-  challenge: '', // hidden — visited via /#/challenge or /#/challenge/<code>
-};
-const VISIBLE_TABS: Tab[] = (Object.keys(TAB_LABELS) as Tab[]).filter(
-  (t) => TAB_LABELS[t] !== '',
-);
+// Nav layout (4 primary tabs + grouped dropdowns) lives in
+// components/NavBar.tsx. Previously a flat TAB_LABELS map drove the
+// top bar directly; the consolidation moved that data into the navbar
+// component where it can be edited without touching this file.
 
 type BoardState = {
   turn: 'white' | 'black';
@@ -1791,19 +1765,7 @@ export default function App() {
             </span>
           )}
         </div>
-        <nav className="tabs" role="tablist">
-          {VISIBLE_TABS.map((t) => (
-            <button
-              key={t}
-              role="tab"
-              aria-selected={currentTab === t}
-              className={`tab ${currentTab === t ? 'is-active' : ''}`}
-              onClick={() => setCurrentTab(t)}
-            >
-              {TAB_LABELS[t]}
-            </button>
-          ))}
-        </nav>
+        <NavBar currentTab={currentTab} />
         <button
           className="app-profile-widget"
           onClick={() => setCurrentTab('profile')}

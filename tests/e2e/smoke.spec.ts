@@ -30,8 +30,14 @@ test.describe('smoke: all tabs load', () => {
       const errors: string[] = [];
       page.on('pageerror', (e) => errors.push(e.message));
       await page.goto(`/#/${tab.hash}`);
-      // Active tab button should have the matching label
-      await expect(page.locator('button.tab.is-active').first()).toContainText(tab.label);
+      // Phase 30: top nav consolidated 9 flat tabs into 4 primary +
+      // grouped dropdowns. The active highlight now lives on either
+      // a primary `.nav-tab.is-active` (play, profile) OR a group
+      // trigger `.nav-tab.has-active` (learn, study, puzzles, etc.).
+      // Both surfaces contain the label text either inline or via
+      // the active-child suffix.
+      const activeNav = page.locator('.nav-tab.is-active, .nav-tab.has-active').first();
+      await expect(activeNav).toContainText(tab.label, { timeout: 10_000 });
       await waitForContentReady(page);
       expect(errors).toEqual([]);
     });
