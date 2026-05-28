@@ -967,3 +967,100 @@ describe('feedback', () => {
     expect(blocked.status).toBe(429);
   });
 });
+
+describe('exhibition submit (external runner)', () => {
+  const ADMIN_TOKEN = 'test-admin-token'; // matches global-setup.ts wrangler --var
+  const KNOWN_WHITE = 'bot:attacker-master';
+  const KNOWN_BLACK = 'bot:defender-master';
+
+  test('POST /api/exhibition/submit without bearer → 403', async () => {
+    const res = await fetch(`${baseUrl()}/api/exhibition/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ whiteBotId: KNOWN_WHITE, blackBotId: KNOWN_BLACK, outcome: 'draw', plyCount: 1, moves: ['e3e4'], finalFen: '8/8/8/8/4P3/8/8/8 b - - 0 1' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test('POST /api/exhibition/submit with wrong bearer → 403', async () => {
+    const res = await fetch(`${baseUrl()}/api/exhibition/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer not-the-admin-token' },
+      body: JSON.stringify({ whiteBotId: KNOWN_WHITE, blackBotId: KNOWN_BLACK, outcome: 'draw', plyCount: 1, moves: ['e3e4'], finalFen: '8/8/8/8/4P3/8/8/8 b - - 0 1' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test('POST /api/exhibition/submit with right bearer + valid body → 200 + listed in /recent', async () => {
+    const submitRes = await fetch(`${baseUrl()}/api/exhibition/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ADMIN_TOKEN}` },
+      body: JSON.stringify({
+        whiteBotId: KNOWN_WHITE,
+        blackBotId: KNOWN_BLACK,
+        outcome: 'white-wins',
+        plyCount: 4,
+        moves: ['d3d4', 'd6d5', 'e3e4', 'e6e5'],
+        finalFen: 'rnsmksnr/8/ppp2ppp/3pp3/3PP3/PPP2PPP/8/RNSKMSNR w - - 2 3',
+      }),
+    });
+    expect(submitRes.ok).toBe(true);
+    const body = await submitRes.json() as { ok: boolean; id: string };
+    expect(body.ok).toBe(true);
+    expect(body.id.length).toBeGreaterThan(10);
+    // Should appear at the top of the recent feed.
+    const recent = await fetch(`${baseUrl()}/api/exhibition/recent`);
+    const list = await recent.json() as { games: { id: string }[] };
+    expect(list.games.some((g) => g.id === body.id)).toBe(true);
+  });
+
+  test('POST /api/exhibition/submit with unknown bot id → 400', async () => {
+    const res = await fetch(`${baseUrl()}/api/exhibition/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ADMIN_TOKEN}` },
+      body: JSON.stringify({
+        whiteBotId: 'bot:does-not-exist',
+        blackBotId: KNOWN_BLACK,
+        outcome: 'draw',
+        plyCount: 1,
+        moves: ['e3e4'],
+        finalFen: '8/8/8/8/4P3/8/8/8 b - - 0 1',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { reason: string };
+    expect(body.reason).toBe('unknown_bot');
+  });
+
+  test('POST /api/exhibition/submit with bad outcome → 400', async () => {
+    const res = await fetch(`${baseUrl()}/api/exhibition/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ADMIN_TOKEN}` },
+      body: JSON.stringify({
+        whiteBotId: KNOWN_WHITE,
+        blackBotId: KNOWN_BLACK,
+        outcome: 'cosmic-victory',
+        plyCount: 1,
+        moves: ['e3e4'],
+        finalFen: '8/8/8/8/4P3/8/8/8 b - - 0 1',
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test('POST /api/exhibition/submit with ply/moves mismatch → 400', async () => {
+    const res = await fetch(`${baseUrl()}/api/exhibition/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ADMIN_TOKEN}` },
+      body: JSON.stringify({
+        whiteBotId: KNOWN_WHITE,
+        blackBotId: KNOWN_BLACK,
+        outcome: 'draw',
+        plyCount: 4,
+        moves: ['e3e4'], // claims 4 but only sent 1
+        finalFen: '8/8/8/8/4P3/8/8/8 b - - 0 1',
+      }),
+    });
+    expect(res.status).toBe(400);
+  });
+});

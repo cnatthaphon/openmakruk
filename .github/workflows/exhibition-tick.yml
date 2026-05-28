@@ -1,0 +1,47 @@
+# Bot Exhibition tick — runs the external runner on a schedule.
+#
+# Why GitHub Actions (vs Cloudflare cron):
+#   - Full Fairy-Stockfish via ffish-es6 instead of the ported scorer
+#     subset the worker's CPU budget could fit. Stronger, more
+#     representative games for the public exhibition feed.
+#   - Reliable cron (GH Actions is ±1 min vs Cloudflare's "best effort"
+#     ±15 min drift).
+#   - Free for public repos.
+#
+# Setup (one-time):
+#   1. `wrangler secret put EXHIBITION_ADMIN_TOKEN` (in worker/) — generate a
+#      32-char random token and paste.
+#   2. In this repo: Settings → Secrets → Actions → New repository secret:
+#       Name: EXHIBITION_ADMIN_TOKEN
+#       Value: <same token>
+#   3. Push. The first scheduled tick runs at the next :00 / :30.
+#
+# Manual trigger (testing): Actions tab → "Bot Exhibition tick" → Run.
+
+name: Bot Exhibition tick
+
+on:
+  schedule:
+    # Every 30 minutes. GitHub Actions cron uses standard 5-field UTC
+    # syntax — `*/30 * * * *` = 0 and 30 of every hour.
+    - cron: '*/30 * * * *'
+  workflow_dispatch: # manual trigger from the Actions tab
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - name: Install dependencies (root only — runner script doesn't
+              need the worker subtree)
+        run: npm ci --no-audit --no-fund
+      - name: Play one bot-vs-bot game and submit
+        env:
+          API_BASE: https://openmakruk-api.cnatthaphon.workers.dev
+          EXHIBITION_ADMIN_TOKEN: ${{ secrets.EXHIBITION_ADMIN_TOKEN }}
+        run: node scripts/exhibition-runner.mjs

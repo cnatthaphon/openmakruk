@@ -52,6 +52,11 @@ export async function setup(): Promise<void> {
       'dev',
       `--port=${WRANGLER_PORT}`,
       '--ip=127.0.0.1',
+      // Pin the exhibition-runner admin token for tests. Mirrors the
+      // Cloudflare-secret-binding shape so the /api/exhibition/submit
+      // route can be exercised end-to-end in CI.
+      '--var',
+      'EXHIBITION_ADMIN_TOKEN:test-admin-token',
     ],
     {
       cwd: WORKER_DIR,

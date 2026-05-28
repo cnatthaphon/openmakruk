@@ -29,7 +29,10 @@ import { journeyRoute } from './routes/journey';
 import { tournamentsRoute } from './routes/tournaments';
 import { signalsRoute } from './routes/signals';
 import { exhibitionRoute } from './routes/exhibition';
-import { runExhibitionTick } from './exhibition';
+// runExhibitionTick from './exhibition' is intentionally NOT imported
+// here — the scheduled handler stopped calling it in Phase 31. The
+// module itself stays (manual `curl /cdn-cgi/handler/scheduled` in dev
+// + future fallback option) but doesn't fire on the worker's cron.
 import { seasonsRoute } from './routes/seasons';
 import { statsRoute } from './routes/stats';
 import { feedbackRoute } from './routes/feedback';
@@ -39,6 +42,10 @@ import { runSeasonRolloverIfDue } from './seasons';
 /** Cloudflare bindings configured in wrangler.toml. */
 export type Env = {
   DB: D1Database;
+  /** Shared secret for the external Exhibition runner. Set as a
+   *  Cloudflare Worker secret via `wrangler secret put EXHIBITION_ADMIN_TOKEN`.
+   *  Undefined in dev = the submit endpoint is open locally. */
+  EXHIBITION_ADMIN_TOKEN?: string;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -115,21 +122,27 @@ app.onError((err, c) => {
   return c.json({ error: 'internal', message: String(err) }, 500);
 });
 
-// Scheduled handler — triggered by cron in wrangler.toml. Generates
-// one bot-vs-bot exhibition game per tick. Wrapped in try/catch so a
-// transient D1 hiccup doesn't blow up the worker — Cloudflare retries
-// scheduled events on its own schedule, so swallowing here is safe.
+// Scheduled handler — triggered by cron in wrangler.toml.
+//
+// Phase 31 change: the exhibition-tick portion moved OUT of this
+// handler into an external runner (scripts/exhibition-runner.mjs,
+// scheduled via .github/workflows/exhibition-tick.yml). Reason: the
+// worker's CPU budget forced us to port a subset of personality
+// scorers; the external runner uses the full Fairy-Stockfish + NNUE
+// for stronger, more representative games. runExhibitionTick is kept
+// in worker/src/exhibition.ts as a fallback (callable from a manual
+// `curl /cdn-cgi/handler/scheduled` in dev) but no longer fires here.
+//
+// This handler now does only the cheap server-side maintenance:
+// season rollover + ghost-account cleanup. Errors swallowed because
+// Cloudflare retries scheduled events on its own schedule, so a
+// failure here without a thrown exception leaves the next tick to
+// catch up cleanly.
 async function scheduled(
   _event: ScheduledEvent,
   env: Env,
   ctx: ExecutionContext,
 ): Promise<void> {
-  // Exhibition tick — bot vs bot game every cron firing (every 30 min).
-  ctx.waitUntil(
-    runExhibitionTick(env).catch((err) => {
-      console.error('exhibition.tick.error', err);
-    }),
-  );
   // Season rollover — idempotent, only writes when a calendar quarter
   // has just ended and its winners aren't yet recorded. Cheap if not
   // due (one indexed lookup). Runs alongside the exhibition tick.

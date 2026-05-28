@@ -1,13 +1,24 @@
-// /api/exhibition — public-read endpoints for bot-vs-bot games.
+// /api/exhibition — public-read + admin-write endpoints for bot games.
 //
-// GET /api/exhibition/recent  → list of last 20 games (no moves, just
-//                               meta — keeps the payload small for the
-//                               feed view)
-// GET /api/exhibition/:id     → one game with full moves array for the
-//                               replay viewer
+// GET  /api/exhibition/recent  → list of last 20 games (no moves, just
+//                                meta — keeps the payload small for the
+//                                feed view)
+// GET  /api/exhibition/:id     → one game with full moves array for the
+//                                replay viewer
+// POST /api/exhibition/submit  → external bot runner ingests a finished
+//                                bot-vs-bot game. Gated by a shared
+//                                admin token (Cloudflare Worker secret
+//                                EXHIBITION_ADMIN_TOKEN). Replaces the
+//                                cron-based runner from Phase 10G — the
+//                                runner now lives outside the worker so
+//                                we can use the full Fairy-Stockfish +
+//                                NNUE engine instead of the lightweight
+//                                ported scorers that the worker's CPU/
+//                                memory budget constrained us to.
 
 import { Hono } from 'hono';
 import type { Env } from '../index';
+import { newId } from '../auth';
 
 export const exhibitionRoute = new Hono<{ Bindings: Env }>();
 
@@ -108,4 +119,101 @@ exhibitionRoute.get('/:id', async (c) => {
     finalFen: row.final_fen,
     createdAt: row.created_at,
   });
+});
+
+/** Admin-only: external runner submits a finished bot-vs-bot game.
+ *
+ *  Auth: `Authorization: Bearer <EXHIBITION_ADMIN_TOKEN>`. The token is
+ *  a Cloudflare Worker secret (set via `wrangler secret put`), not a
+ *  user bearer — exhibition games aren't owned by any human account.
+ *  Without the env var set (i.e. local `wrangler dev` without --secret),
+ *  the endpoint refuses by default to prevent accidental open-relay.
+ *
+ *  Validation:
+ *    - Both bot ids must exist in users with is_bot = 1
+ *    - outcome must be one of the 4 canonical values
+ *    - plyCount must equal moves.length
+ *    - moves array length capped at 300 (engine games never exceed
+ *      our 200-ply cap; the 300 buffer catches obvious bad submissions)
+ *    - final_fen must parse (light syntactic check; the worker doesn't
+ *      run ffish for full replay verification — that's the runner's
+ *      job, and forging requires both the admin token AND a valid bot
+ *      id, which an attacker who got the token could already misuse
+ *      in worse ways).
+ *
+ *  Returns: `{ ok: true, id, createdAt }` on success.
+ */
+exhibitionRoute.post('/submit', async (c) => {
+  const expected = c.env.EXHIBITION_ADMIN_TOKEN;
+  if (!expected) {
+    return c.json({ error: 'forbidden', reason: 'admin_token_not_configured' }, 403);
+  }
+  const header = c.req.header('Authorization') ?? '';
+  const presented = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+  if (presented !== expected) {
+    return c.json({ error: 'forbidden', reason: 'bad_admin_token' }, 403);
+  }
+
+  type SubmitBody = {
+    whiteBotId?: string;
+    blackBotId?: string;
+    outcome?: string;
+    plyCount?: number;
+    moves?: unknown;
+    finalFen?: string;
+  };
+  const body = await c.req.json<SubmitBody>().catch(() => ({} as SubmitBody));
+
+  if (typeof body.whiteBotId !== 'string' || typeof body.blackBotId !== 'string') {
+    return c.json({ error: 'bad_request', reason: 'missing_bot_ids' }, 400);
+  }
+  const ALLOWED_OUTCOMES = new Set(['white-wins', 'black-wins', 'draw', 'truncated']);
+  if (typeof body.outcome !== 'string' || !ALLOWED_OUTCOMES.has(body.outcome)) {
+    return c.json({ error: 'bad_request', reason: 'bad_outcome' }, 400);
+  }
+  if (typeof body.plyCount !== 'number' || body.plyCount < 1 || body.plyCount > 300) {
+    return c.json({ error: 'bad_request', reason: 'bad_ply_count' }, 400);
+  }
+  if (
+    !Array.isArray(body.moves) ||
+    body.moves.length !== body.plyCount ||
+    !body.moves.every((m) => typeof m === 'string' && /^[a-h][1-8][a-h][1-8][nkrqbsmp]?$/.test(m))
+  ) {
+    return c.json({ error: 'bad_request', reason: 'bad_moves' }, 400);
+  }
+  if (typeof body.finalFen !== 'string' || !body.finalFen.includes('/')) {
+    return c.json({ error: 'bad_request', reason: 'bad_final_fen' }, 400);
+  }
+
+  // Verify both bot ids exist + are bots. Cheap: 2 indexed lookups.
+  const whiteBot = await c.env.DB.prepare(
+    'SELECT id FROM users WHERE id = ? AND is_bot = 1',
+  ).bind(body.whiteBotId).first();
+  const blackBot = await c.env.DB.prepare(
+    'SELECT id FROM users WHERE id = ? AND is_bot = 1',
+  ).bind(body.blackBotId).first();
+  if (!whiteBot || !blackBot) {
+    return c.json({ error: 'bad_request', reason: 'unknown_bot' }, 400);
+  }
+
+  const id = newId();
+  const now = Date.now();
+  await c.env.DB.prepare(
+    `INSERT INTO bot_exhibition_games
+       (id, white_bot_id, black_bot_id, outcome, ply_count, moves_json, final_fen, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(
+      id,
+      body.whiteBotId,
+      body.blackBotId,
+      body.outcome,
+      body.plyCount,
+      JSON.stringify(body.moves),
+      body.finalFen,
+      now,
+    )
+    .run();
+
+  return c.json({ ok: true, id, createdAt: now });
 });
