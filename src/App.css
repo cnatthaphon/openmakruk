@@ -109,14 +109,17 @@ main {
     /* Chrome around the stack on Play tab (ticker + footer hidden
      * via .app:has(.play-stack) below):
      *   .app padding-top    24px
-     *   .app-header height  57px
+     *   .app-header height  57px on local, up to ~75px on Ubuntu CI
+     *                       (system font metrics differ — Noto
+     *                       Sans Thai renders ~18px taller than
+     *                       Apple-system on macOS/Windows)
      *   .app row gap        16px
      *   .app padding-bottom 24px
-     * Subtotal 121px; round to 128 for a small subpixel/future
-     * safety buffer. Don't widen further — every extra px shrinks
-     * the playable board. */
-    height: calc(100vh - 128px);
-    max-height: calc(100vh - 128px);
+     * Subtotal 121-140px; use 160 to absorb font-rendering variance
+     * + a small subpixel buffer. Going wider trades board size for
+     * cross-OS robustness — accept the trade. */
+    height: calc(100vh - 160px);
+    max-height: calc(100vh - 160px);
     overflow: hidden;
   }
   /* Hide ActivityTicker on Play tab — distracting during a game AND
@@ -159,10 +162,10 @@ main {
    * monitors. Both width AND height get the same value so the board
    * is square regardless of which constraint dominates. */
   .cg-wrap {
-    /* Inside .play-stack (height 100vh-128) the board competes with
-     * the pre-main strip (~85-95px). So board edge ≤ 100vh - 128 -
-     * 95 = 100vh - 223. Use 230 for safety + cap at 640. */
-    --cg-edge: min(calc(100vh - 230px), 640px);
+    /* Inside .play-stack (height 100vh-160) the board competes with
+     * the pre-main strip (~85-95px). So board edge ≤ 100vh - 160 -
+     * 95 = 100vh - 255. Use 260 for safety + cap at 640. */
+    --cg-edge: min(calc(100vh - 260px), 640px);
     width: var(--cg-edge) !important;
     height: var(--cg-edge) !important;
     aspect-ratio: 1 / 1;
