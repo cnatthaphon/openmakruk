@@ -6550,6 +6550,19 @@ footer a:hover {
   background: rgba(232,90,74,0.15);
   border-color: rgba(232,90,74,0.5);
 }
+/* Suggestion chip — rating-matched bot recommendation. Green tint
+ * signals "growth opportunity": the bot is at or just above the
+ * user's rating, beating them rewards the most rating. Distinct
+ * from the red rivalry chip (revenge) and the blue exhibition chip
+ * (passive watching). */
+.today-chip-suggestion {
+  background: rgba(122,186,127,0.08);
+  border-color: rgba(122,186,127,0.32);
+}
+.today-chip-suggestion:hover {
+  background: rgba(122,186,127,0.16);
+  border-color: rgba(122,186,127,0.5);
+}
 /* Exhibition chip — surfaces the (hidden-from-nav) /#/exhibition feed
  * via the latest bot-vs-bot game. Cool blue tint distinguishes it from
  * the warm-amber action chips (puzzle / lesson) since it's a "watch"

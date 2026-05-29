@@ -49,11 +49,21 @@ type RivalChip = {
   recentGamesAgainst: number;
 };
 
+type SuggestionChip = {
+  botId: string;
+  displayName: string;
+  avatar: string;
+  rating: number;
+  /** Why this bot — used in the chip subtitle. */
+  reason: 'level-match' | 'fresh';
+};
+
 export function TodayStrip() {
   const [daily, setDaily] = useState<DailyChip | null>(null);
   const [nextLesson, setNextLesson] = useState<LessonChip | null>(null);
   const [tournament, setTournament] = useState<TournamentInfo | null>(null);
   const [rival, setRival] = useState<RivalChip | null>(null);
+  const [suggestion, setSuggestion] = useState<SuggestionChip | null>(null);
   const [latestExhibition, setLatestExhibition] = useState<ExhibitionSummary | null>(null);
 
   useEffect(() => {
@@ -103,61 +113,95 @@ export function TodayStrip() {
         .catch(() => undefined);
     }
 
-    // Rivalry — find a bot that has played the local user enough and
-    // currently leads the head-to-head. Local history is the source
-    // of truth because cloud sync is optional; we filter for opponent
-    // ids starting with `bot:` and group by opponent.
+    // Bot-derived chips: rivalry (active user losing to a bot) AND
+    // a level-matched suggestion (a bot near the user's rating that
+    // they haven't played in their last several games). Both need
+    // the bot roster, so we fetch once and dispatch both.
     if (backend.fetchBots) {
-      const localHistory = loadStats().history;
+      const stats = loadStats();
+      const localHistory = stats.history;
+      const userRating = stats.rating;
       const botGames = localHistory.filter((g) =>
         typeof g.opponent === 'string' && g.opponent.startsWith('bot:'),
       );
-      if (botGames.length >= 3) {
-        // Tally per bot id from the user's POV.
-        type Tally = { wins: number; losses: number; total: number };
-        const tally = new Map<string, Tally>();
-        for (const g of botGames) {
-          const id = String(g.opponent);
-          const cur = tally.get(id) ?? { wins: 0, losses: 0, total: 0 };
-          cur.total++;
-          if (g.outcome === 'win') cur.wins++;
-          else if (g.outcome === 'loss') cur.losses++;
-          tally.set(id, cur);
-        }
-        // Pick the bot with the largest (losses - wins) — i.e. the
-        // one the user is losing to most. Need at least 3 decided
-        // games against the same bot for it to count as a rivalry.
-        let bestId: string | null = null;
-        let bestEdge = 0;
-        let bestTotal = 0;
-        for (const [id, t] of tally.entries()) {
-          if (t.total < 3) continue;
-          const edge = t.losses - t.wins;
-          if (edge > bestEdge) {
-            bestEdge = edge;
-            bestId = id;
-            bestTotal = t.total;
-          }
-        }
-        if (bestId) {
-          backend
-            .fetchBots()
-            .then((bots: BotCharacter[]) => {
-              if (cancelled) return;
-              const bot = bots.find((b) => b.id === bestId);
-              if (bot) {
-                setRival({
-                  botId: bot.id,
-                  displayName: bot.displayName,
-                  avatar: bot.avatar,
-                  botEdge: bestEdge,
-                  recentGamesAgainst: bestTotal,
-                });
-              }
-            })
-            .catch(() => undefined);
-        }
+
+      // Tally per bot id from the user's POV — feeds the rivalry pick.
+      type Tally = { wins: number; losses: number; total: number };
+      const tally = new Map<string, Tally>();
+      for (const g of botGames) {
+        const id = String(g.opponent);
+        const cur = tally.get(id) ?? { wins: 0, losses: 0, total: 0 };
+        cur.total++;
+        if (g.outcome === 'win') cur.wins++;
+        else if (g.outcome === 'loss') cur.losses++;
+        tally.set(id, cur);
       }
+
+      // Last-3-opponents set — used to keep the suggestion fresh.
+      const recentOpponents = new Set(
+        botGames.slice(-3).map((g) => String(g.opponent)),
+      );
+
+      backend
+        .fetchBots()
+        .then((bots: BotCharacter[]) => {
+          if (cancelled) return;
+
+          // --- Rivalry pick: largest losses-minus-wins, min 3 games.
+          let rivalId: string | null = null;
+          let rivalEdge = 0;
+          let rivalTotal = 0;
+          for (const [id, t] of tally.entries()) {
+            if (t.total < 3) continue;
+            const edge = t.losses - t.wins;
+            if (edge > rivalEdge) {
+              rivalEdge = edge;
+              rivalId = id;
+              rivalTotal = t.total;
+            }
+          }
+          if (rivalId) {
+            const bot = bots.find((b) => b.id === rivalId);
+            if (bot) {
+              setRival({
+                botId: bot.id,
+                displayName: bot.displayName,
+                avatar: bot.avatar,
+                botEdge: rivalEdge,
+                recentGamesAgainst: rivalTotal,
+              });
+            }
+          }
+
+          // --- Level-match suggestion: bot rating closest to user's
+          //     rating + 25 (slight stretch upward — beating someone
+          //     marginally above you is the most rating-rewarding
+          //     and personally-motivating). Skip rivalry candidate
+          //     (covered separately) AND the last 3 opponents (so
+          //     the chip rotates instead of nagging the same bot).
+          //     If there's no rating data yet (new user), bias toward
+          //     a Rookie tier bot near 950 — the "starter" experience.
+          const target = userRating > 0 ? userRating + 25 : 950;
+          const candidates = bots
+            .filter((b) =>
+              b.id !== rivalId
+              && !recentOpponents.has(b.id)
+              && b.rating > 0,
+            )
+            .map((b) => ({ bot: b, gap: Math.abs(b.rating - target) }))
+            .sort((a, b) => a.gap - b.gap);
+          const best = candidates[0]?.bot;
+          if (best) {
+            setSuggestion({
+              botId: best.id,
+              displayName: best.displayName,
+              avatar: best.avatar,
+              rating: best.rating,
+              reason: userRating > 0 ? 'level-match' : 'fresh',
+            });
+          }
+        })
+        .catch(() => undefined);
     }
 
     // Latest bot-vs-bot exhibition game — surfaces /#/exhibition (a
@@ -180,7 +224,7 @@ export function TodayStrip() {
     };
   }, []);
 
-  if (!daily && !nextLesson && !tournament && !rival && !latestExhibition) return null;
+  if (!daily && !nextLesson && !tournament && !rival && !latestExhibition && !suggestion) return null;
 
   return (
     <div className="today-strip" aria-label="วันนี้">
@@ -244,6 +288,32 @@ export function TodayStrip() {
             <span className="today-chip-body">
               <span className="today-chip-title">ทำต่อ</span>
               <span className="today-chip-meta">{nextLesson.title}</span>
+            </span>
+          </button>
+        )}
+
+        {suggestion && (
+          <button
+            className="today-chip today-chip-suggestion"
+            onClick={() => navigate({ tab: 'bots', id: suggestion.botId })}
+            title={
+              suggestion.reason === 'level-match'
+                ? `ลองสู้ ${suggestion.displayName} — rating ใกล้คุณ`
+                : `เริ่มต้นกับ ${suggestion.displayName} — เลเวลเหมาะมือใหม่`
+            }
+          >
+            <span className="today-chip-icon" aria-hidden="true">
+              {suggestion.avatar}
+            </span>
+            <span className="today-chip-body">
+              <span className="today-chip-title">
+                ลองสู้ {suggestion.displayName}
+              </span>
+              <span className="today-chip-meta">
+                {suggestion.reason === 'level-match'
+                  ? `เลเวลเหมาะ · rating ${suggestion.rating}`
+                  : `เริ่มต้นได้ · rating ${suggestion.rating}`}
+              </span>
             </span>
           </button>
         )}
