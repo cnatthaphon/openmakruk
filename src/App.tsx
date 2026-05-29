@@ -118,6 +118,10 @@ import {
   setChallengeTarget,
   type ChallengeTarget,
 } from './lib/challenge';
+import {
+  loadChallengeHistory,
+  recordChallenge,
+} from './lib/asyncChallenge';
 import { findNarrative } from './lib/personalities/narrative';
 import {
   loadActiveRush,
@@ -882,6 +886,40 @@ export default function App() {
               // Don't toast — server error shouldn't block the game-end
               // UX. The local stats already saved successfully.
             });
+        }
+      }
+    }
+    // Async-challenge result wiring. If the user was playing under an
+    // active challenge target (their own or an accepted one), find the
+    // newest unfinished history record for the same bot and stamp the
+    // result on it. Earlier we recorded the row at accept-time with
+    // result=undefined; this closes the loop so the Challenge index
+    // (/#/challenge) can display the user's score next to each row.
+    if (challenge) {
+      const botSlug = challenge.botId.startsWith('bot:')
+        ? challenge.botId.slice(4)
+        : challenge.botId;
+      const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
+      const result = forcedResult ?? state.result;
+      let outcome: 'win' | 'loss' | 'draw' | null = null;
+      if (result === '1/2-1/2') outcome = 'draw';
+      else if (result === '1-0') outcome = userColor === 'white' ? 'win' : 'loss';
+      else if (result === '0-1') outcome = userColor === 'black' ? 'win' : 'loss';
+      if (outcome) {
+        const hist = loadChallengeHistory();
+        const idx = hist.findIndex((r) => r.payload.b === botSlug && !r.result);
+        if (idx >= 0) {
+          const rec = hist[idx];
+          recordChallenge({
+            code: rec.code,
+            payload: rec.payload,
+            role: rec.role,
+            result: {
+              outcome,
+              moves: history.length,
+              finishedAt: Date.now(),
+            },
+          });
         }
       }
     }

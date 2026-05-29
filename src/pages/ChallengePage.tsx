@@ -240,6 +240,13 @@ function AcceptView({ code }: { code: string }) {
   const [bot, setBot] = useState<BotCharacter | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Has the local user already attempted this same challenge code?
+  // If so we show their prior result inline ("คุณเคยลองแล้ว: 🏆 32 ตา")
+  // so re-visiting a link doesn't feel like starting from scratch.
+  const priorAttempt = loadChallengeHistory().find(
+    (r) => r.code === code && !!r.result,
+  );
+
   useEffect(() => {
     if (!payload || !backend.fetchBot) return;
     backend.fetchBot(`bot:${payload.b}`)
@@ -308,17 +315,26 @@ function AcceptView({ code }: { code: string }) {
 
       <article className="challenge-accept-card">
         <header className="challenge-accept-header">
-          <span className="challenge-accept-from">📥 คุณถูกท้า</span>
-          <h2>{payload.by} ท้าคุณ!</h2>
+          <span className="challenge-accept-from">⚔️ คุณถูกท้า</span>
+          <h2>
+            <span className="challenge-accept-by">{payload.by}</span>
+            <span className="challenge-accept-verb"> ท้าคุณ!</span>
+          </h2>
+          <p className="challenge-accept-tagline">
+            เพื่อนเล่นไปแล้ว — ตาคุณบ้าง · ลองสู้ bot ตัวเดียวกัน เกณฑ์เดียวกัน แล้วเทียบผล
+          </p>
         </header>
 
         <div className="challenge-accept-bot">
-          <div className="bot-detail-avatar" aria-hidden="true">{bot.avatar}</div>
-          <div>
+          <div className="challenge-accept-avatar" aria-hidden="true">{bot.avatar}</div>
+          <div className="challenge-accept-bot-info">
             <h3>{bot.displayName}</h3>
             <p className="challenge-accept-bot-meta">
-              {bot.tier} tier · ⭐ {bot.rating}
+              {bot.tier} tier · ⭐ rating {bot.rating}
             </p>
+            {bot.lore && (
+              <p className="challenge-accept-bot-lore">{bot.lore}</p>
+            )}
           </div>
         </div>
 
@@ -329,11 +345,27 @@ function AcceptView({ code }: { code: string }) {
           <dd>{TIME_CTL_LABELS_TH[payload.tc]}</dd>
         </dl>
 
+        {priorAttempt && priorAttempt.result && (
+          <div className="challenge-accept-prior" role="status">
+            <span aria-hidden="true">
+              {priorAttempt.result.outcome === 'win'
+                ? '🏆'
+                : priorAttempt.result.outcome === 'draw'
+                  ? '🤝'
+                  : '😞'}
+            </span>{' '}
+            คุณเคยลองแล้ว · {priorAttempt.result.moves} ตา ·
+            {' '}{priorAttempt.result.outcome === 'win' ? 'ชนะ'
+              : priorAttempt.result.outcome === 'draw' ? 'เสมอ' : 'แพ้'}
+            <span className="challenge-accept-prior-cta"> · ลองอีกครั้งได้</span>
+          </div>
+        )}
+
         <button className="challenge-accept-btn" onClick={accept}>
           ⚔️ รับ Challenge — เริ่มเล่น
         </button>
         <p className="challenge-accept-note">
-          เมื่อเล่นจบ ผลของคุณจะเทียบกับของ {payload.by} ผ่านเกณฑ์ที่เลือกได้ทันที
+          เมื่อเล่นจบ ผลจะถูกบันทึกในประวัติ challenge · ส่งกลับให้ {payload.by} ได้ผ่าน LINE / Twitter
         </p>
       </article>
     </main>

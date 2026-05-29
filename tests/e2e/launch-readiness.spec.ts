@@ -125,6 +125,11 @@ test.describe('launch-readiness · async challenge round-trip', () => {
     await page.goto(`/#${hash}`);
     await expect(page.locator('.challenge-accept-card')).toBeVisible({ timeout: 10_000 });
     await expect(page.locator('.challenge-accept-btn')).toBeVisible();
+    // Phase 35: accept hero now spotlights the challenger name in the
+    // accent color and adds a framing tagline so the recipient knows
+    // immediately who challenged them + why this page exists.
+    await expect(page.locator('.challenge-accept-by')).toBeVisible();
+    await expect(page.locator('.challenge-accept-tagline')).toContainText('เพื่อน');
   });
 
   test('malformed challenge code shows the error state cleanly', async ({ page }) => {
