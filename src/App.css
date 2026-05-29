@@ -8147,6 +8147,40 @@ footer a:hover {
   color: rgba(255,255,255,0.7); line-height: 1.5;
   font-style: italic;
 }
+/* Target callout — shown when the v2 challenge URL carries the
+ * sender's result. This is the head-to-head hook: the recipient
+ * sees the exact bar they need to clear before deciding to accept.
+ * Amber accent (same as the rest of the challenge UI) with a bit
+ * more saturation so the "target" reads as the primary signal
+ * on this card. */
+.challenge-accept-target {
+  margin: 0 0 14px; padding: 12px 14px;
+  background: rgba(212,162,60,0.10);
+  border: 1px solid rgba(212,162,60,0.38);
+  border-radius: 8px;
+  text-align: center;
+}
+.challenge-accept-target-tag {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(212,162,60,0.95);
+  margin-bottom: 8px;
+}
+.challenge-accept-target-stats {
+  display: flex; justify-content: center;
+  gap: 14px; flex-wrap: wrap;
+  font-size: 16px; font-weight: 700;
+  color: var(--fg);
+}
+.challenge-accept-target-outcome { color: var(--accent); }
+.challenge-accept-target-moves,
+.challenge-accept-target-quality {
+  color: rgba(255,255,255,0.92);
+}
+.challenge-accept-target-by {
+  margin-top: 6px; font-size: 12px;
+  color: var(--fg-dim); font-style: italic;
+}
 /* Prior-attempt callout — shown only when the recipient has played
  * THIS exact challenge code before. Cool neutral tint so it reads as
  * informational ("you've been here") rather than urgent. */

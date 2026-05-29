@@ -119,6 +119,8 @@ import {
   type ChallengeTarget,
 } from './lib/challenge';
 import {
+  buildChallengeUrlWithResult,
+  compareChallengeResults,
   loadChallengeHistory,
   recordChallenge,
 } from './lib/asyncChallenge';
@@ -895,6 +897,8 @@ export default function App() {
     // result on it. Earlier we recorded the row at accept-time with
     // result=undefined; this closes the loop so the Challenge index
     // (/#/challenge) can display the user's score next to each row.
+    // When the source link was a v2 (sender baked in their own result),
+    // also surface a comparison toast — the whole point of the feature.
     if (challenge) {
       const botSlug = challenge.botId.startsWith('bot:')
         ? challenge.botId.slice(4)
@@ -920,6 +924,20 @@ export default function App() {
               finishedAt: Date.now(),
             },
           });
+          // v2 comparison — fire only when this was an accepted link
+          // that included the sender's result. Outcome comparison is
+          // straightforward; speed comparison uses move count (fewer
+          // is better when both won, more is better when both lost
+          // since the user held on longer).
+          const senderResult = rec.payload.r;
+          if (rec.role === 'accepted' && senderResult) {
+            const verdict = compareChallengeResults(
+              { outcome, moves: history.length },
+              senderResult,
+              rec.payload.c,
+            );
+            toast.info(`เทียบกับ ${rec.payload.by}: ${verdict}`, 6000);
+          }
         }
       }
     }
@@ -2375,6 +2393,61 @@ export default function App() {
                             const plyCount = history.length;
                             const tier = titleForRating(stats.rating);
                             const titlePrefix = tier.minRating >= 1000 ? `${tier.th} ` : '';
+
+                            // Challenge-aware share: when the user just
+                            // finished a vs-CPU game under an active
+                            // challenge target, build a v2 link that
+                            // bakes in their result + name. Recipient
+                            // lands and sees "Somchai ทำได้: 32 ตา · ชนะ"
+                            // so the next attempt has a concrete bar
+                            // to clear. Preserves the original challenge
+                            // parameters (criterion, time control) when
+                            // possible — falls back to 'all' + 'untimed'
+                            // if we can't find the source record. When
+                            // not in a challenge, fall through to the
+                            // generic "I played" share.
+                            if (challenge) {
+                              const botSlug = challenge.botId.startsWith('bot:')
+                                ? challenge.botId.slice(4)
+                                : challenge.botId;
+                              const o: 'w' | 'd' | 'l' = userWonHere
+                                ? 'w'
+                                : drawHere
+                                  ? 'd'
+                                  : 'l';
+                              const senderName = stats.displayName || 'นักหมาก';
+                              const sourceRec = loadChallengeHistory().find(
+                                (r) => r.payload.b === botSlug,
+                              );
+                              const url = buildChallengeUrlWithResult(
+                                sourceRec?.payload ?? {
+                                  v: 1,
+                                  b: botSlug,
+                                  c: 'all',
+                                  tc: 'untimed',
+                                  by: senderName,
+                                },
+                                { o, m: plyCount, q: undefined },
+                                senderName,
+                              );
+                              const outcomeWord = userWonHere
+                                ? 'ชนะ'
+                                : drawHere
+                                  ? 'เสมอกับ'
+                                  : 'แพ้';
+                              const text =
+                                `ฉัน ${outcomeWord} ${challenge.displayName} ใน ${plyCount} ตา · ลองทำให้ดีกว่าฉันสิ`;
+                              if (typeof navigator.share === 'function') {
+                                navigator
+                                  .share({ title: 'OpenMakruk Challenge', text, url })
+                                  .catch(() => undefined);
+                              } else {
+                                const lineUrl = `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+                                window.open(lineUrl, '_blank', 'noopener,noreferrer');
+                              }
+                              return;
+                            }
+
                             const outcomeText = drawHere
                               ? `${titlePrefix}เสมอกับ ${oppName}`
                               : userWonHere
@@ -2394,7 +2467,7 @@ export default function App() {
                             }
                           }}
                         >
-                          📤 แชร์
+                          {challenge ? '📤 ส่งกลับให้เพื่อน' : '📤 แชร์'}
                         </button>
                       </div>
                     </>

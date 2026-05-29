@@ -18,14 +18,36 @@
 //
 // Schema (v1):
 //   { v:1, b:<bot-slug>, c:<criterion>, tc:<timeCtl>, by:<displayName> }
+//
+// Schema (v2 — Phase 35):
+//   { v:2, b, c, tc, by, r:{ o:'w'|'d'|'l', m, q? } }
+//
+// v2 carries the SENDER's own result so the recipient sees "<by> ทำ
+// 28 ตา · ชนะ" before deciding to accept. This closes the Strava-
+// segment comparison loop (the whole point of the feature) without
+// needing a server-side comparison table. v1 links remain valid and
+// decode cleanly — `r` is just absent.
 
 import { defineStore } from './stores';
 
 export type ChallengeCriterion = 'outcome' | 'quality' | 'speed' | 'all';
 
+/** Compact result encoding — single-letter keys keep the base64url
+ *  payload short so LINE message previews don't truncate the URL.
+ *  Letters: o(utcome), m(oves), q(uality). */
+export type ChallengeResult = {
+  /** Outcome from the result-owner's perspective. */
+  o: 'w' | 'd' | 'l';
+  /** Number of ply played (history.length at game end). */
+  m: number;
+  /** Quality / accuracy percent (0-100), optional. Filled only when
+   *  the user ran the review pipeline post-game and we have a score. */
+  q?: number;
+};
+
 export type ChallengePayload = {
-  /** Schema version — bump if payload shape changes. */
-  v: 1;
+  /** Schema version. 1 = no result. 2 = result present. */
+  v: 1 | 2;
   /** Bot id slug — `attacker-master` (no `bot:` prefix; we add it
    *  when looking up via fetchBot). Smaller URLs that way. */
   b: string;
@@ -35,6 +57,9 @@ export type ChallengePayload = {
   tc: 'blitz5' | 'rapid10' | 'untimed';
   /** Display name of the creator (for "you've been challenged by ..."). */
   by: string;
+  /** Optional result from the sender. v1 links have this undefined;
+   *  v2 share-with-result links carry it. */
+  r?: ChallengeResult;
 };
 
 /** Browser-safe base64url — RFC 4648 §5. Avoids `+/=` so the encoded
@@ -57,11 +82,20 @@ export function encodeChallenge(payload: ChallengePayload): string {
 export function decodeChallenge(code: string): ChallengePayload | null {
   try {
     const obj = JSON.parse(fromBase64Url(code)) as Partial<ChallengePayload>;
-    if (obj.v !== 1) return null;
+    if (obj.v !== 1 && obj.v !== 2) return null;
     if (typeof obj.b !== 'string' || !obj.b) return null;
     if (!['outcome', 'quality', 'speed', 'all'].includes(obj.c ?? '')) return null;
     if (!['blitz5', 'rapid10', 'untimed'].includes(obj.tc ?? '')) return null;
     if (typeof obj.by !== 'string') return null;
+    // v2 result block — optional even on v2 (we tolerate the version
+    // being bumped without the field; treat as v1 semantically).
+    if (obj.v === 2 && obj.r !== undefined) {
+      const r = obj.r as Partial<ChallengeResult>;
+      if (!r || typeof r !== 'object') return null;
+      if (r.o !== 'w' && r.o !== 'd' && r.o !== 'l') return null;
+      if (typeof r.m !== 'number' || r.m < 0) return null;
+      if (r.q !== undefined && (typeof r.q !== 'number' || r.q < 0 || r.q > 100)) return null;
+    }
     return obj as ChallengePayload;
   } catch {
     return null;
@@ -72,6 +106,83 @@ export function decodeChallenge(code: string): ChallengePayload | null {
 export function buildChallengeUrl(payload: ChallengePayload): string {
   const code = encodeChallenge(payload);
   return `${window.location.origin}/#/challenge/${code}`;
+}
+
+/** Build a v2 URL that bakes in the user's result. Used by the
+ *  post-game share flow to emit "ส่งผลกลับ" links — the recipient
+ *  lands and sees the sender's score before accepting. */
+export function buildChallengeUrlWithResult(
+  base: ChallengePayload,
+  result: ChallengeResult,
+  senderName: string,
+): string {
+  const payload: ChallengePayload = {
+    ...base,
+    v: 2,
+    by: senderName,
+    r: result,
+  };
+  return buildChallengeUrl(payload);
+}
+
+/** Compare the local user's just-finished result against the sender's
+ *  result encoded in a v2 challenge link. Returns a short Thai verdict
+ *  string suitable for a comparison toast.
+ *
+ *  Criterion semantics:
+ *    outcome — Win > Draw > Loss
+ *    speed   — fewer moves is better when both win; more moves is
+ *              better when both lose (held on longer)
+ *    quality — higher accuracy% wins (skipped if q absent on either side)
+ *    all     — outcome first, then speed as the tiebreaker
+ *
+ *  Phrased so the loser sees "ดีกว่าเขา" / "เท่ากัน" / "สู้สูสี"
+ *  framings rather than dry win/lose; the goal is to encourage another
+ *  attempt, not to crow about defeat. */
+export function compareChallengeResults(
+  mine: { outcome: 'win' | 'loss' | 'draw'; moves: number; quality?: number },
+  theirs: ChallengeResult,
+  criterion: ChallengeCriterion,
+): string {
+  const myRank = mine.outcome === 'win' ? 2 : mine.outcome === 'draw' ? 1 : 0;
+  const theirRank = theirs.o === 'w' ? 2 : theirs.o === 'd' ? 1 : 0;
+
+  const meStr = `${mine.outcome === 'win' ? 'ชนะ' : mine.outcome === 'draw' ? 'เสมอ' : 'แพ้'} · ${mine.moves} ตา`;
+  const themStr = `${theirs.o === 'w' ? 'ชนะ' : theirs.o === 'd' ? 'เสมอ' : 'แพ้'} · ${theirs.m} ตา`;
+  const head = `คุณ ${meStr} · เขา ${themStr}`;
+
+  if (criterion === 'outcome' || criterion === 'all') {
+    if (myRank > theirRank) return `${head} · 🏆 คุณดีกว่า`;
+    if (myRank < theirRank) return `${head} · 🔥 สู้ใหม่อีกครั้ง`;
+    // Same outcome — fall through to speed tiebreaker for 'all'.
+    if (criterion === 'outcome') return `${head} · 🤝 เท่ากัน`;
+  }
+  if (criterion === 'speed' || criterion === 'all') {
+    if (myRank === 2 && theirRank === 2) {
+      // Both won — fewer moves is the better win.
+      if (mine.moves < theirs.m) return `${head} · ⚡ คุณเร็วกว่า`;
+      if (mine.moves > theirs.m) return `${head} · 🐢 ใช้เวลามากกว่า`;
+      return `${head} · 🤝 จำนวนตาเท่ากัน`;
+    }
+    if (myRank === 0 && theirRank === 0) {
+      // Both lost — more moves means held on longer.
+      if (mine.moves > theirs.m) return `${head} · 🛡 ต้านได้นานกว่า`;
+      if (mine.moves < theirs.m) return `${head} · 🔥 สู้ใหม่อีกครั้ง`;
+      return `${head} · 🤝 ต้านได้พอกัน`;
+    }
+    // Mixed (one won, one drew etc.) and we fell through outcome:
+    // call it a wash.
+    return `${head} · 🤝 สูสี`;
+  }
+  if (criterion === 'quality') {
+    if (mine.quality === undefined || theirs.q === undefined) {
+      return `${head} · ไม่มีข้อมูล accuracy ครบทั้งสองฝั่ง`;
+    }
+    if (mine.quality > theirs.q) return `${head} · ✨ accuracy ดีกว่า (${mine.quality}% vs ${theirs.q}%)`;
+    if (mine.quality < theirs.q) return `${head} · 🔥 accuracy ${mine.quality}% vs ${theirs.q}%`;
+    return `${head} · 🤝 accuracy เท่ากัน`;
+  }
+  return head;
 }
 
 // ─── Local history of accepted/created challenges ────────────────────

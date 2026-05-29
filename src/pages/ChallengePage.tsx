@@ -321,9 +321,28 @@ function AcceptView({ code }: { code: string }) {
             <span className="challenge-accept-verb"> ท้าคุณ!</span>
           </h2>
           <p className="challenge-accept-tagline">
-            เพื่อนเล่นไปแล้ว — ตาคุณบ้าง · ลองสู้ bot ตัวเดียวกัน เกณฑ์เดียวกัน แล้วเทียบผล
+            {payload.r
+              ? `${payload.by} เล่นแล้ว — ตาคุณบ้าง · ลองสู้ bot ตัวเดียวกัน · ทำให้ดีกว่าสิ`
+              : 'เพื่อนท้ามา — ตาคุณบ้าง · ลองสู้ bot ตัวเดียวกัน เกณฑ์เดียวกัน แล้วเทียบผล'}
           </p>
         </header>
+
+        {payload.r && (
+          <div className="challenge-accept-target" role="status" aria-label={`สถิติของ ${payload.by}`}>
+            <div className="challenge-accept-target-tag">🎯 เป้าที่ต้องทำให้ดีกว่า</div>
+            <div className="challenge-accept-target-stats">
+              <span className="challenge-accept-target-outcome">
+                {payload.r.o === 'w' ? '🏆 ชนะ'
+                  : payload.r.o === 'd' ? '🤝 เสมอ' : '😞 แพ้'}
+              </span>
+              <span className="challenge-accept-target-moves">{payload.r.m} ตา</span>
+              {payload.r.q !== undefined && (
+                <span className="challenge-accept-target-quality">accuracy {payload.r.q}%</span>
+              )}
+            </div>
+            <div className="challenge-accept-target-by">— {payload.by}</div>
+          </div>
+        )}
 
         <div className="challenge-accept-bot">
           <div className="challenge-accept-avatar" aria-hidden="true">{bot.avatar}</div>
