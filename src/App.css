@@ -88,6 +88,17 @@ main {
   justify-content: center;
   max-width: 100%;
 }
+/* Phase 36 — pages that mount a <BoardLayout> need normal block flow
+ * so the BoardLayout's own grid governs the columns. The global
+ * `main { display: flex }` rule above was designed for the Play tab
+ * where eval-bar + board + sidebar SHOULD be flex siblings. On other
+ * board pages (drill / survive / trainer / pattern / rush) it was
+ * incorrectly turning the page wrapper's children (back button +
+ * BoardLayout) into side-by-side flex columns, which is what made
+ * the post-Phase-36 screenshot look "เละเทะตุ้มเปะ". */
+main:has(.board-layout) {
+  display: block;
+}
 
 /* Play stack — flex column that owns the full viewport minus the
  * app header. Phase 36 simplified this dramatically: the pre-main
@@ -253,6 +264,32 @@ main {
   justify-content: center;
   align-items: center;
   width: 100%;
+}
+/* Hard size cap on chessground boards rendered inside a BoardLayout
+ * shell. Without this, .cg-wrap defaults to filling its container
+ * and the board grows to 600-800px, overflowing the side panels
+ * (user feedback: "เละเทะตุ้มเปะ"). The cap matches the Play tab's
+ * own --cg-edge ceiling so the visual size is consistent across
+ * surfaces.
+ *
+ * Custom / pattern / trainer / rush boards bring their own sizing
+ * (each is a CSS grid with its own width: min(...) rule), so we
+ * leave them alone — overriding their widths broke the Custom
+ * piece-picker positioning. */
+.board-layout-board > .cg-wrap,
+.board-layout-board .Board-root > .cg-wrap {
+  width: min(calc(100vh - 200px), 520px) !important;
+  height: min(calc(100vh - 200px), 520px) !important;
+  aspect-ratio: 1 / 1;
+  max-width: 100%;
+}
+@media (max-width: 880px) {
+  .board-layout-board > .cg-wrap,
+  .board-layout-board .Board-root > .cg-wrap {
+    width: min(100%, calc(100vw - 32px)) !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1;
+  }
 }
 .board-layout-below {
   width: 100%;
