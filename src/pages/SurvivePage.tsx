@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { loadFfish, parseLegalMoves } from '../lib/makruk';
 import { loadPuzzles } from '../lib/content';
 import type { Puzzle } from '../lib/puzzleSchema';
@@ -221,18 +222,16 @@ function SurviveRunner({ positionId }: { positionId: string }) {
         <p className="survive-error">⚠ ไม่พบตำแหน่ง</p>
       )}
       {puzzle && (
-        <>
-          <header className="survive-runner-head">
-            <h2>{puzzle.id}</h2>
-            <p className="label-aside">
-              คุณป้องกัน {userSide === 'white' ? '♔ ขาว' : '♚ ดำ'} · ต้องอยู่รอด {SURVIVE_TARGET_PLIES} ตา
-            </p>
-          </header>
-          <div className="survive-counter">
-            ผ่าน {userPlies} / {SURVIVE_TARGET_PLIES}
-            {engineThinking && <span className="label-aside"> · 🤔 ฝ่ายโจมตีคิด…</span>}
-          </div>
-          <div className="survive-board">
+        <BoardLayout
+          left={
+            <header className="survive-runner-head">
+              <h2>{puzzle.id}</h2>
+              <p className="label-aside">
+                คุณป้องกัน {userSide === 'white' ? '♔ ขาว' : '♚ ดำ'} · ต้องอยู่รอด {SURVIVE_TARGET_PLIES} ตา
+              </p>
+            </header>
+          }
+          board={
             <Board
               fen={fen}
               legalMoves={status === 'playing' ? legalMoves : []}
@@ -244,28 +243,36 @@ function SurviveRunner({ positionId }: { positionId: string }) {
               hint={null}
               onMove={handleMove}
             />
-          </div>
-          {status === 'cleared' && (
-            <div className="survive-result is-cleared">
-              <div className="survive-result-icon">🛡️</div>
-              <div className="survive-result-title">รอดแล้ว!</div>
-              <div className="label-aside">ผ่าน {userPlies} ตา</div>
-              <button className="survive-restart" onClick={() => window.location.reload()}>
-                ↻ ลองอีกครั้ง
-              </button>
-            </div>
-          )}
-          {status === 'mated' && (
-            <div className="survive-result is-mated">
-              <div className="survive-result-icon">💔</div>
-              <div className="survive-result-title">ถูกรุกฆาตที่ตา {userPlies}</div>
-              <div className="label-aside">ลองมุมใหม่</div>
-              <button className="survive-restart" onClick={() => window.location.reload()}>
-                ↻ ลองอีกครั้ง
-              </button>
-            </div>
-          )}
-        </>
+          }
+          right={
+            <>
+              <div className="survive-counter">
+                ผ่าน {userPlies} / {SURVIVE_TARGET_PLIES}
+                {engineThinking && <div className="label-aside">🤔 ฝ่ายโจมตีคิด…</div>}
+              </div>
+              {status === 'cleared' && (
+                <div className="survive-result is-cleared">
+                  <div className="survive-result-icon">🛡️</div>
+                  <div className="survive-result-title">รอดแล้ว!</div>
+                  <div className="label-aside">ผ่าน {userPlies} ตา</div>
+                  <button className="survive-restart" onClick={() => window.location.reload()}>
+                    ↻ ลองอีกครั้ง
+                  </button>
+                </div>
+              )}
+              {status === 'mated' && (
+                <div className="survive-result is-mated">
+                  <div className="survive-result-icon">💔</div>
+                  <div className="survive-result-title">ถูกรุกฆาตที่ตา {userPlies}</div>
+                  <div className="label-aside">ลองมุมใหม่</div>
+                  <button className="survive-restart" onClick={() => window.location.reload()}>
+                    ↻ ลองอีกครั้ง
+                  </button>
+                </div>
+              )}
+            </>
+          }
+        />
       )}
     </main>
   );

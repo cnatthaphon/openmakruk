@@ -8,6 +8,7 @@
 // palette selection.
 
 import { useState } from 'react';
+import { BoardLayout } from '../components/BoardLayout';
 import {
   emptyGrid,
   fenToGrid,
@@ -131,20 +132,25 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
     }
   };
 
+  const customHeader = (
+    <header className="custom-header">
+      <h2>🎨 ออกแบบกระดาน</h2>
+      <p>
+        เริ่มจากกระดานว่าง · คลิกช่องเพื่อเลือกตัวหมาก ·
+        ระบบจำกัดจำนวนตัวหมากตามกฎ Makruk (ขุน 1 · เม็ดสูงสุด 9 ·
+        โคน/ม้า/เรือ ฝ่ายละ 2 · เบี้ย 8) — กดปุ่ม "เริ่มต้นปกติ"
+        ถ้าต้องการตั้งหมากแบบเริ่มเกม
+      </p>
+    </header>
+  );
+
   return (
     <div className="custom-page">
-      <header className="custom-header">
-        <h2>🎨 ออกแบบกระดาน</h2>
-        <p>
-          เริ่มจากกระดานว่าง · คลิกช่องเพื่อเลือกตัวหมาก ·
-          ระบบจำกัดจำนวนตัวหมากตามกฎ Makruk (ขุน 1 · เม็ดสูงสุด 9 ·
-          โคน/ม้า/เรือ ฝ่ายละ 2 · เบี้ย 8) — กดปุ่ม "เริ่มต้นปกติ"
-          ถ้าต้องการตั้งหมากแบบเริ่มเกม
-        </p>
-      </header>
-
-      <div className="custom-layout">
-        <div className="custom-board-wrap">
+      <BoardLayout
+        className="custom-layout"
+        left={customHeader}
+        board={
+          <div className="custom-board-wrap">
           <div className="custom-board">
             {RANKS.map((rank, rankIdx) =>
               FILES.map((file, fileIdx) => {
@@ -192,7 +198,8 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
             />
           )}
         </div>
-
+        }
+        right={
         <aside className="custom-side">
           <div className="custom-palette-section">
             <div className="custom-section-title">จำนวนตัวหมากบนกระดาน</div>
@@ -281,7 +288,8 @@ export function CustomPage({ initialFen, onLoadPosition }: Props) {
             </details>
           </div>
         </aside>
-      </div>
+        }
+      />
     </div>
   );
 }

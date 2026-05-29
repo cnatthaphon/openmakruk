@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { loadFfish, MAKRUK_START_FEN, parseLegalMoves } from '../lib/makruk';
 import { loadOpenings } from '../lib/content';
 import type { Opening } from '../lib/extraContentSchema';
@@ -208,12 +209,15 @@ function TrainerRunner({ openingId }: { openingId: string }) {
         <p className="trainer-error">⚠ ไม่พบ opening id นี้</p>
       )}
       {opening && (
-        <>
-          <header className="trainer-header">
-            <h2>{opening.name}</h2>
-            <p className="label-aside">{opening.description}</p>
-          </header>
-          <div className="trainer-layout">
+        <BoardLayout
+          className="trainer-layout"
+          left={
+            <header className="trainer-header">
+              <h2>{opening.name}</h2>
+              <p className="label-aside">{opening.description}</p>
+            </header>
+          }
+          board={
             <div className={`trainer-board ${flash ? `flash-${flash}` : ''}`}>
               <Board
                 fen={currentFen}
@@ -227,6 +231,8 @@ function TrainerRunner({ openingId }: { openingId: string }) {
                 onMove={handleMove}
               />
             </div>
+          }
+          right={
             <aside className="trainer-sidebar">
               <div className="trainer-counter">
                 <div className="trainer-counter-label">คะแนน</div>
@@ -268,8 +274,8 @@ function TrainerRunner({ openingId }: { openingId: string }) {
                 </div>
               )}
             </aside>
-          </div>
-        </>
+          }
+        />
       )}
     </main>
   );

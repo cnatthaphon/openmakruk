@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { loadFfish, parseLegalMoves } from '../lib/makruk';
 import { loadPuzzles } from '../lib/content';
 import type { Puzzle } from '../lib/puzzleSchema';
@@ -189,43 +190,52 @@ export function PuzzleRushPage() {
     endRunRef.current?.();
   }
 
+  const hud = (
+    <div className="rush-hud">
+      <div className="rush-hud-stat rush-hud-time">
+        <span className="rush-hud-label">⏱️</span>
+        <span className="rush-hud-value">{formatRushTime(timeLeftMs)}</span>
+      </div>
+      <div className="rush-hud-stat rush-hud-score">
+        <span className="rush-hud-label">✅</span>
+        <span className="rush-hud-value">{score}</span>
+      </div>
+      <div className="rush-hud-stat rush-hud-strikes">
+        <span className="rush-hud-label">❌</span>
+        <span className="rush-hud-value">
+          {strikes}/{RUSH_MAX_STRIKES}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <main className="rush-page rush-active">
-      <div className="rush-hud">
-        <div className="rush-hud-stat rush-hud-time">
-          <span className="rush-hud-label">⏱️</span>
-          <span className="rush-hud-value">{formatRushTime(timeLeftMs)}</span>
-        </div>
-        <div className="rush-hud-stat rush-hud-score">
-          <span className="rush-hud-label">✅</span>
-          <span className="rush-hud-value">{score}</span>
-        </div>
-        <div className="rush-hud-stat rush-hud-strikes">
-          <span className="rush-hud-label">❌</span>
-          <span className="rush-hud-value">
-            {strikes}/{RUSH_MAX_STRIKES}
-          </span>
-        </div>
-      </div>
-
       {status === 'playing' && puzzle && (
-        <div className={`rush-board ${flash ? `flash-${flash}` : ''}`}>
-          <Board
-            fen={fen}
-            legalMoves={legalMoves}
-            flipped={turn === 'black'}
-            disabled={flash !== null}
-            turn={turn}
-            isCheck={false}
-            lastMove={null}
-            hint={null}
-            onMove={handleMove}
-          />
-          <p className="label-aside rush-board-hint">
-            {turn === 'white' ? '♔ ขาวเดิน' : '♚ ดำเดิน'} · ปริศนาที่{' '}
-            {queueIdx + 1}
-          </p>
-        </div>
+        <BoardLayout
+          left={hud}
+          board={
+            <div className={`rush-board ${flash ? `flash-${flash}` : ''}`}>
+              <Board
+                fen={fen}
+                legalMoves={legalMoves}
+                flipped={turn === 'black'}
+                disabled={flash !== null}
+                turn={turn}
+                isCheck={false}
+                lastMove={null}
+                hint={null}
+                onMove={handleMove}
+              />
+            </div>
+          }
+          right={
+            <p className="label-aside rush-board-hint">
+              {turn === 'white' ? '♔ ขาวเดิน' : '♚ ดำเดิน'} · ปริศนาที่{' '}
+              {queueIdx + 1}
+            </p>
+          }
+        />
       )}
 
       {status === 'ended' && (

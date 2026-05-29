@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { haptic } from '../lib/haptic';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -386,41 +387,43 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
       <button className="lesson-back" onClick={onClose}>
         ← กลับไปรายการปริศนา
       </button>
-      <header className="puzzle-header">
-        <h2>
-          {puzzle.prompt}{' '}
-          <span className="puzzle-rating-badge">{puzzle.rating}</span>
-        </h2>
-        <div className="puzzle-goal">
-          🎯 <strong>{goalText}</strong>
-        </div>
-        <div className="puzzle-meta">
-          <span className="label-aside">
-            หมวด: {puzzle.category} · #{puzzle.id}
-            {solvedBefore && ' · ✓ เคยทำเสร็จแล้ว'}
-          </span>
-          <PuzzleTimer running={state.status === 'playing'} startedAt={startedAtRef.current} />
-        </div>
-        {golfEligible && (
-          <div className="puzzle-golf-toggle">
-            <label>
-              <input
-                type="checkbox"
-                checked={golfMode}
-                onChange={(e) => {
-                  setGolfMode(e.target.checked);
-                  golfMovesRef.current = [];
-                  resetPuzzle();
-                }}
-              />{' '}
-              🏌️ <strong>Code-golf mode</strong> — เดินยังไงก็ได้ที่ legal · ใครรุกจนน้อยตาที่สุดชนะ · ส่ง server เก็บคะแนน
-            </label>
-          </div>
-        )}
-      </header>
-
-      <div className="puzzle-main">
-        <div className="puzzle-board-wrap">
+      <BoardLayout
+        className="puzzle-layout"
+        left={
+          <header className="puzzle-header">
+            <h2>
+              {puzzle.prompt}{' '}
+              <span className="puzzle-rating-badge">{puzzle.rating}</span>
+            </h2>
+            <div className="puzzle-goal">
+              🎯 <strong>{goalText}</strong>
+            </div>
+            <div className="puzzle-meta">
+              <span className="label-aside">
+                หมวด: {puzzle.category} · #{puzzle.id}
+                {solvedBefore && ' · ✓ เคยทำเสร็จแล้ว'}
+              </span>
+              <PuzzleTimer running={state.status === 'playing'} startedAt={startedAtRef.current} />
+            </div>
+            {golfEligible && (
+              <div className="puzzle-golf-toggle">
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={golfMode}
+                    onChange={(e) => {
+                      setGolfMode(e.target.checked);
+                      golfMovesRef.current = [];
+                      resetPuzzle();
+                    }}
+                  />{' '}
+                  🏌️ <strong>Code-golf mode</strong> — เดินยังไงก็ได้ที่ legal · ใครรุกจนน้อยตาที่สุดชนะ · ส่ง server เก็บคะแนน
+                </label>
+              </div>
+            )}
+          </header>
+        }
+        board={
           <Board
             fen={state.fen}
             legalMoves={state.legalMoves}
@@ -432,9 +435,9 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
             hint={null}
             onMove={handleUserMove}
           />
-        </div>
-
-        <aside className="puzzle-sidebar">
+        }
+        right={
+          <aside className="puzzle-sidebar">
           <div className="puzzle-feedback">
             {state.feedback && (
               <div
@@ -559,7 +562,8 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
             </div>
           )}
         </aside>
-      </div>
+        }
+      />
     </div>
   );
 }

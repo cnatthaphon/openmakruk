@@ -90,15 +90,13 @@ main {
 }
 
 /* Play stack — flex column that owns the full viewport minus the
- * app header. Contains:
- *   .play-pre-main  (flex 0 0 auto — natural height: TodayStrip etc.)
- *   <main>          (flex 1 1 auto — board + sidebar fill the rest)
- *
- * Previous design hardcoded `main { height: calc(100vh - 110px) }`
- * which broke after Phase 28 added the pre-main strip — the board
- * spilled off the bottom of the viewport because main didn't know
- * the strip ate ~90px of vertical space above it. Letting main grow
- * via flex makes the math self-balancing. */
+ * app header. Phase 36 simplified this dramatically: the pre-main
+ * strip (TodayStrip + DYK + quick-actions + challenge banner) was
+ * removed and those pieces moved into the right sidebar's
+ * .play-side-info container. The play-stack now wraps just <main>,
+ * which contains [eval | board | sidebar] as before. Keeping the
+ * wrapper so .app:has(.play-stack) hooks (ticker / footer hide)
+ * keep working without changes. */
 .play-stack {
   display: flex;
   flex-direction: column;
@@ -168,25 +166,14 @@ main {
    * monitors. Both width AND height get the same value so the board
    * is square regardless of which constraint dominates. */
   .cg-wrap {
-    /* Inside .play-stack (height 100vh-160) the board competes with
-     * the pre-main strip (~85-95px). So board edge ≤ 100vh - 160 -
-     * 95 = 100vh - 255. Use 260 for safety + cap at 640. */
-    --cg-edge: min(calc(100vh - 260px), 640px);
+    /* Phase 36 — pre-main strip removed; the board now competes only
+     * with the app header (~57-75px) + .app padding. Chrome budget
+     * tightened back to ~180px so the board grows back to its
+     * pre-strip size (~540 on a 720 viewport, 640 cap above). */
+    --cg-edge: min(calc(100vh - 180px), 640px);
     width: var(--cg-edge) !important;
     height: var(--cg-edge) !important;
     aspect-ratio: 1 / 1;
-  }
-
-  /* When the Did-you-know card is visible (lobby state, fresh visit),
-   * the pre-main strip is ~90px taller. Bump the chrome reserve so
-   * the board still fits in viewport. This only kicks in on Play tab
-   * with the card present — once the user starts a game or dismisses
-   * the card the rule no longer applies and the board returns to the
-   * full size. Trade is intentional: first-visit board is slightly
-   * smaller in exchange for surfacing 8 hidden features without
-   * overflowing the viewport. */
-  .app:has(.dyk-card) .cg-wrap {
-    --cg-edge: min(calc(100vh - 360px), 640px);
   }
 }
 
@@ -204,6 +191,73 @@ main {
   main {
     flex-wrap: wrap;
   }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+ * Shared <BoardLayout> shell — every page that owns a board uses
+ * this so the visual rhythm is identical across Play, lessons,
+ * puzzles, counting, etc. Three columns on desktop, stacks on
+ * narrow viewports. See src/components/BoardLayout.tsx.
+ * ────────────────────────────────────────────────────────────── */
+.board-layout {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+/* Desktop: explicit column tracks so the board doesn't fight the
+ * panels for width. minmax(0, 1fr) on the center cell lets the board
+ * shrink instead of overflowing when the panels are wide. */
+@media (min-width: 881px) {
+  .board-layout[data-has-left='true'][data-has-right='true'] {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(260px, 340px);
+  }
+  .board-layout[data-has-left='true'][data-has-right='false'] {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+  .board-layout[data-has-left='false'][data-has-right='true'] {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  }
+  .board-layout[data-has-left='false'][data-has-right='false'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* Mobile: stack with board first (most important), then right
+ * (controls — needed during play), then left (supplementary text). */
+@media (max-width: 880px) {
+  .board-layout {
+    grid-template-columns: 1fr;
+  }
+  .board-layout-left  { order: 3; }
+  .board-layout-center { order: 1; }
+  .board-layout-right { order: 2; }
+}
+.board-layout-left,
+.board-layout-right {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.board-layout-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.board-layout-board {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.board-layout-below {
+  width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 /* Sidebar is wider on desktop so it uses the screen instead of
@@ -8682,36 +8736,50 @@ footer a:hover {
   color: var(--fg-dim);
 }
 
-/* ─── Play · pre-main strip (above the board) ─────────────────────
+/* ─── Play · side info stack (top of right sidebar) ───────────────
  *
- * Holds TodayStrip + challenge banner + quick-actions in a horizontal
- * row above <main>. Previously these lived as flex children of <main>
- * and produced an empty-looking left column when the rows were narrow
- * — see Phase 28 layout fix.
- *
- * On desktop the strip is centered (max-width: 920px matches the
- * TodayStrip's own internal cap). On mobile each child wraps onto its
- * own row via the existing component-level mobile rules.
+ * Phase 36 moved everything that used to sit above the board
+ * (TodayStrip, DidYouKnow, challenge banner, quick-actions) into
+ * the right sidebar. They share a single .play-side-info container
+ * at the top so the spacing is consistent regardless of which
+ * pieces are currently visible. Each piece is independently
+ * conditional so the container can be empty without leaving a gap
+ * — `:empty` collapses to 0 height (no margin showing).
  */
-.play-pre-main {
+.play-side-info {
   display: flex;
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  max-width: 920px;
-  margin: 0 auto;
-  padding: 0 12px;
-  box-sizing: border-box;
 }
-.play-pre-main > .today-strip {
+.play-side-info:empty {
+  display: none;
+}
+.play-side-info > .today-strip {
   margin: 0;
   max-width: none;
 }
-.play-pre-main > .challenge-banner {
+.play-side-info > .dyk-card {
   margin: 0;
 }
-.play-pre-main > .play-quick-actions {
+.play-side-info > .challenge-banner {
   margin: 0;
+}
+.play-side-info > .play-quick-actions {
+  margin: 0;
+}
+/* Sidebar context: chips stack vertically because the sidebar is
+ * narrow (~260-340px). The TodayStrip's component-level mobile rule
+ * already covers ≤ 540px viewports, but the desktop sidebar is wider
+ * than that breakpoint while still being too narrow for chips
+ * side-by-side — so force the column layout regardless. */
+.play-side-info .today-strip {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.play-side-info .today-strip-items {
+  flex-direction: column;
 }
 
 /* ─── Custom page · piece picker + count summary ──────────────────

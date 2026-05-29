@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { loadFfish, parseLegalMoves } from '../lib/makruk';
 import { searchBestMove, DIFFICULTY_PRESETS } from '../lib/engine';
 import {
@@ -249,15 +250,18 @@ function DrillRunner({ level }: { level: DrillLevel }) {
         ← รายการ
       </button>
 
-      <header className="drill-header">
-        <h2>{level.title}</h2>
-        <p className="label-aside">{level.description}</p>
-      </header>
-
-      <div className="drill-layout">
-        <div className="drill-board-col">
-          {status === 'loading' && <p className="label-aside">กำลังโหลด…</p>}
-          {status !== 'loading' && (
+      <BoardLayout
+        className="drill-layout"
+        left={
+          <header className="drill-header">
+            <h2>{level.title}</h2>
+            <p className="label-aside">{level.description}</p>
+          </header>
+        }
+        board={
+          status === 'loading' ? (
+            <p className="label-aside">กำลังโหลด…</p>
+          ) : (
             <Board
               fen={fen}
               legalMoves={status === 'playing' ? legalMoves : []}
@@ -269,10 +273,10 @@ function DrillRunner({ level }: { level: DrillLevel }) {
               hint={null}
               onMove={handleUserMove}
             />
-          )}
-        </div>
-
-        <aside className="drill-sidebar">
+          )
+        }
+        right={
+          <aside className="drill-sidebar">
           <div className="drill-counter">
             <div className="drill-counter-label">เหลือ</div>
             <div className="drill-counter-value">
@@ -362,7 +366,8 @@ function DrillRunner({ level }: { level: DrillLevel }) {
             </div>
           )}
         </aside>
-      </div>
+        }
+      />
     </main>
   );
 }

@@ -2113,115 +2113,13 @@ export default function App() {
           spilled off the bottom of the viewport (Phase 28 regression).
           See .play-stack in App.css. */}
       <div className="play-stack">
-      {/* Pre-main strip — TodayStrip, challenge banner, and quick-actions
-          live ABOVE the board, full-width horizontal. Previously they
-          were inside <main>'s flex row and produced an empty-looking
-          left column when those rows were narrow. */}
-      <div className="play-pre-main">
-        {challenge && (
-          <div className="challenge-banner" role="status">
-            <span className="challenge-banner-icon">⚔️</span>
-            <div className="challenge-banner-body">
-              <strong>
-                {challenge.avatar} กำลังท้าดวล {challenge.displayName}
-              </strong>
-              <span className="label-aside">
-                rating {challenge.rating} · ผลเกมจะนับใน Bot Hall of Fame
-              </span>
-              {(() => {
-                // Bot's pre-game line — adds character before move 1.
-                // Only shown while no moves have been played yet so it
-                // doesn't keep nagging mid-game.
-                const narr = findNarrative(challenge.personality);
-                if (!narr || history.length > 0) return null;
-                return (
-                  <span className="challenge-banner-quote">
-                    💬 {narr.preGameQuote}
-                  </span>
-                );
-              })()}
-            </div>
-            <button
-              className="challenge-banner-clear"
-              onClick={() => {
-                clearChallengeTarget();
-                setChallenge(null);
-              }}
-              title="หยุดท้าดวลตัวนี้ — เกมต่อไปจะนับเป็น difficulty ปกติ"
-            >
-              ✕ จบการท้าดวล
-            </button>
-          </div>
-        )}
-        {/* "💡 รู้หรือไม่?" card surfaces hidden features (Counting,
-            Survive, Pattern, Move Trainer, Boss Rush, Challenge,
-            Exhibition, Stats) one at a time. Renders nothing once
-            the user has seen / dismissed all of them.
-            Only shown in the canonical lobby state — at the standard
-            Makruk starting position, before any moves, with no
-            challenge or review running. Loading a custom FEN via
-            Library counts as "user has intent" and skips the card
-            so it doesn't compete with the drill the user came to do.
-            Phase 35 chrome budget is tight, so hiding here also
-            keeps the board at full size whenever it's most needed. */}
-        {(() => {
-          const piecePart = state?.fen?.split(' ')[0];
-          const atStart = piecePart === MAKRUK_START_FEN.split(' ')[0];
-          const showDyk =
-            atStart &&
-            history.length === 0 &&
-            !challenge &&
-            !state?.isGameOver &&
-            !reviewActive;
-          return showDyk ? <DidYouKnowCard /> : null;
-        })()}
-        <TodayStrip />
-        {/* Quick-actions bar — visible THROUGHOUT a vs-CPU game so the
-            layout doesn't shift mid-game. Was previously conditional on
-            history.length > 0 which made the buttons pop in after the
-            first move, pushing the board down by ~45px (user-reported
-            in Phase 35). Now: always rendered during vs-CPU play mode,
-            disabled with a tooltip before the first move so the user
-            doesn't think they're stuck. */}
-        {(mode === 'play-white' || mode === 'play-black') &&
-          !state?.isGameOver &&
-          !forcedResult &&
-          !reviewActive && (
-            <div className="play-quick-actions">
-              <button
-                className="play-quick-button"
-                onClick={handleOfferDraw}
-                disabled={thinking || drawOfferPending || history.length === 0}
-                title={
-                  history.length === 0
-                    ? 'ขอเสมอ — เปิดให้กดหลังจากเดินตาแรก'
-                    : 'ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน'
-                }
-              >
-                {drawOfferPending ? (
-                  <>
-                    <span className="spinner-sm" aria-hidden="true" />
-                    กำลังพิจารณา...
-                  </>
-                ) : (
-                  <>🤝 ขอเสมอ</>
-                )}
-              </button>
-              <button
-                className="play-quick-button play-quick-resign"
-                onClick={handleResign}
-                disabled={thinking || history.length === 0}
-                title={
-                  history.length === 0
-                    ? 'ยอมแพ้ — เปิดให้กดหลังจากเดินตาแรก'
-                    : 'ยอมแพ้ — บันทึกเป็น loss'
-                }
-              >
-                🏳 ยอมแพ้
-              </button>
-            </div>
-          )}
-      </div>
+      {/* Phase 36 — pre-main strip removed. TodayStrip, DidYouKnow,
+          challenge banner, and quick-actions all moved into the right
+          sidebar (.sidebar > .play-side-info) so the board stays
+          centered with no clutter above it. User feedback:
+          "ไม่มีอะไรรกด้านบน". This matches the layout used by every
+          other board page (lessons, puzzles, etc.) where contextual
+          chrome lives beside the board, never above it. */}
       <main>
         {settings.showEvalBar && (
           <div className="eval-bar-live-wrap">
@@ -2479,6 +2377,105 @@ export default function App() {
           })()}
         </div>
         <aside className="sidebar">
+          {/* Phase 36 — contextual banners + lobby surfaces live at the
+              top of the right sidebar instead of above the board. Order
+              of priority: challenge banner (active intent) → quick
+              actions (mid-game tools) → DYK card (lobby discovery) →
+              TodayStrip (daily routine). Each piece is independently
+              conditional so non-applicable ones drop out cleanly. */}
+          <div className="play-side-info">
+            {challenge && (
+              <div className="challenge-banner" role="status">
+                <span className="challenge-banner-icon">⚔️</span>
+                <div className="challenge-banner-body">
+                  <strong>
+                    {challenge.avatar} กำลังท้าดวล {challenge.displayName}
+                  </strong>
+                  <span className="label-aside">
+                    rating {challenge.rating} · ผลเกมจะนับใน Bot Hall of Fame
+                  </span>
+                  {(() => {
+                    const narr = findNarrative(challenge.personality);
+                    if (!narr || history.length > 0) return null;
+                    return (
+                      <span className="challenge-banner-quote">
+                        💬 {narr.preGameQuote}
+                      </span>
+                    );
+                  })()}
+                </div>
+                <button
+                  className="challenge-banner-clear"
+                  onClick={() => {
+                    clearChallengeTarget();
+                    setChallenge(null);
+                  }}
+                  title="หยุดท้าดวลตัวนี้ — เกมต่อไปจะนับเป็น difficulty ปกติ"
+                >
+                  ✕ จบ
+                </button>
+              </div>
+            )}
+            {(mode === 'play-white' || mode === 'play-black') &&
+              !state?.isGameOver &&
+              !forcedResult &&
+              !reviewActive && (
+                <div className="play-quick-actions">
+                  <button
+                    className="play-quick-button"
+                    onClick={handleOfferDraw}
+                    disabled={thinking || drawOfferPending || history.length === 0}
+                    title={
+                      history.length === 0
+                        ? 'ขอเสมอ — เปิดให้กดหลังจากเดินตาแรก'
+                        : 'ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน'
+                    }
+                  >
+                    {drawOfferPending ? (
+                      <>
+                        <span className="spinner-sm" aria-hidden="true" />
+                        กำลังพิจารณา...
+                      </>
+                    ) : (
+                      <>🤝 ขอเสมอ</>
+                    )}
+                  </button>
+                  <button
+                    className="play-quick-button play-quick-resign"
+                    onClick={handleResign}
+                    disabled={thinking || history.length === 0}
+                    title={
+                      history.length === 0
+                        ? 'ยอมแพ้ — เปิดให้กดหลังจากเดินตาแรก'
+                        : 'ยอมแพ้ — บันทึกเป็น loss'
+                    }
+                  >
+                    🏳 ยอมแพ้
+                  </button>
+                </div>
+              )}
+            {(() => {
+              // DidYouKnow + TodayStrip only show in the canonical
+              // lobby state (start position, no moves, no challenge,
+              // no review). Once a game is in progress they collapse
+              // out so the move-list + analysis panels have room.
+              const piecePart = state?.fen?.split(' ')[0];
+              const atStart = piecePart === MAKRUK_START_FEN.split(' ')[0];
+              const showLobby =
+                atStart &&
+                history.length === 0 &&
+                !challenge &&
+                !state?.isGameOver &&
+                !reviewActive;
+              if (!showLobby) return null;
+              return (
+                <>
+                  <DidYouKnowCard />
+                  <TodayStrip />
+                </>
+              );
+            })()}
+          </div>
           {clock && !reviewActive && (
             <ClockDisplay
               clock={clock}

@@ -20,6 +20,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import {
   biaSquaresSplit,
   legalSquaresForPiece,
@@ -220,43 +221,45 @@ function TextStepView({ step }: { step: TextStep }) {
 }
 
 function DemoRenderer({ demo, caption }: { demo: LessonDemo; caption?: string }) {
-  let body: JSX.Element;
+  // Each demo view returns a fully-composed BoardLayout — narrative on
+  // the left, board centered, controls on the right. The step-level
+  // caption (LessonStep.caption — distinct from demo-internal text)
+  // threads through so it renders alongside the demo's own narrative
+  // instead of stacking another text block above the board.
   switch (demo.kind) {
     case 'piece-movement':
-      body = <PieceMovementDemoView demo={demo} />;
-      break;
+      return <PieceMovementDemoView demo={demo} stepCaption={caption} />;
     case 'position-viewer':
-      body = <PositionViewerDemoView demo={demo} />;
-      break;
+      return <PositionViewerDemoView demo={demo} stepCaption={caption} />;
     case 'position-quiz':
-      body = <PositionQuizDemoView demo={demo} />;
-      break;
+      return <PositionQuizDemoView demo={demo} stepCaption={caption} />;
     case 'try-move':
-      body = <TryMoveDemoView demo={demo} />;
-      break;
+      return <TryMoveDemoView demo={demo} stepCaption={caption} />;
     case 'replay':
-      body = <ReplayDemoView demo={demo} />;
-      break;
+      return <ReplayDemoView demo={demo} stepCaption={caption} />;
     case 'counting-demo':
-      body = <CountingDemoView demo={demo} />;
-      break;
+      return <CountingDemoView demo={demo} stepCaption={caption} />;
     default: {
       const _exhaustive: never = demo;
       void _exhaustive;
-      body = <></>;
+      return null;
     }
   }
-  return (
-    <div className="lesson-body">
-      {caption && <p className="lesson-caption">{caption}</p>}
-      {body}
-    </div>
-  );
+}
+
+/** Shared step-caption header — renders the parent LessonStep.caption
+ *  inside whatever side panel a demo chooses for its narrative. */
+function StepCaption({ text }: { text?: string }) {
+  if (!text) return null;
+  return <p className="lesson-caption">{text}</p>;
 }
 
 // ---- Demo: piece movement ---------------------------------------------
 
-function PieceMovementDemoView({ demo }: { demo: PieceMovementDemo }) {
+function PieceMovementDemoView({
+  demo,
+  stepCaption,
+}: { demo: PieceMovementDemo; stepCaption?: string }) {
   const [pieceSquare, setPieceSquare] = useState(demo.startSquare);
   const [moveCount, setMoveCount] = useState(0);
   // Reset on demo change
@@ -279,59 +282,79 @@ function PieceMovementDemoView({ demo }: { demo: PieceMovementDemo }) {
   };
 
   return (
-    <>
-      <div className="lesson-stats">
-        <span>
-          ตอนนี้ <strong>{ROLE_TH[demo.role]}</strong> อยู่ที่{' '}
-          <code>{pieceSquare}</code>
-        </span>
-        <span className="label-aside">
-          เลื่อนหมาก {moveCount} ครั้ง · คลิกช่องไฮไลต์เพื่อย้าย
-        </span>
-      </div>
-      <LessonBoard
-        pieces={[{ square: pieceSquare, role: demo.role, color: demo.color }]}
-        legalSquares={legals}
-        biaSplit={biaSplit}
-        onSquareClick={handleSquareClick}
-      />
-      <div className="lesson-legend">
-        {biaSplit ? (
-          <>
-            <span className="legend-chip legend-push">●</span> เดินไปข้างหน้า{' '}
-            <span className="legend-chip legend-capture">●</span> จับเฉียง
-          </>
-        ) : (
-          <>
-            <span className="legend-chip legend-push">●</span> ช่องที่{' '}
-            {ROLE_TH[demo.role]} เดินได้ทั้งหมด
-          </>
-        )}
-      </div>
-    </>
+    <BoardLayout
+      left={
+        <>
+          <StepCaption text={stepCaption} />
+          <div className="lesson-stats">
+            <span>
+              ตอนนี้ <strong>{ROLE_TH[demo.role]}</strong> อยู่ที่{' '}
+              <code>{pieceSquare}</code>
+            </span>
+            <span className="label-aside">
+              เลื่อนหมาก {moveCount} ครั้ง · คลิกช่องไฮไลต์เพื่อย้าย
+            </span>
+          </div>
+          <div className="lesson-legend">
+            {biaSplit ? (
+              <>
+                <span className="legend-chip legend-push">●</span> เดินไปข้างหน้า{' '}
+                <span className="legend-chip legend-capture">●</span> จับเฉียง
+              </>
+            ) : (
+              <>
+                <span className="legend-chip legend-push">●</span> ช่องที่{' '}
+                {ROLE_TH[demo.role]} เดินได้ทั้งหมด
+              </>
+            )}
+          </div>
+        </>
+      }
+      board={
+        <LessonBoard
+          pieces={[{ square: pieceSquare, role: demo.role, color: demo.color }]}
+          legalSquares={legals}
+          biaSplit={biaSplit}
+          onSquareClick={handleSquareClick}
+        />
+      }
+    />
   );
 }
 
 // ---- Demo: position viewer --------------------------------------------
 
-function PositionViewerDemoView({ demo }: { demo: PositionViewerDemo }) {
+function PositionViewerDemoView({
+  demo,
+  stepCaption,
+}: { demo: PositionViewerDemo; stepCaption?: string }) {
   const pieces = fenToBoardPieces(demo.fen);
   const highlights = demo.highlights ?? [];
   return (
-    <>
-      {demo.caption && <p className="lesson-explanation">{demo.caption}</p>}
-      <LessonBoard
-        pieces={pieces}
-        legalSquares={highlights.map((h) => h.square)}
-        coloredHighlights={highlights}
-      />
-    </>
+    <BoardLayout
+      left={
+        <>
+          <StepCaption text={stepCaption} />
+          {demo.caption && <p className="lesson-explanation">{demo.caption}</p>}
+        </>
+      }
+      board={
+        <LessonBoard
+          pieces={pieces}
+          legalSquares={highlights.map((h) => h.square)}
+          coloredHighlights={highlights}
+        />
+      }
+    />
   );
 }
 
 // ---- Demo: position quiz (click-the-square) ---------------------------
 
-function PositionQuizDemoView({ demo }: { demo: PositionQuizDemo }) {
+function PositionQuizDemoView({
+  demo,
+  stepCaption,
+}: { demo: PositionQuizDemo; stepCaption?: string }) {
   const pieces = fenToBoardPieces(demo.fen);
   const [verdict, setVerdict] = useState<'idle' | 'good' | 'bad'>('idle');
   const [clickedSquare, setClickedSquare] = useState<string | null>(null);
@@ -347,32 +370,46 @@ function PositionQuizDemoView({ demo }: { demo: PositionQuizDemo }) {
   };
 
   return (
-    <>
-      <p className="lesson-quiz-prompt">{demo.question}</p>
-      <LessonBoard
-        pieces={pieces}
-        legalSquares={clickedSquare ? [clickedSquare] : []}
-        onSquareClick={handleClick}
-        clickAnySquare
-        coloredHighlights={
-          clickedSquare && verdict !== 'idle'
-            ? [{ square: clickedSquare, color: verdict === 'good' ? 'green' : 'red' }]
-            : undefined
-        }
-      />
-      {verdict === 'good' && (
-        <div className="lesson-feedback good">{demo.successMessage}</div>
-      )}
-      {verdict === 'bad' && (
-        <div className="lesson-feedback bad">{demo.failureMessage}</div>
-      )}
-    </>
+    <BoardLayout
+      left={
+        <>
+          <StepCaption text={stepCaption} />
+          <p className="lesson-quiz-prompt">{demo.question}</p>
+        </>
+      }
+      board={
+        <LessonBoard
+          pieces={pieces}
+          legalSquares={clickedSquare ? [clickedSquare] : []}
+          onSquareClick={handleClick}
+          clickAnySquare
+          coloredHighlights={
+            clickedSquare && verdict !== 'idle'
+              ? [{ square: clickedSquare, color: verdict === 'good' ? 'green' : 'red' }]
+              : undefined
+          }
+        />
+      }
+      right={
+        <>
+          {verdict === 'good' && (
+            <div className="lesson-feedback good">{demo.successMessage}</div>
+          )}
+          {verdict === 'bad' && (
+            <div className="lesson-feedback bad">{demo.failureMessage}</div>
+          )}
+        </>
+      }
+    />
   );
 }
 
 // ---- Demo: try-move (drag the correct move on a real Board) -----------
 
-function TryMoveDemoView({ demo }: { demo: TryMoveDemo }) {
+function TryMoveDemoView({
+  demo,
+  stepCaption,
+}: { demo: TryMoveDemo; stepCaption?: string }) {
   const ffishRef = useRef<Awaited<ReturnType<typeof loadFfish>> | null>(null);
   const boardRef = useRef<any | null>(null);
   const [state, setState] = useState<{
@@ -453,38 +490,52 @@ function TryMoveDemoView({ demo }: { demo: TryMoveDemo }) {
   const userSide = state.fen.split(' ')[1] === 'w' ? 'white' : 'black';
 
   return (
-    <>
-      <p className="lesson-quiz-prompt">{demo.prompt}</p>
-      <Board
-        fen={state.fen}
-        legalMoves={state.legalMoves}
-        flipped={userSide === 'black'}
-        disabled={state.locked}
-        turn={userSide}
-        isCheck={state.isCheck}
-        lastMove={state.lastMove}
-        hint={null}
-        onMove={handleMove}
-      />
-      {state.feedback === 'good' && (
-        <div className="lesson-feedback good">{demo.successMessage}</div>
-      )}
-      {state.feedback === 'bad' && (
-        <div className="lesson-feedback bad">{demo.failureMessage}</div>
-      )}
-      {demo.hint && (state.attempts >= 2 || state.showHint) && (
-        <div className="puzzle-hint-box">💡 ใบ้: {demo.hint}</div>
-      )}
-      <div className="lesson-quiz-stats label-aside">
-        พยายาม: {state.attempts}
-      </div>
-    </>
+    <BoardLayout
+      left={
+        <>
+          <StepCaption text={stepCaption} />
+          <p className="lesson-quiz-prompt">{demo.prompt}</p>
+          {demo.hint && (state.attempts >= 2 || state.showHint) && (
+            <div className="puzzle-hint-box">💡 ใบ้: {demo.hint}</div>
+          )}
+        </>
+      }
+      board={
+        <Board
+          fen={state.fen}
+          legalMoves={state.legalMoves}
+          flipped={userSide === 'black'}
+          disabled={state.locked}
+          turn={userSide}
+          isCheck={state.isCheck}
+          lastMove={state.lastMove}
+          hint={null}
+          onMove={handleMove}
+        />
+      }
+      right={
+        <>
+          {state.feedback === 'good' && (
+            <div className="lesson-feedback good">{demo.successMessage}</div>
+          )}
+          {state.feedback === 'bad' && (
+            <div className="lesson-feedback bad">{demo.failureMessage}</div>
+          )}
+          <div className="lesson-quiz-stats label-aside">
+            พยายาม: {state.attempts}
+          </div>
+        </>
+      }
+    />
   );
 }
 
 // ---- Demo: replay (canned move sequence with commentary) --------------
 
-function ReplayDemoView({ demo }: { demo: ReplayDemo }) {
+function ReplayDemoView({
+  demo,
+  stepCaption,
+}: { demo: ReplayDemo; stepCaption?: string }) {
   const ffishRef = useRef<Awaited<ReturnType<typeof loadFfish>> | null>(null);
   const positionsRef = useRef<string[]>([demo.fen]);
   const movesPlayedRef = useRef<string[]>([]);
@@ -539,47 +590,59 @@ function ReplayDemoView({ demo }: { demo: ReplayDemo }) {
   const lastTo = lastMove?.slice(2, 4);
 
   return (
-    <>
-      <div className="lesson-stats">
-        <span>
-          ตา {ply} / {positions.length - 1}
-        </span>
-        <span className="label-aside">
-          ผู้เดิน: {ply % 2 === 0 ? 'ขาว' : 'ดำ'}
-        </span>
-      </div>
-      <LessonBoard
-        pieces={pieces}
-        coloredHighlights={
-          lastFrom && lastTo
-            ? [
-                { square: lastFrom, color: 'yellow' },
-                { square: lastTo, color: 'yellow' },
-              ]
-            : undefined
-        }
-      />
-      {commentary && (
-        <div className="replay-commentary">{commentary.text}</div>
-      )}
-      <div className="replay-controls">
-        <button onClick={handlePrev} disabled={!canPrev}>
-          ← ก่อนหน้า
-        </button>
-        <button onClick={handleReset} className="secondary">
-          ↻ เริ่มใหม่
-        </button>
-        <button onClick={handleNext} disabled={!canNext}>
-          ตาถัดไป →
-        </button>
-      </div>
-    </>
+    <BoardLayout
+      left={
+        <>
+          <StepCaption text={stepCaption} />
+          <div className="lesson-stats">
+            <span>
+              ตา {ply} / {positions.length - 1}
+            </span>
+            <span className="label-aside">
+              ผู้เดิน: {ply % 2 === 0 ? 'ขาว' : 'ดำ'}
+            </span>
+          </div>
+          {commentary && (
+            <div className="replay-commentary">{commentary.text}</div>
+          )}
+        </>
+      }
+      board={
+        <LessonBoard
+          pieces={pieces}
+          coloredHighlights={
+            lastFrom && lastTo
+              ? [
+                  { square: lastFrom, color: 'yellow' },
+                  { square: lastTo, color: 'yellow' },
+                ]
+              : undefined
+          }
+        />
+      }
+      right={
+        <div className="replay-controls">
+          <button onClick={handlePrev} disabled={!canPrev}>
+            ← ก่อนหน้า
+          </button>
+          <button onClick={handleReset} className="secondary">
+            ↻ เริ่มใหม่
+          </button>
+          <button onClick={handleNext} disabled={!canNext}>
+            ตาถัดไป →
+          </button>
+        </div>
+      }
+    />
   );
 }
 
 // ---- Demo: counting-demo ----------------------------------------------
 
-function CountingDemoView({ demo }: { demo: CountingDemo }) {
+function CountingDemoView({
+  demo,
+  stepCaption,
+}: { demo: CountingDemo; stepCaption?: string }) {
   const pieces = fenToBoardPieces(demo.fen);
   const [count, setCount] = useState(1);
   const [running, setRunning] = useState(false);
@@ -603,41 +666,50 @@ function CountingDemoView({ demo }: { demo: CountingDemo }) {
   const finished = count >= demo.countLimit;
 
   return (
-    <>
-      <p className="lesson-caption">{demo.caption}</p>
-      <LessonBoard pieces={pieces} />
-      <div className="counting-panel">
-        <div className="counting-stat">
-          <span className="counting-stat-label">นับปัจจุบัน</span>
-          <span className="counting-stat-value">{count}</span>
-        </div>
-        <div className="counting-stat">
-          <span className="counting-stat-label">ขีดจำกัด</span>
-          <span className="counting-stat-value">{demo.countLimit}</span>
-        </div>
-        <div className="counting-stat">
-          <span className="counting-stat-label">เหลือ</span>
-          <span
-            className={`counting-stat-value ${remaining <= 5 ? 'low' : ''}`}
-          >
-            {remaining}
-          </span>
-        </div>
-      </div>
-      <div className="counting-status">
-        {finished
-          ? '⏱️ หมดเวลานับ — เกมเสมอ (ฝ่ายแข็งไล่ไม่ทัน)'
-          : `ฝ่าย ${demo.bareKingSide === 'white' ? 'ขาว' : 'ดำ'} เหลือแค่ขุน · กำลังนับ ...`}
-      </div>
-      <div className="replay-controls">
-        <button onClick={() => setRunning((r) => !r)} disabled={finished}>
-          {running ? '⏸ หยุด' : '▶ เริ่มนับ'}
-        </button>
-        <button onClick={reset} className="secondary">
-          ↻ รีเซ็ต
-        </button>
-      </div>
-    </>
+    <BoardLayout
+      left={
+        <>
+          <StepCaption text={stepCaption} />
+          <p className="lesson-caption">{demo.caption}</p>
+          <div className="counting-status">
+            {finished
+              ? '⏱️ หมดเวลานับ — เกมเสมอ (ฝ่ายแข็งไล่ไม่ทัน)'
+              : `ฝ่าย ${demo.bareKingSide === 'white' ? 'ขาว' : 'ดำ'} เหลือแค่ขุน · กำลังนับ ...`}
+          </div>
+        </>
+      }
+      board={<LessonBoard pieces={pieces} />}
+      right={
+        <>
+          <div className="counting-panel">
+            <div className="counting-stat">
+              <span className="counting-stat-label">นับปัจจุบัน</span>
+              <span className="counting-stat-value">{count}</span>
+            </div>
+            <div className="counting-stat">
+              <span className="counting-stat-label">ขีดจำกัด</span>
+              <span className="counting-stat-value">{demo.countLimit}</span>
+            </div>
+            <div className="counting-stat">
+              <span className="counting-stat-label">เหลือ</span>
+              <span
+                className={`counting-stat-value ${remaining <= 5 ? 'low' : ''}`}
+              >
+                {remaining}
+              </span>
+            </div>
+          </div>
+          <div className="replay-controls">
+            <button onClick={() => setRunning((r) => !r)} disabled={finished}>
+              {running ? '⏸ หยุด' : '▶ เริ่มนับ'}
+            </button>
+            <button onClick={reset} className="secondary">
+              ↻ รีเซ็ต
+            </button>
+          </div>
+        </>
+      }
+    />
   );
 }
 

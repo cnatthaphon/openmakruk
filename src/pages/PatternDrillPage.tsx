@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { loadPuzzles } from '../lib/content';
 import type { Puzzle } from '../lib/puzzleSchema';
 import { MAKRUK_START_FEN } from '../lib/makruk';
@@ -156,65 +157,71 @@ export function PatternDrillPage() {
 
   return (
     <main className="pattern-page pattern-active">
-      <header className="pattern-hud">
-        <span>รอบ {round + 1} / {PATTERN_DRILL_ROUNDS}</span>
-        <span>✅ {score}</span>
-      </header>
-
-      <div className="pattern-board">
-        <Board
-          fen={phase === 'flash' ? question.fen : MAKRUK_START_FEN}
-          legalMoves={[]}
-          flipped={false}
-          disabled
-          turn="white"
-          isCheck={false}
-          lastMove={null}
-          hint={null}
-          onMove={() => undefined}
-        />
-        {phase !== 'flash' && (
-          <div className="pattern-board-overlay" aria-hidden="true">
-            <div className="pattern-board-overlay-text">🎯 จำตำแหน่งได้ไหม</div>
+      <BoardLayout
+        left={
+          <header className="pattern-hud">
+            <span>รอบ {round + 1} / {PATTERN_DRILL_ROUNDS}</span>
+            <span>✅ {score}</span>
+          </header>
+        }
+        board={
+          <div className="pattern-board">
+            <Board
+              fen={phase === 'flash' ? question.fen : MAKRUK_START_FEN}
+              legalMoves={[]}
+              flipped={false}
+              disabled
+              turn="white"
+              isCheck={false}
+              lastMove={null}
+              hint={null}
+              onMove={() => undefined}
+            />
+            {phase !== 'flash' && (
+              <div className="pattern-board-overlay" aria-hidden="true">
+                <div className="pattern-board-overlay-text">🎯 จำตำแหน่งได้ไหม</div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      {phase === 'quiz' && (
-        <section className="pattern-quiz">
-          <div className="pattern-prompt">{question.prompt}</div>
-          <div className="pattern-choices">
-            {question.choices.map((c) => {
-              const isPicked = picked === c;
-              const isCorrect = c === question.answer;
-              const cls = picked === null
-                ? ''
-                : isCorrect
-                  ? 'is-correct'
-                  : isPicked
-                    ? 'is-wrong'
-                    : '';
-              return (
-                <button
-                  key={c}
-                  className={`pattern-choice ${cls}`}
-                  disabled={picked !== null}
-                  onClick={() => pick(c)}
-                >
-                  {c}
-                </button>
-              );
-            })}
-          </div>
-          {picked !== null && (
-            <div className="pattern-next">
-              <button onClick={nextRound} className="pattern-start">
-                {round + 1 >= PATTERN_DRILL_ROUNDS ? 'ดูคะแนน →' : 'รอบถัดไป →'}
-              </button>
-            </div>
-          )}
-        </section>
-      )}
+        }
+        right={
+          phase === 'quiz' ? (
+            <section className="pattern-quiz">
+              <div className="pattern-prompt">{question.prompt}</div>
+              <div className="pattern-choices">
+                {question.choices.map((c) => {
+                  const isPicked = picked === c;
+                  const isCorrect = c === question.answer;
+                  const cls = picked === null
+                    ? ''
+                    : isCorrect
+                      ? 'is-correct'
+                      : isPicked
+                        ? 'is-wrong'
+                        : '';
+                  return (
+                    <button
+                      key={c}
+                      className={`pattern-choice ${cls}`}
+                      disabled={picked !== null}
+                      onClick={() => pick(c)}
+                    >
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+              {picked !== null && (
+                <div className="pattern-next">
+                  <button onClick={nextRound} className="pattern-start">
+                    {round + 1 >= PATTERN_DRILL_ROUNDS ? 'ดูคะแนน →' : 'รอบถัดไป →'}
+                  </button>
+                </div>
+              )}
+            </section>
+          ) : null
+        }
+      />
     </main>
   );
 }
