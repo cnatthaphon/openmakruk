@@ -8,6 +8,7 @@
 // the value is being saved but not yet visible.
 
 import { useEffect, useState } from 'react';
+import { Page } from '../components/Page';
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -83,7 +84,7 @@ export function SettingsPage({ onSettingsChange }: Props) {
   };
 
   return (
-    <div className="settings-page">
+    <Page variant="narrow" className="settings-page">
       <header className="settings-header">
         <h2>⚙️ ตั้งค่า</h2>
         <p>การเปลี่ยนแปลงเก็บใน browser ของคุณ · ไม่ส่งไป server</p>
@@ -306,7 +307,7 @@ export function SettingsPage({ onSettingsChange }: Props) {
         </button>
       </section>
       )}
-    </div>
+    </Page>
   );
 }
 

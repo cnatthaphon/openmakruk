@@ -5,6 +5,7 @@
 // debugging (Phase 9H-3).
 
 import { useEffect, useState } from 'react';
+import { Page } from '../components/Page';
 import { getBackend } from '../lib/backend';
 import type { CertView } from '../lib/backend';
 import { findProvince } from '../lib/provinces';
@@ -38,35 +39,35 @@ export function CertPage({ slug }: Props) {
 
   if (!slug) {
     return (
-      <div className="cert-page">
+      <Page variant="narrow" className="cert-page">
         <div className="cert-card">
           <p>ไม่มี slug · ใช้รูปแบบ <code>/#/cert/&lt;slug&gt;</code></p>
         </div>
-      </div>
+      </Page>
     );
   }
   if (err) {
     return (
-      <div className="cert-page">
+      <Page variant="narrow" className="cert-page">
         <div className="cert-card">
           <p>{err}</p>
         </div>
-      </div>
+      </Page>
     );
   }
   if (!data) {
     return (
-      <div className="cert-page">
+      <Page variant="narrow" className="cert-page">
         <div className="cert-card">
           <p>กำลังโหลด…</p>
         </div>
-      </div>
+      </Page>
     );
   }
 
   const province = findProvince(data.province);
   return (
-    <div className="cert-page">
+    <Page variant="narrow" className="cert-page">
       <div className="cert-card">
         <div className="cert-icon-big" aria-hidden="true">{data.badge.icon}</div>
         <h2 className="cert-badge-name">{data.badge.nameTh}</h2>
@@ -88,6 +89,6 @@ export function CertPage({ slug }: Props) {
         </div>
         <a href="/#/play" className="cert-cta">▶ ลองเล่นเอง</a>
       </div>
-    </div>
+    </Page>
   );
 }

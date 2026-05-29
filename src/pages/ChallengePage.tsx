@@ -21,6 +21,7 @@
 // the existing scoring path already records the game against the bot.
 
 import { useEffect, useState } from 'react';
+import { Page } from '../components/Page';
 import { getBackend } from '../lib/backend';
 import { navigate } from '../lib/router';
 import { setChallengeTarget } from '../lib/challenge';
@@ -104,14 +105,14 @@ function CreateView() {
 
   if (!supports) {
     return (
-      <main className="challenge-page">
+      <Page variant="medium" className="challenge-page">
         <p className="label-aside">หน้านี้ต้องการ backend ที่ออนไลน์</p>
-      </main>
+      </Page>
     );
   }
 
   return (
-    <main className="challenge-page">
+    <Page variant="medium" className="challenge-page">
       <button
         className="bot-detail-back"
         onClick={() => navigate({ tab: 'profile' })}
@@ -222,7 +223,7 @@ function CreateView() {
           </ul>
         </section>
       )}
-    </main>
+    </Page>
   );
 
   function acceptInline() {
@@ -259,31 +260,31 @@ function AcceptView({ code }: { code: string }) {
 
   if (!payload) {
     return (
-      <main className="challenge-page">
+      <Page variant="medium" className="challenge-page">
         <p className="bot-detail-error">⚠ ลิงก์ challenge ไม่ถูกต้องหรือชำรุด</p>
         <button className="bot-detail-back" onClick={() => navigate({ tab: 'challenge' })}>
           ← สร้าง challenge ใหม่
         </button>
-      </main>
+      </Page>
     );
   }
 
   if (err) {
     return (
-      <main className="challenge-page">
+      <Page variant="medium" className="challenge-page">
         <p className="bot-detail-error">⚠ {err}</p>
         <button className="bot-detail-back" onClick={() => navigate({ tab: 'challenge' })}>
           ← กลับ
         </button>
-      </main>
+      </Page>
     );
   }
 
   if (!bot) {
     return (
-      <main className="challenge-page">
+      <Page variant="medium" className="challenge-page">
         <SkeletonScreen message="กำลังโหลด challenge…" />
-      </main>
+      </Page>
     );
   }
 
@@ -304,7 +305,7 @@ function AcceptView({ code }: { code: string }) {
   };
 
   return (
-    <main className="challenge-page">
+    <Page variant="medium" className="challenge-page">
       <button
         className="bot-detail-back"
         onClick={() => navigate({ tab: 'challenge' })}
@@ -387,6 +388,6 @@ function AcceptView({ code }: { code: string }) {
           เมื่อเล่นจบ ผลจะถูกบันทึกในประวัติ challenge · ส่งกลับให้ {payload.by} ได้ผ่าน LINE / Twitter
         </p>
       </article>
-    </main>
+    </Page>
   );
 }

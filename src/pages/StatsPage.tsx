@@ -23,6 +23,7 @@
 // without forcing them into a single confused metric.
 
 import { useEffect, useState } from 'react';
+import { Page } from '../components/Page';
 import { getBackend } from '../lib/backend';
 import type { PopulationStats } from '../lib/backend/types';
 import { navigate } from '../lib/router';
@@ -52,33 +53,33 @@ export function StatsPage() {
 
   if (!supports) {
     return (
-      <main className="stats-page">
+      <Page variant="medium" className="stats-page">
         <p className="label-aside">หน้านี้ต้องการ backend ที่ออนไลน์</p>
-      </main>
+      </Page>
     );
   }
 
   if (err) {
     return (
-      <main className="stats-page">
+      <Page variant="medium" className="stats-page">
         <p className="bot-detail-error">⚠ {err}</p>
         <button className="bot-detail-back" onClick={() => navigate({ tab: 'profile' })}>
           ← กลับโปรไฟล์
         </button>
-      </main>
+      </Page>
     );
   }
 
   if (!data) {
     return (
-      <main className="stats-page">
+      <Page variant="medium" className="stats-page">
         <SkeletonScreen message="กำลังโหลดสถิติ…" />
-      </main>
+      </Page>
     );
   }
 
   return (
-    <main className="stats-page">
+    <Page variant="medium" className="stats-page">
       <button
         className="bot-detail-back"
         onClick={() => navigate({ tab: 'profile' })}
@@ -275,6 +276,6 @@ export function StatsPage() {
           ⚔️ สร้าง Challenge
         </button>
       </section>
-    </main>
+    </Page>
   );
 }

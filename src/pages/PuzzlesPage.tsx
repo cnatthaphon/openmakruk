@@ -9,6 +9,7 @@
 // puzzle keeps the user in the same category context.
 
 import { useEffect, useMemo, useState } from 'react';
+import { Page } from '../components/Page';
 import { loadPuzzles } from '../lib/content';
 import { deleteUserPuzzle, loadUserPuzzles } from '../lib/userPuzzles';
 import { getBackend } from '../lib/backend';
@@ -220,7 +221,7 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
   }
 
   return (
-    <div className="puzzles-page">
+    <Page variant="wide" className="puzzles-page">
       <header className="puzzles-header">
         <h2>🧩 ปริศนา</h2>
         <p>
@@ -396,7 +397,7 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
           ไม่ต้อง rebuild app
         </p>
       </footer>
-    </div>
+    </Page>
   );
 }
 

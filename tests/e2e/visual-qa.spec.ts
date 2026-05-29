@@ -28,7 +28,7 @@ const ROUTES_TO_AUDIT: ReadonlyArray<{ hash: string; selector: string; allowEmpt
   { hash: 'challenge', selector: '.challenge-page, .challenge-hero' },
   { hash: 'counting', selector: 'main' },
   { hash: 'rush', selector: 'main' },
-  { hash: 'bossrush', selector: 'main' },
+  { hash: 'bossrush', selector: '.rush-mode-page, main' },
   { hash: 'movetrainer', selector: 'main' },
   { hash: 'pattern', selector: 'main' },
   { hash: 'survive', selector: 'main' },

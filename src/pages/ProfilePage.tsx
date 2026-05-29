@@ -3,6 +3,7 @@
 // scaffolding, export/import buttons. No graph yet (Phase 1.x adds D3).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Page } from '../components/Page';
 import {
   CPU_RATINGS,
   exportStatsJSON,
@@ -142,7 +143,7 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
   };
 
   return (
-    <div className="profile-page">
+    <Page variant="medium" className="profile-page">
       <button
         className="profile-back-button"
         onClick={() => navigate({ tab: 'play' })}
@@ -358,7 +359,7 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
           </p>
         </section>
       )}
-    </div>
+    </Page>
   );
 }
 

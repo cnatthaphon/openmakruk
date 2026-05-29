@@ -5,6 +5,7 @@
 // completes.
 
 import { useEffect, useState } from 'react';
+import { Page } from '../components/Page';
 import { navigate } from '../lib/router';
 import {
   TIER_LABELS,
@@ -62,7 +63,7 @@ export function BossRushPage() {
   };
 
   return (
-    <main className="rush-mode-page">
+    <Page variant="medium" className="rush-mode-page">
       <button className="rush-mode-back" onClick={() => navigate({ tab: 'profile' })}>
         ← กลับโปรไฟล์
       </button>
@@ -90,7 +91,7 @@ export function BossRushPage() {
           <TierCard key={tier} tier={tier} onStart={startTier} />
         ))}
       </div>
-    </main>
+    </Page>
   );
 }
 

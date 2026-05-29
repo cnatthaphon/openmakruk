@@ -6,6 +6,8 @@
 // Fulmene + Yevrowl + NNUE assets, and good open-source practice for
 // the GPL engine/board libraries we depend on at runtime.
 
+import { Page } from '../components/Page';
+
 const REPO_URL = 'https://github.com/cnatthaphon/openmakruk';
 
 type Credit = {
@@ -111,7 +113,7 @@ const TOOLING: Credit[] = [
 
 export function AboutPage() {
   return (
-    <div className="about-page">
+    <Page variant="narrow" className="about-page">
       <header className="about-header">
         <h2>ℹ️ เกี่ยวกับ OpenMakruk</h2>
         <p className="about-tag">
@@ -457,7 +459,7 @@ export function AboutPage() {
           เชิงพาณิชย์.
         </p>
       </section>
-    </div>
+    </Page>
   );
 }
 

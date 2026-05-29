@@ -11,6 +11,7 @@
 // position came from so the user can mentally filter.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Page } from '../components/Page';
 import { fenToPieceMap } from '../lib/makruk';
 import { letterToPiece, ROLE_TH } from '../lib/chessAttacks';
 import { loadLibrary, removePosition, type SavedPosition } from '../lib/library';
@@ -74,7 +75,7 @@ export function LibraryPage({ onLoad, initialPositionId }: Props) {
   };
 
   return (
-    <div className="library-page">
+    <Page variant="medium" className="library-page">
       <header className="library-header">
         <h2>📚 คลังตำแหน่ง</h2>
         <p>
@@ -118,7 +119,7 @@ export function LibraryPage({ onLoad, initialPositionId }: Props) {
           />
         ))}
       </div>
-    </div>
+    </Page>
   );
 }
 

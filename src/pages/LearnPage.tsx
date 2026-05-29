@@ -14,6 +14,7 @@
 // list every time.
 
 import { useEffect, useMemo, useState } from 'react';
+import { Page } from '../components/Page';
 import { loadLessons } from '../lib/content';
 import {
   isLessonCompleted,
@@ -163,17 +164,17 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
   // ---- list view ----
   if (loadError) {
     return (
-      <div className="learn-page">
+      <Page variant="medium" className="learn-page">
         <p className="puzzles-error">⚠ โหลด content ไม่สำเร็จ: {loadError}</p>
-      </div>
+      </Page>
     );
   }
 
   if (!lessons || !groupedLessons) {
     return (
-      <div className="learn-page">
+      <Page variant="medium" className="learn-page">
         <SkeletonGrid count={6} withThumb={false} />
-      </div>
+      </Page>
     );
   }
 
@@ -194,7 +195,7 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
     : false;
 
   return (
-    <div className="learn-page">
+    <Page variant="medium" className="learn-page">
       <header className="learn-header">
         <h2>🎓 บทเรียนหมากรุกไทย</h2>
         <p>เส้นทางจากเริ่มต้นจนเล่นเป็น · ทำตามลำดับ · ครบหมดแล้วพร้อมเข้าโหมดจัดอันดับ</p>
@@ -311,6 +312,6 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
           </section>
         );
       })}
-    </div>
+    </Page>
   );
 }

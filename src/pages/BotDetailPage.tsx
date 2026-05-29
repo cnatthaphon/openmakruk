@@ -20,6 +20,7 @@
 //     from the static PERSONALITY_NARRATIVES catalog
 
 import { useEffect, useState } from 'react';
+import { Page } from '../components/Page';
 import { getBackend } from '../lib/backend';
 import type { BotCharacter } from '../lib/backend/types';
 import { findPersonality } from '../lib/personalities/personalities';
@@ -66,39 +67,39 @@ export function BotDetailPage({ botId }: Props) {
 
   if (!botId) {
     return (
-      <main className="bot-detail-page">
+      <Page variant="medium" className="bot-detail-page">
         <p className="label-aside">ไม่มี bot id ใน URL · กรุณาเลือกจาก Bot Hall of Fame</p>
         <button className="bot-detail-back" onClick={() => navigate({ tab: 'profile' })}>
           ← กลับ Hall of Fame
         </button>
-      </main>
+      </Page>
     );
   }
 
   if (!supports) {
     return (
-      <main className="bot-detail-page">
+      <Page variant="medium" className="bot-detail-page">
         <p className="label-aside">หน้า bot detail ต้องการ backend ที่ออนไลน์ · ลองรีเฟรชอีกครั้ง</p>
-      </main>
+      </Page>
     );
   }
 
   if (err) {
     return (
-      <main className="bot-detail-page">
+      <Page variant="medium" className="bot-detail-page">
         <p className="bot-detail-error">⚠ {err}</p>
         <button className="bot-detail-back" onClick={() => navigate({ tab: 'profile' })}>
           ← กลับ Hall of Fame
         </button>
-      </main>
+      </Page>
     );
   }
 
   if (!bot) {
     return (
-      <main className="bot-detail-page">
+      <Page variant="medium" className="bot-detail-page">
         <SkeletonScreen message="กำลังโหลด bot…" />
-      </main>
+      </Page>
     );
   }
 
@@ -111,7 +112,7 @@ export function BotDetailPage({ botId }: Props) {
     totalDecisive > 0 ? Math.round((bot.losses / totalDecisive) * 100) : null;
 
   return (
-    <main className="bot-detail-page">
+    <Page variant="medium" className="bot-detail-page">
       <button
         className="bot-detail-back"
         onClick={() => navigate({ tab: 'profile' })}
@@ -262,6 +263,6 @@ export function BotDetailPage({ botId }: Props) {
           📤 แชร์
         </button>
       </section>
-    </main>
+    </Page>
   );
 }

@@ -29,6 +29,35 @@
   font-family: 'Sarabun', system-ui, -apple-system, 'Segoe UI', Roboto,
     'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
   color-scheme: dark;
+
+  /* ────── Page container widths (Phase 37 design tokens) ───────────
+   * Before Phase 37 every page baked its own max-width and we ended
+   * up with 20+ distinct values (720, 880, 920, 960, 1080, 1280, ...).
+   * Navigating between tabs shifted the centered content left/right
+   * on every click — the dominant 'looks unfinished' signal users
+   * reported. These tokens collapse the choice to three: narrow for
+   * reading-style pages (Settings/About/Cert), medium for dashboards
+   * (Profile/Library/Stats/etc.), wide for board pages (Play/Puzzles
+   * /Lessons/drills). Everything else flows from `<Page variant=…>`
+   * — see src/components/Page.tsx. */
+  --container-narrow: 720px;
+  --container-medium: 960px;
+  --container-wide: 1280px;
+
+  /* Spacing scale — 4px base. Bake-in here so per-component padding
+   * stops cargo-culting different magic numbers. Add to as needed
+   * but don't introduce non-4px-multiples without a strong reason. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Page chrome — horizontal padding shrinks on narrow viewports so
+   * content doesn't kiss the edge on mobile. Vertical is constant. */
+  --page-padding-x: clamp(16px, 4vw, 32px);
+  --page-padding-y: 24px;
 }
 
 * {
@@ -205,6 +234,22 @@ main:has(.board-layout) {
 }
 
 /* ──────────────────────────────────────────────────────────────────
+ * Shared <Page> wrapper — non-board peer of <BoardLayout>.
+ * One source of truth for page width + padding across the entire
+ * site. Variant maps to a single :root container token, so a tab
+ * switch never shifts the centered axis. See src/components/Page.tsx.
+ * ────────────────────────────────────────────────────────────── */
+.page {
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--page-padding-y) var(--page-padding-x);
+  box-sizing: border-box;
+}
+.page--narrow { max-width: var(--container-narrow); }
+.page--medium { max-width: var(--container-medium); }
+.page--wide   { max-width: var(--container-wide); }
+
+/* ──────────────────────────────────────────────────────────────────
  * Shared <BoardLayout> shell — every page that owns a board uses
  * this so the visual rhythm is identical across Play, lessons,
  * puzzles, counting, etc. Three columns on desktop, stacks on
@@ -289,23 +334,10 @@ main:has(.board-layout) {
   }
 }
 
-/* Pages that mount a <BoardLayout> at the top level should let the
- * layout's own max-width (1280) govern, not their legacy per-page
- * cap (1080 / 1000 / 820). Without this override, the parent
- * page-class clamps the BoardLayout narrower than needed, the side
- * panels eat into the center column and the board ends up at
- * ~380px on a 1500px viewport with empty bands either side.
- * User feedback: "พื้นที่ด้านข้างเหลือเยอะ". */
-.drill-page:has(.board-layout),
-.survive-page:has(.board-layout),
-.trainer-page:has(.board-layout),
-.pattern-page:has(.board-layout),
-.rush-page:has(.board-layout),
-.puzzle-view:has(.board-layout),
-.custom-page:has(.board-layout),
-.lesson-view:has(.board-layout) {
-  max-width: 1280px;
-}
+/* Phase 37 superseded the per-class :has(.board-layout) max-width
+ * override — all board pages now uniformly use var(--container-wide)
+ * via the canonical rules below (one max-width value per page,
+ * driven from :root tokens). */
 .board-layout-below {
   width: 100%;
   display: flex;
@@ -1451,9 +1483,7 @@ main:has(.board-layout) {
 /* ---- Learn page ---- */
 
 .learn-page, .puzzles-page, .profile-page {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 16px;
+  /* Phase 37 — width / margin / padding now come from <Page>. */
   width: 100%;
   box-sizing: border-box;
 }
@@ -1880,9 +1910,9 @@ main:has(.board-layout) {
 /* ---- Custom (Position editor) page ---- */
 
 .custom-page {
-  max-width: 1000px;
+  max-width: var(--container-wide);
   margin: 0 auto;
-  padding: 16px;
+  padding: var(--page-padding-y) var(--page-padding-x);
   width: 100%;
   box-sizing: border-box;
 }
@@ -2164,9 +2194,7 @@ main:has(.board-layout) {
 /* ---- About page ---- */
 
 .about-page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 16px;
+  /* Phase 37 — width / margin / padding now come from <Page>. */
   width: 100%;
   box-sizing: border-box;
   line-height: 1.6;
@@ -2336,9 +2364,9 @@ main:has(.board-layout) {
 /* ---- Lesson detail view ---- */
 
 .lesson-view {
-  max-width: 760px;
+  max-width: var(--container-wide);
   margin: 0 auto;
-  padding: 16px;
+  padding: var(--page-padding-y) var(--page-padding-x);
   width: 100%;
   box-sizing: border-box;
 }
@@ -2841,9 +2869,9 @@ footer a:hover {
 /* Puzzle player */
 
 .puzzle-view {
-  max-width: 1100px;
+  max-width: var(--container-wide);
   margin: 0 auto;
-  padding: 12px 16px;
+  padding: var(--page-padding-y) var(--page-padding-x);
   width: 100%;
   box-sizing: border-box;
   display: flex;
@@ -3523,9 +3551,7 @@ footer a:hover {
 /* ============ Library page ============ */
 
 .library-page {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 16px;
+  /* Phase 37 — width / margin / padding now come from <Page>. */
   width: 100%;
   box-sizing: border-box;
 }
@@ -4391,9 +4417,7 @@ footer a:hover {
 /* ============ Settings page ============ */
 
 .settings-page {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 16px;
+  /* Phase 37 — width / margin / padding now come from <Page>. */
   width: 100%;
   box-sizing: border-box;
   line-height: 1.6;
@@ -5526,8 +5550,10 @@ footer a:hover {
 
 /* Cert page (public share) ---------------------------------------- */
 .cert-page {
+  /* Phase 37 — width / padding handled by <Page>. Keep the
+   * vertical-centering behavior because cert is a "single hero
+   * card" layout that benefits from being centered on screen. */
   display: flex; align-items: center; justify-content: center;
-  padding: 2rem 1rem;
   min-height: calc(100vh - 200px);
 }
 .cert-card {
@@ -6144,8 +6170,10 @@ footer a:hover {
 
 /* Study page (Openings + Endgames + Themes) ----------------------- */
 .study-page {
-  padding: 1rem 1.25rem;
-  max-width: 960px;
+  /* Phase 37 — Page wrapper isn't used here yet (boards still
+   * embedded), so keep manual width but bound to token. */
+  padding: var(--page-padding-y) var(--page-padding-x);
+  max-width: var(--container-wide);
   margin: 0 auto;
   height: 100%;
   overflow-y: auto;
@@ -6403,9 +6431,7 @@ footer a:hover {
 
 /* ─── Bot Detail Page ─────────────────────────────────────────── */
 .bot-detail-page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 24px 20px 60px;
+  /* Phase 37 — width / margin / padding now come from <Page>. */
 }
 .bot-detail-back {
   background: transparent;
@@ -6820,9 +6846,9 @@ footer a:hover {
 
 /* ─── Counting Trainer drill ─────────────────────────────────── */
 .drill-page {
-  max-width: 1080px;
+  max-width: var(--container-wide);
   margin: 0 auto;
-  padding: 24px 16px 60px;
+  padding: var(--page-padding-y) var(--page-padding-x);
 }
 .drill-back {
   background: transparent;
@@ -7052,9 +7078,9 @@ footer a:hover {
 }
 
 .rush-page {
-  max-width: 720px;
+  max-width: var(--container-wide);
   margin: 0 auto;
-  padding: 24px 16px 60px;
+  padding: var(--page-padding-y) var(--page-padding-x);
 }
 .rush-back {
   background: transparent;
@@ -7463,7 +7489,7 @@ footer a:hover {
 .custom-puzzle-suggest:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ─── Survive the attack ────────────────────────────────────── */
-.survive-page { max-width: 820px; margin: 0 auto; padding: 24px 16px 60px; }
+.survive-page { max-width: var(--container-wide); margin: 0 auto; padding: var(--page-padding-y) var(--page-padding-x); }
 .survive-back {
   background: transparent; border: 1px solid rgba(255,255,255,0.15);
   color: var(--fg); padding: 6px 14px; border-radius: 6px;
@@ -7533,9 +7559,9 @@ footer a:hover {
 
 /* ─── Pattern Recognition drill ──────────────────────────────── */
 .pattern-page {
-  max-width: 700px;
+  max-width: var(--container-wide);
   margin: 0 auto;
-  padding: 24px 16px 60px;
+  padding: var(--page-padding-y) var(--page-padding-x);
 }
 .pattern-back {
   background: transparent; border: 1px solid rgba(255,255,255,0.15);
@@ -7832,7 +7858,7 @@ footer a:hover {
 }
 
 /* ─── Boss Rush ──────────────────────────────────────────────── */
-.rush-mode-page { max-width: 880px; margin: 0 auto; padding: 24px 16px 60px; }
+.rush-mode-page { /* Phase 37 — width / margin / padding from <Page>. */ }
 .rush-mode-back {
   background: transparent; border: 1px solid rgba(255,255,255,0.15);
   color: var(--fg); padding: 6px 14px; border-radius: 6px;
@@ -7895,7 +7921,7 @@ footer a:hover {
 }
 
 /* ─── Move Trainer ───────────────────────────────────────────── */
-.trainer-page { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+.trainer-page { max-width: var(--container-wide); margin: 0 auto; padding: var(--page-padding-y) var(--page-padding-x); }
 .trainer-back {
   background: transparent; border: 1px solid rgba(255,255,255,0.15);
   color: var(--fg); padding: 6px 14px; border-radius: 6px;
@@ -7992,7 +8018,7 @@ footer a:hover {
 /* ─── Stats page · /#/stats ──────────────────────────────────────── */
 
 .stats-page {
-  max-width: 880px; margin: 0 auto; padding: 16px 14px 60px;
+  /* Phase 37 — width / margin / padding from <Page>. */
   display: flex; flex-direction: column; gap: 18px;
 }
 .stats-hero { text-align: center; padding: 8px 0 0; }
@@ -8108,7 +8134,7 @@ footer a:hover {
 /* ─── Challenge page · /#/challenge ──────────────────────────────── */
 
 .challenge-page {
-  max-width: 720px; margin: 0 auto; padding: 16px 14px 60px;
+  /* Phase 37 — width / margin / padding from <Page>. */
   display: flex; flex-direction: column; gap: 18px;
 }
 .challenge-hero { text-align: center; padding: 4px 0 0; }
