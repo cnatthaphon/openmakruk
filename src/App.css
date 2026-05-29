@@ -6550,6 +6550,18 @@ footer a:hover {
   background: rgba(232,90,74,0.15);
   border-color: rgba(232,90,74,0.5);
 }
+/* Exhibition chip — surfaces the (hidden-from-nav) /#/exhibition feed
+ * via the latest bot-vs-bot game. Cool blue tint distinguishes it from
+ * the warm-amber action chips (puzzle / lesson) since it's a "watch"
+ * action, not a "do" action. */
+.today-chip-exhibition {
+  background: rgba(96,150,220,0.08);
+  border-color: rgba(96,150,220,0.3);
+}
+.today-chip-exhibition:hover {
+  background: rgba(96,150,220,0.16);
+  border-color: rgba(96,150,220,0.5);
+}
 .today-chip-icon {
   font-size: 1.3rem;
   flex-shrink: 0;

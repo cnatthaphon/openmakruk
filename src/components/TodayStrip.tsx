@@ -19,7 +19,11 @@ import { loadLessons, loadPuzzles } from '../lib/content';
 import { dailyDifficultyBand, isDailySolvedToday, pickDailyPuzzle } from '../lib/dailyPuzzle';
 import { loadLessonProgress } from '../lib/learnProgress';
 import { getBackend } from '../lib/backend';
-import type { BotCharacter, TournamentInfo } from '../lib/backend/types';
+import type {
+  BotCharacter,
+  ExhibitionSummary,
+  TournamentInfo,
+} from '../lib/backend/types';
 import { navigate } from '../lib/router';
 import { loadStats } from '../lib/stats';
 
@@ -50,6 +54,7 @@ export function TodayStrip() {
   const [nextLesson, setNextLesson] = useState<LessonChip | null>(null);
   const [tournament, setTournament] = useState<TournamentInfo | null>(null);
   const [rival, setRival] = useState<RivalChip | null>(null);
+  const [latestExhibition, setLatestExhibition] = useState<ExhibitionSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,12 +160,27 @@ export function TodayStrip() {
       }
     }
 
+    // Latest bot-vs-bot exhibition game — surfaces /#/exhibition (a
+    // hidden route) via "what's been happening" framing. Players who
+    // never browse the menu still see that bots played 22h ago and
+    // can tap to watch the replay.
+    if (backend.fetchExhibitionRecent) {
+      backend
+        .fetchExhibitionRecent()
+        .then((games) => {
+          if (cancelled) return;
+          const first = games[0];
+          if (first) setLatestExhibition(first);
+        })
+        .catch(() => undefined);
+    }
+
     return () => {
       cancelled = true;
     };
   }, []);
 
-  if (!daily && !nextLesson && !tournament && !rival) return null;
+  if (!daily && !nextLesson && !tournament && !rival && !latestExhibition) return null;
 
   return (
     <div className="today-strip" aria-label="วันนี้">
@@ -245,9 +265,55 @@ export function TodayStrip() {
             </span>
           </button>
         )}
+
+        {latestExhibition && (() => {
+          const x = latestExhibition;
+          const wAv = x.whiteAvatar ?? '⚪';
+          const bAv = x.blackAvatar ?? '⚫';
+          const wName = x.whiteName ?? 'ขาว';
+          const bName = x.blackName ?? 'ดำ';
+          return (
+            <button
+              className="today-chip today-chip-exhibition"
+              onClick={() => navigate({ tab: 'exhibition', id: x.id })}
+              title={`บอตเล่นกัน — ${wName} vs ${bName} · ${outcomeLabel(x.outcome)} · ${timeAgo(x.createdAt)}`}
+            >
+              <span className="today-chip-icon" aria-hidden="true">🎬</span>
+              <span className="today-chip-body">
+                <span className="today-chip-title">
+                  {wAv} {wName} vs {bAv} {bName}
+                </span>
+                <span className="today-chip-meta">
+                  {outcomeLabel(x.outcome)} · {timeAgo(x.createdAt)} · {x.plyCount} ตา
+                </span>
+              </span>
+            </button>
+          );
+        })()}
       </div>
     </div>
   );
+}
+
+function outcomeLabel(outcome: string): string {
+  switch (outcome) {
+    case 'white-wins': return '⚪ ขาวชนะ';
+    case 'black-wins': return '⚫ ดำชนะ';
+    case 'draw': return '🤝 เสมอ';
+    case 'truncated': return '⏱ ตัดเกม';
+    default: return outcome;
+  }
+}
+
+function timeAgo(ts: number): string {
+  const ms = Date.now() - ts;
+  const hours = Math.floor(ms / (60 * 60 * 1000));
+  if (hours < 1) return 'เมื่อสักครู่';
+  if (hours < 24) return `${hours} ชม.`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} วัน`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks} สัปดาห์`;
 }
 
 function countdownText(ts: number | null): string {
