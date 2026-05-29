@@ -176,6 +176,18 @@ main {
     height: var(--cg-edge) !important;
     aspect-ratio: 1 / 1;
   }
+
+  /* When the Did-you-know card is visible (lobby state, fresh visit),
+   * the pre-main strip is ~90px taller. Bump the chrome reserve so
+   * the board still fits in viewport. This only kicks in on Play tab
+   * with the card present — once the user starts a game or dismisses
+   * the card the rule no longer applies and the board returns to the
+   * full size. Trade is intentional: first-visit board is slightly
+   * smaller in exchange for surfacing 8 hidden features without
+   * overflowing the viewport. */
+  .app:has(.dyk-card) .cg-wrap {
+    --cg-edge: min(calc(100vh - 360px), 640px);
+  }
 }
 
 /* Mobile / narrow: original wrap-and-scroll behaviour. The play
@@ -6571,6 +6583,107 @@ footer a:hover {
   }
   .today-strip-items {
     flex-direction: column;
+  }
+}
+
+/* 💡 Did-you-know card — sits below TodayStrip on Play tab. Surfaces
+ * one of the 8 "hidden" routes (Counting, Survive, Pattern, Move
+ * Trainer, Boss Rush, Challenge, Exhibition, Stats) at a time so a
+ * new visitor can discover the platform's depth without us shouting
+ * about every feature on first load. Uses warmer amber accents than
+ * the today-strip so the two surfaces don't look identical. */
+.dyk-card {
+  max-width: 920px;
+  margin: 8px auto 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(212,162,60,0.08), rgba(212,162,60,0.02));
+  border: 1px solid rgba(212,162,60,0.28);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dyk-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(212,162,60,0.95);
+}
+.dyk-prefix {
+  font-size: 13px;
+}
+.dyk-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.dyk-icon {
+  font-size: 1.7rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.dyk-text {
+  flex: 1;
+  min-width: 0;
+}
+.dyk-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--fg);
+  margin-bottom: 2px;
+}
+.dyk-subtitle {
+  font-size: 12.5px;
+  color: rgba(255,255,255,0.78);
+  line-height: 1.45;
+}
+.dyk-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dyk-action {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.dyk-action-primary {
+  background: rgba(212,162,60,0.85);
+  color: #1a1410;
+}
+.dyk-action-primary:hover {
+  background: rgba(212,162,60,1);
+}
+.dyk-action-secondary,
+.dyk-action-tertiary {
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.82);
+  border-color: rgba(255,255,255,0.14);
+}
+.dyk-action-secondary:hover,
+.dyk-action-tertiary:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.24);
+}
+.dyk-action-tertiary {
+  /* Slightly de-emphasized vs. "พรุ่งนี้" since "ไม่สนใจ" is the
+   * stronger / permanent dismissal. */
+  opacity: 0.78;
+}
+@media (max-width: 540px) {
+  .dyk-actions {
+    flex-direction: column;
+  }
+  .dyk-action {
+    width: 100%;
   }
 }
 

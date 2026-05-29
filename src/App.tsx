@@ -173,6 +173,7 @@ import { NavBar } from './components/NavBar';
 import { CelebrationOverlay } from './components/CelebrationOverlay';
 import { detectCelebration, resetCelebrations, type CelebrationKind } from './lib/celebrations';
 import { TodayStrip } from './components/TodayStrip';
+import { DidYouKnowCard } from './components/DidYouKnowCard';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
 import {
@@ -2096,6 +2097,28 @@ export default function App() {
             </button>
           </div>
         )}
+        {/* "💡 รู้หรือไม่?" card surfaces hidden features (Counting,
+            Survive, Pattern, Move Trainer, Boss Rush, Challenge,
+            Exhibition, Stats) one at a time. Renders nothing once
+            the user has seen / dismissed all of them.
+            Only shown in the canonical lobby state — at the standard
+            Makruk starting position, before any moves, with no
+            challenge or review running. Loading a custom FEN via
+            Library counts as "user has intent" and skips the card
+            so it doesn't compete with the drill the user came to do.
+            Phase 35 chrome budget is tight, so hiding here also
+            keeps the board at full size whenever it's most needed. */}
+        {(() => {
+          const piecePart = state?.fen?.split(' ')[0];
+          const atStart = piecePart === MAKRUK_START_FEN.split(' ')[0];
+          const showDyk =
+            atStart &&
+            history.length === 0 &&
+            !challenge &&
+            !state?.isGameOver &&
+            !reviewActive;
+          return showDyk ? <DidYouKnowCard /> : null;
+        })()}
         <TodayStrip />
         {/* Quick-actions bar — visible THROUGHOUT a vs-CPU game so the
             layout doesn't shift mid-game. Was previously conditional on
