@@ -2267,23 +2267,19 @@ export default function App() {
                             </span>
                           </button>
                         )}
-                        <button
-                          className="game-over-button primary"
-                          onClick={() => navigate({ tab: 'puzzles' })}
-                        >
-                          🧩 ลองปริศนา
-                        </button>
                       </div>
                       <div className="game-over-actions next-cta-secondary">
-                        <button
-                          className="game-over-button game-over-review secondary"
-                          onClick={handleStartReview}
-                          disabled={reviewLoading || history.length === 0}
-                        >
-                          {reviewLoading
-                            ? `🔍 วิเคราะห์... ${reviewProgress?.current ?? 0}/${reviewProgress?.total ?? 0}`
-                            : '🔍 ดูรีวิวเกม'}
-                        </button>
+                        {/* "🔍 ดูรีวิวเกม" used to live here too but the
+                           sidebar already shows it post-game (see
+                           review-launch-button mount above), so the
+                           popup copy was pure duplication. User
+                           feedback: "ปุ่มซ้ำกันไปหมดทั้ง popup ทั้งที่
+                           ด้านขวามีอยู่แล้ว".
+                           Same logic for "🧩 ลองปริศนา" — Puzzles is
+                           navigation, not a game-end action, and it
+                           lives in the top nav. Removing it keeps the
+                           popup focused on what's natural here:
+                           replay / step difficulty / share. */}
                         <button
                           className="game-over-button secondary"
                           onClick={() => {
