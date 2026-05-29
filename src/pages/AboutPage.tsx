@@ -364,8 +364,9 @@ export function AboutPage() {
         <h3>ฟีเจอร์</h3>
         <ul className="about-bullets">
           <li>
-            เล่นกับ <strong>Fairy-Stockfish</strong> 4 ระดับ (ง่าย → ระดับมาสเตอร์)
-            + NNUE optional (+248 Elo)
+            เล่นกับ <strong>คอม</strong> 4 ระดับ (ง่าย → ระดับมาสเตอร์)
+            · เปิด NNUE network เพิ่มความแข็งได้อีก (+248 Elo) ·{' '}
+            <em>(engine คือ Fairy-Stockfish — ดูใน Credits ด้านล่าง)</em>
           </li>
           <li>
             <strong>Rated / Casual</strong> โหมด — Rated บันทึก Elo, Casual

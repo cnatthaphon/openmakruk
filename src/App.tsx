@@ -1194,6 +1194,25 @@ export default function App() {
     if (exploreVariation.fromPly !== reviewPly) setExploreVariation(null);
   }, [reviewPly, reviewActive, exploreVariation]);
 
+  // Guard against losing in-flight analysis. The review walks every
+  // ply through Stockfish in the browser — depending on game length
+  // + NNUE state it can take 30s-2min. Closing the tab mid-run loses
+  // every annotation (the aggregated mastery summary only persists
+  // when analyzeGame resolves). Surface a confirmation prompt so the
+  // user doesn't lose work to an accidental Cmd-W.
+  useEffect(() => {
+    if (!reviewLoading) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Modern browsers ignore the custom message and show their own
+      // "Leave site?" prompt; setting returnValue is still required
+      // to trigger that prompt at all.
+      e.returnValue = 'การวิเคราะห์ยังไม่เสร็จ — ปิดตอนนี้จะเริ่มใหม่หมด';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [reviewLoading]);
+
   if (loadError) {
     return (
       <div className="screen error">
@@ -1527,6 +1546,14 @@ export default function App() {
     if (history.length === 0 || !board) return;
     setReviewLoading(true);
     setReviewProgress({ current: 0, total: history.length });
+    // Time estimate so the user knows what they're waiting for. ~250ms
+    // per ply on a modern laptop with NNUE off; double if no NNUE. We
+    // tell them about persistence + the in-flight risk up front so
+    // there's no nasty surprise if a tab gets killed mid-analysis.
+    const estimateSec = Math.max(5, Math.round(history.length * 0.25));
+    toast.info(
+      `🔍 กำลังวิเคราะห์ ${history.length} ตา (~${estimateSec} วินาที) · อย่าปิด tab จนกว่าจะเสร็จ · สรุป mastery จะบันทึกอัตโนมัติเมื่อจบ`,
+    );
     log('review.start', { moves: history.length });
     try {
       const ffish = await loadFfish();
@@ -2070,21 +2097,27 @@ export default function App() {
           </div>
         )}
         <TodayStrip />
-        {/* Quick-actions bar — always visible during an active vs-CPU
-            game, so ยอมแพ้/ขอเสมอ aren't buried inside the "ตาเดิน"
-            sub-tab the way they used to be. Matches lichess/chess.com
-            convention of having these one tap away from the board. */}
+        {/* Quick-actions bar — visible THROUGHOUT a vs-CPU game so the
+            layout doesn't shift mid-game. Was previously conditional on
+            history.length > 0 which made the buttons pop in after the
+            first move, pushing the board down by ~45px (user-reported
+            in Phase 35). Now: always rendered during vs-CPU play mode,
+            disabled with a tooltip before the first move so the user
+            doesn't think they're stuck. */}
         {(mode === 'play-white' || mode === 'play-black') &&
           !state?.isGameOver &&
           !forcedResult &&
-          !reviewActive &&
-          history.length > 0 && (
+          !reviewActive && (
             <div className="play-quick-actions">
               <button
                 className="play-quick-button"
                 onClick={handleOfferDraw}
-                disabled={thinking || drawOfferPending}
-                title="ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน"
+                disabled={thinking || drawOfferPending || history.length === 0}
+                title={
+                  history.length === 0
+                    ? 'ขอเสมอ — เปิดให้กดหลังจากเดินตาแรก'
+                    : 'ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน'
+                }
               >
                 {drawOfferPending ? (
                   <>
@@ -2098,8 +2131,12 @@ export default function App() {
               <button
                 className="play-quick-button play-quick-resign"
                 onClick={handleResign}
-                disabled={thinking}
-                title="ยอมแพ้ — บันทึกเป็น loss"
+                disabled={thinking || history.length === 0}
+                title={
+                  history.length === 0
+                    ? 'ยอมแพ้ — เปิดให้กดหลังจากเดินตาแรก'
+                    : 'ยอมแพ้ — บันทึกเป็น loss'
+                }
               >
                 🏳 ยอมแพ้
               </button>

@@ -224,7 +224,7 @@ export function PuzzlesPage({ initialPuzzleId = null }: Props = {}) {
       <header className="puzzles-header">
         <h2>🧩 ปริศนา</h2>
         <p>
-          ฝึกสายตาด้วยตำแหน่งจริงที่คัดมา · ตรวจคำตอบกับ Fairy-Stockfish
+          ฝึกสายตาด้วยตำแหน่งจริงที่คัดมา · คอมตรวจคำตอบให้อัตโนมัติ
         </p>
         <div className="puzzles-stats-bar">
           <div className="puzzles-stat">

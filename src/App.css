@@ -554,28 +554,48 @@ main {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  /* Card positioned at the top edge instead of centered so the
+   * board stays visible underneath. User flag (Phase 35):
+   * "popup บังกระดานทำให้ไม่เห็นว่าแพ้ยังไง" — they want to inspect
+   * the final position. Now the result + score chip sits as a
+   * banner; the user can dismiss to clear the overlay entirely
+   * via the "ปิด" button on the card. */
+  align-items: flex-start;
   justify-content: center;
-  background: rgba(20, 14, 10, 0.62);
-  backdrop-filter: blur(2px);
+  /* Backdrop drastically thinned — was 0.62 + blur(2px), now a
+   * subtle wash so the position remains legible. */
+  background: linear-gradient(
+    180deg,
+    rgba(20, 14, 10, 0.45) 0%,
+    rgba(20, 14, 10, 0.18) 35%,
+    rgba(20, 14, 10, 0.08) 100%
+  );
   border-radius: 4px;
   z-index: 20;
   animation: fade-in 250ms ease-out;
-  padding: 16px;
+  padding: 12px;
+  /* Don't intercept clicks on the lower 60% of the board — user can
+   * still scroll/tap the position underneath the gradient. */
+  pointer-events: none;
+}
+.game-over-overlay > * {
+  pointer-events: auto;
 }
 
 @keyframes fade-in {
-  from { opacity: 0; backdrop-filter: blur(0); }
-  to   { opacity: 1; backdrop-filter: blur(2px); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .game-over-card {
   background: linear-gradient(180deg, rgba(58, 38, 24, 0.96), rgba(36, 24, 16, 0.96));
-  padding: 24px 28px;
-  border-radius: 12px;
+  /* Card slimmed so the bottom half of the board is unobscured.
+   * Was 24/28 padding centered; now compact + top-aligned. */
+  padding: 14px 20px;
+  border-radius: 10px;
   text-align: center;
   border: 2px solid var(--accent);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.7);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
   max-width: 88%;
   animation: card-pop 320ms cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }

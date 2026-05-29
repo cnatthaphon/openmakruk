@@ -35,15 +35,21 @@ type NavEntry =
 // Single source of truth for the menu layout. Re-order or rename here
 // and the rest of the navbar (mobile bottom bar reads its own subset)
 // follows.
+//
+// Why Puzzles is a primary tab (not under "เรียน"):
+//   User feedback Phase 35 — "ปริศนาน่าจะแยกออกมาเป็นเมนู คนอาจ
+//   จะเข้ามาเล่นเพลินๆ แต่ไม่ได้เรียน". Puzzles is more like a Play
+//   companion (a challenge mode) than a lesson surface. Lichess and
+//   chess.com both put Puzzles at the top level for the same reason.
 const NAV: NavEntry[] = [
   { kind: 'tab', item: { tab: 'play', label: '♔ เล่น' } },
+  { kind: 'tab', item: { tab: 'puzzles', label: '🧩 ปริศนา' } },
   {
     kind: 'group',
     label: '🎓 เรียน',
     items: [
-      { tab: 'learn',   label: '🎓 บทเรียน' },
-      { tab: 'study',   label: '📖 ทฤษฎี' },
-      { tab: 'puzzles', label: '🧩 ปริศนา' },
+      { tab: 'learn', label: '🎓 บทเรียน' },
+      { tab: 'study', label: '📖 ทฤษฎี' },
     ],
   },
   {

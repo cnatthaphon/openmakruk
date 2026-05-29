@@ -220,7 +220,7 @@ export function SettingsPage({ onSettingsChange }: Props) {
 
         <SettingRow
           label="Engine"
-          hint="เลือก engine ที่ใช้คิด · Fairy-Stockfish (แข็งสุด) · personality bots (สไตล์ต่างๆ ระดับ 700–1100) · Random/Greedy (baseline)"
+          hint="เลือก engine ที่ใช้คิด · ตัวคำนวณหลัก (แข็งสุด) · bot personality 7 สไตล์ (rating 700–1100)"
         >
           <select
             value={settings.engineId}
