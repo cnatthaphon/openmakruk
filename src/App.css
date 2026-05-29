@@ -267,19 +267,16 @@ main:has(.board-layout) {
 }
 /* Hard size cap on chessground boards rendered inside a BoardLayout
  * shell. Without this, .cg-wrap defaults to filling its container
- * and the board grows to 600-800px, overflowing the side panels
- * (user feedback: "เละเทะตุ้มเปะ"). The cap matches the Play tab's
- * own --cg-edge ceiling so the visual size is consistent across
- * surfaces.
+ * and the board grows to 600-800px, overflowing the side panels.
+ * Cap matches the Play tab's own --cg-edge ceiling (640) so the
+ * visual size is consistent across surfaces.
  *
  * Custom / pattern / trainer / rush boards bring their own sizing
- * (each is a CSS grid with its own width: min(...) rule), so we
- * leave them alone — overriding their widths broke the Custom
- * piece-picker positioning. */
+ * rules — we leave them alone. */
 .board-layout-board > .cg-wrap,
 .board-layout-board .Board-root > .cg-wrap {
-  width: min(calc(100vh - 200px), 520px) !important;
-  height: min(calc(100vh - 200px), 520px) !important;
+  width: min(calc(100vh - 180px), 640px) !important;
+  height: min(calc(100vh - 180px), 640px) !important;
   aspect-ratio: 1 / 1;
   max-width: 100%;
 }
@@ -290,6 +287,24 @@ main:has(.board-layout) {
     height: auto !important;
     aspect-ratio: 1 / 1;
   }
+}
+
+/* Pages that mount a <BoardLayout> at the top level should let the
+ * layout's own max-width (1280) govern, not their legacy per-page
+ * cap (1080 / 1000 / 820). Without this override, the parent
+ * page-class clamps the BoardLayout narrower than needed, the side
+ * panels eat into the center column and the board ends up at
+ * ~380px on a 1500px viewport with empty bands either side.
+ * User feedback: "พื้นที่ด้านข้างเหลือเยอะ". */
+.drill-page:has(.board-layout),
+.survive-page:has(.board-layout),
+.trainer-page:has(.board-layout),
+.pattern-page:has(.board-layout),
+.rush-page:has(.board-layout),
+.puzzle-view:has(.board-layout),
+.custom-page:has(.board-layout),
+.lesson-view:has(.board-layout) {
+  max-width: 1280px;
 }
 .board-layout-below {
   width: 100%;
