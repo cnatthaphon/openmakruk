@@ -24,6 +24,7 @@ import type {
   TacticTheme,
 } from '../lib/extraContentSchema';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { MAKRUK_START_FEN, loadFfish } from '../lib/makruk';
 import { thaiUci } from '../lib/thaiUci';
 import { SkeletonGrid } from '../components/Skeleton';
@@ -182,45 +183,53 @@ function OpeningView({ opening, onClose }: { opening: Opening; onClose: () => vo
       <button className="study-back" onClick={onClose}>
         ← กลับ
       </button>
-      <h3>{opening.name}</h3>
-      <p className="study-view-desc">{opening.description}</p>
-      <div className="study-view-board">
-        <Board
-          fen={currentFen}
-          legalMoves={[]}
-          flipped={false}
-          disabled
-          turn="white"
-          isCheck={false}
-          lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
-          hint={null}
-          onMove={() => undefined}
-        />
-      </div>
-      <div className="study-view-stepper">
-        <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
-        <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
-        <span className="label-aside">
-          ตา {ply} / {opening.moves.length}
-        </span>
-        <button
-          onClick={() => setPly((p) => Math.min(opening.moves.length, p + 1))}
-          disabled={ply === opening.moves.length}
-        >▶</button>
-        <button onClick={() => setPly(opening.moves.length)} disabled={ply === opening.moves.length}>⏭</button>
-      </div>
-      <div className="study-view-line">
-        <span className="label">ลำดับตา:</span>{' '}
-        {opening.moves.map((mv, i) => (
-          <button
-            key={i}
-            className={`study-move ${i + 1 === ply ? 'is-current' : ''}`}
-            onClick={() => setPly(i + 1)}
-          >
-            {thaiUci(mv)}
-          </button>
-        ))}
-      </div>
+      <BoardLayout
+        left={
+          <>
+            <h3>{opening.name}</h3>
+            <p className="study-view-desc">{opening.description}</p>
+            <div className="study-view-line">
+              <span className="label">ลำดับตา:</span>{' '}
+              {opening.moves.map((mv, i) => (
+                <button
+                  key={i}
+                  className={`study-move ${i + 1 === ply ? 'is-current' : ''}`}
+                  onClick={() => setPly(i + 1)}
+                >
+                  {thaiUci(mv)}
+                </button>
+              ))}
+            </div>
+          </>
+        }
+        board={
+          <Board
+            fen={currentFen}
+            legalMoves={[]}
+            flipped={false}
+            disabled
+            turn="white"
+            isCheck={false}
+            lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
+            hint={null}
+            onMove={() => undefined}
+          />
+        }
+        right={
+          <div className="study-view-stepper">
+            <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
+            <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
+            <span className="label-aside">
+              ตา {ply} / {opening.moves.length}
+            </span>
+            <button
+              onClick={() => setPly((p) => Math.min(opening.moves.length, p + 1))}
+              disabled={ply === opening.moves.length}
+            >▶</button>
+            <button onClick={() => setPly(opening.moves.length)} disabled={ply === opening.moves.length}>⏭</button>
+          </div>
+        }
+      />
     </div>
   );
 }

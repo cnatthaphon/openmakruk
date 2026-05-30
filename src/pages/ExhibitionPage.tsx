@@ -15,6 +15,7 @@ import type {
   ExhibitionSummary,
 } from '../lib/backend/types';
 import { Board } from '../components/Board';
+import { BoardLayout } from '../components/BoardLayout';
 import { loadFfish, MAKRUK_START_FEN } from '../lib/makruk';
 import { navigate } from '../lib/router';
 
@@ -315,63 +316,66 @@ function ExhibitionReplay({ gameId }: { gameId: string }) {
       <button className="exhibition-back" onClick={() => navigate({ tab: 'exhibition' })}>
         ← กลับรายการ
       </button>
-
-      <header className="exhibition-replay-header">
-        <div className="exhibition-replay-vs">
-          <span className="exhibition-side">
-            <span className="exhibition-avatar">{game.whiteAvatar ?? '🤖'}</span>
-            {game.whiteName ?? game.whiteBotId}
-          </span>
-          <span className={`exhibition-result ${outcomeClass(game.outcome)}`}>
-            {formatOutcome(game.outcome)}
-          </span>
-          <span className="exhibition-side">
-            <span className="exhibition-avatar">{game.blackAvatar ?? '🤖'}</span>
-            {game.blackName ?? game.blackBotId}
-          </span>
-        </div>
-        <p className="label-aside">
-          {game.plyCount} ตา · {relativeTime(game.createdAt)}
-        </p>
-      </header>
-
-      <div className="exhibition-replay-board">
-        <Board
-          fen={currentFen}
-          legalMoves={[]}
-          flipped={false}
-          disabled
-          turn={ply % 2 === 0 ? 'white' : 'black'}
-          isCheck={false}
-          lastMove={
-            lastMoveUci
-              ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) }
-              : null
-          }
-          hint={null}
-          onMove={() => undefined}
-        />
-      </div>
-
-      <div className="exhibition-stepper">
-        <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
-        <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
-        <span className="label-aside">
-          ตา {ply} / {game.moves.length}
-        </span>
-        <button
-          onClick={() => setPly((p) => Math.min(game.moves.length, p + 1))}
-          disabled={ply === game.moves.length}
-        >
-          ▶
-        </button>
-        <button
-          onClick={() => setPly(game.moves.length)}
-          disabled={ply === game.moves.length}
-        >
-          ⏭
-        </button>
-      </div>
+      <BoardLayout
+        left={
+          <header className="exhibition-replay-header">
+            <div className="exhibition-replay-vs">
+              <span className="exhibition-side">
+                <span className="exhibition-avatar">{game.whiteAvatar ?? '🤖'}</span>
+                {game.whiteName ?? game.whiteBotId}
+              </span>
+              <span className={`exhibition-result ${outcomeClass(game.outcome)}`}>
+                {formatOutcome(game.outcome)}
+              </span>
+              <span className="exhibition-side">
+                <span className="exhibition-avatar">{game.blackAvatar ?? '🤖'}</span>
+                {game.blackName ?? game.blackBotId}
+              </span>
+            </div>
+            <p className="label-aside">
+              {game.plyCount} ตา · {relativeTime(game.createdAt)}
+            </p>
+          </header>
+        }
+        board={
+          <Board
+            fen={currentFen}
+            legalMoves={[]}
+            flipped={false}
+            disabled
+            turn={ply % 2 === 0 ? 'white' : 'black'}
+            isCheck={false}
+            lastMove={
+              lastMoveUci
+                ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) }
+                : null
+            }
+            hint={null}
+            onMove={() => undefined}
+          />
+        }
+        right={
+          <div className="exhibition-stepper">
+            <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
+            <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
+            <span className="label-aside">
+              ตา {ply} / {game.moves.length}
+            </span>
+            <button
+              onClick={() => setPly((p) => Math.min(game.moves.length, p + 1))}
+              disabled={ply === game.moves.length}
+            >
+              ▶
+            </button>
+            <button
+              onClick={() => setPly(game.moves.length)}
+              disabled={ply === game.moves.length}
+            >
+              ⏭
+            </button>
+          </div>
+        }
+      />
     </main>
   );
 }

@@ -26,6 +26,7 @@ import {
 import { SCORERS, SCORER_KEYS, makeScorerCtx, type ScorerKey } from './scorers';
 import { PERSONALITIES, type Personality } from './personalities';
 import { loadChallengeTarget } from '../challenge';
+import { rngFromSeed } from '../seededRng';
 
 // Engine id namespace: 'personality:<id>'. Keeps the engine registry
 // uncluttered and lets the UI distinguish personality bots from full
@@ -204,23 +205,31 @@ async function ensureBookComputed(): Promise<void> {
 
 /** Look up a book move for the current position, weighted by the
  *  bot's personality preferences over openings. Returns null when
- *  the position is out of book or the bot rolled the "deviate" check. */
-function bookMoveFor(fen: string, personalityId: string): string | null {
+ *  the position is out of book or the bot rolled the "deviate" check.
+ *
+ *  `rng` injected — typically a seeded generator built from
+ *  challenge/fen/ply when reproducibility matters (challenge replays,
+ *  leaderboard). Falls back to Math.random for casual vs-CPU games. */
+function bookMoveFor(
+  fen: string,
+  personalityId: string,
+  rng: () => number,
+): string | null {
   if (!BOOK_FEN_TO_MOVES) return null;
   const candidates = BOOK_FEN_TO_MOVES.get(fen);
   if (!candidates || candidates.length === 0) return null;
-  if (Math.random() >= BOOK_PROBABILITY) return null;
+  if (rng() >= BOOK_PROBABILITY) return null;
   const prefs = OPENING_PREFERENCES[personalityId];
   if (!prefs) {
     // Unknown personality — pick any book continuation at random.
-    return candidates[Math.floor(Math.random() * candidates.length)].move;
+    return candidates[Math.floor(rng() * candidates.length)].move;
   }
   let total = 0;
   for (const c of candidates) total += prefs[c.openingId] ?? 0;
   if (total <= 0) {
-    return candidates[Math.floor(Math.random() * candidates.length)].move;
+    return candidates[Math.floor(rng() * candidates.length)].move;
   }
-  let pick = Math.random() * total;
+  let pick = rng() * total;
   for (const c of candidates) {
     const w = prefs[c.openingId] ?? 0;
     pick -= w;
@@ -248,12 +257,19 @@ class ScoredBot implements MakrukEngine {
   }
 
   async search(fen: string, opts: SearchOpts = {}): Promise<SearchResult> {
+    // Phase 38 — every randomized choice routes through a single RNG.
+    // When opts.seed is set (challenge / exhibition / leaderboard),
+    // the RNG is deterministic: same seed + same position → same
+    // move, every replay. When unset (casual vs-CPU), fall back to
+    // Math.random for the game-to-game variety casual users expect.
+    const rng = opts.seed ? rngFromSeed(opts.seed) : Math.random;
+
     // Opening book — if the current position is in a known opening
     // line AND the personality preference roll picks one, return it
     // immediately without running minimax. Saves CPU + gives game-
     // to-game variety (first 4 plies look distinct per personality).
     await ensureBookComputed();
-    const book = bookMoveFor(fen, this.personality.id);
+    const book = bookMoveFor(fen, this.personality.id, rng);
     if (book) return { bestMove: book };
 
     const ffish = await loadFfish();
@@ -299,7 +315,7 @@ class ScoredBot implements MakrukEngine {
           const component = SCORERS[key](ctx, mv);
           flavor += weight * component;
         }
-        const total = childScore + flavor * FLAVOR + Math.random() * 0.005;
+        const total = childScore + flavor * FLAVOR + rng() * 0.005;
         return { move: mv, total };
       });
 

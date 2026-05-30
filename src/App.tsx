@@ -605,7 +605,15 @@ export default function App() {
     (async () => {
       try {
         const preset = DIFFICULTY_PRESETS[difficulty];
-        const { bestMove } = await searchBestMove(state.fen, preset);
+        // Phase 38 — when the user is playing under a challenge target,
+        // pin the engine to a deterministic seed so every player who
+        // accepts the same challenge link sees the same bot sequence.
+        // Casual vs-CPU games leave seed undefined → engine falls back
+        // to Math.random for game-to-game variety.
+        const seed = challenge
+          ? `${challenge.botId}|${state.fen}|${history.length}`
+          : undefined;
+        const { bestMove } = await searchBestMove(state.fen, { ...preset, seed });
 
         if (cancelled) return;
         if (!bestMove || bestMove === '(none)' || bestMove === '0000') {

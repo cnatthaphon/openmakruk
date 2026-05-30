@@ -10,12 +10,40 @@ export type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'master';
 
 /** Options passed to a single engine search. */
 export type SearchOpts = {
-  /** Search to a fixed depth. */
+  /** Search to a fixed depth. Used by alpha-beta engines (Stockfish,
+   *  ScoredBot). MCTS engines ignore. */
   depth?: number;
-  /** Or, cap the search by wall-clock milliseconds. */
+  /** Or, cap the search by wall-clock milliseconds. Either engine
+   *  family honors this when present. */
   movetime?: number;
-  /** Engine-internal skill knob 0..N (engine maps to its own scale). */
+  /** Engine-internal skill knob 0..N (engine maps to its own scale).
+   *  Alpha-beta engines only. */
   skillLevel?: number;
+
+  // ─── Phase 38 — codex review: extend for AlphaZero/MCTS readiness ─
+
+  /** MCTS visit budget. Replaces `depth` for MCTS-family engines.
+   *  Alpha-beta engines ignore. */
+  nodes?: number;
+  /** Softmax temperature applied to policy head before sampling
+   *  (0 = argmax / deterministic, 1.0 = match policy distribution).
+   *  MCTS engines only. */
+  temperature?: number;
+  /** Seed for any RNG inside the engine. When set, identical seed
+   *  + identical position MUST yield identical move. Required for
+   *  challenge / leaderboard reproducibility. ScoredBot reads this
+   *  for book + tiebreak; MCTS engines feed it to their PRNG.
+   *
+   *  Format: any string. Engines hash internally. Typical composition:
+   *    `${challengeId}|${fen}|${ply}|${botId}` */
+  seed?: string;
+  /** Keep only the top-K moves from the policy head before searching.
+   *  Trade-off: lower K = faster but might miss surprises. MCTS only. */
+  policyTopK?: number;
+  /** Override the active network/model id. Used by AlphaZero-style
+   *  engines that ship multiple checkpoints (e.g. 'mk-az-200k' vs
+   *  'mk-az-2M'). null = engine default. */
+  modelId?: string | null;
 };
 
 /** Result of a single-best-move search. */

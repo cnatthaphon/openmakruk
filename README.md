@@ -10,7 +10,7 @@ A modern, Thai-first training + analysis platform for หมากรุกไ�
 [**▶ Live at openmakruk.com**](https://openmakruk.com)  ·  [API](https://openmakruk-api.cnatthaphon.workers.dev/api/health)  ·  [Report an issue](https://github.com/cnatthaphon/openmakruk/issues)
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
-[![E2E: Playwright](https://img.shields.io/badge/e2e-81_passing-brightgreen)](tests/e2e)
+[![E2E: Playwright](https://img.shields.io/badge/e2e-159_passing-brightgreen)](tests/e2e)
 [![Worker: Vitest](https://img.shields.io/badge/worker-53_passing-brightgreen)](worker/tests)
 [![Live](https://img.shields.io/badge/status-live-success)](https://openmakruk.com)
 [![PWA](https://img.shields.io/badge/PWA-installable-blue)](https://openmakruk.com)
@@ -191,7 +191,7 @@ npm run dev                       # http://localhost:8788
 ## Testing
 
 ```bash
-npm run test:e2e                  # Playwright — 81 tests / 16 spec files
+npm run test:e2e                  # Playwright — 159 tests / 21 spec files
 cd worker && npm run test         # Vitest — 52 worker integration tests
 ```
 
