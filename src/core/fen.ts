@@ -51,8 +51,15 @@ export function letterToRole(ch: string): { role: Role; color: Color } | null {
 }
 
 /** Parse only the piece-placement portion (field 1) of a FEN into
- *  a sparse {square: letter} map. Useful when callers just want
- *  to render a board without caring about clocks. */
+ *  a sparse {square: letter} map.
+ *
+ *  Lenient by design: this exists for rendering callers that need
+ *  to know "what letter is on each square" without rejecting an
+ *  entire game over a single bad character. Malformed ranks return
+ *  whatever the parser managed to read; unknown letters are
+ *  preserved (chessground will glyph-fallback on them). Strict
+ *  validation belongs in parseFen() below, which returns null on
+ *  any deviation from the FEN contract. */
 export function fenToPieceMap(fen: string): LetterMap {
   const pieces: LetterMap = {};
   const position = fen.split(' ')[0];
@@ -61,43 +68,112 @@ export function fenToPieceMap(fen: string): LetterMap {
   for (let i = 0; i < ranks.length; i++) {
     const rank = 8 - i;
     let fileIdx = 0;
-    for (const ch of ranks[i]) {
+    const row = ranks[i];
+    let j = 0;
+    while (j < row.length) {
+      const ch = row[j];
       if (ch >= '1' && ch <= '9') {
         fileIdx += Number(ch);
+        j++;
         continue;
       }
-      // Fairy-Stockfish prefixes promoted pieces with '+'. We skip
-      // the marker — the next char carries the role letter.
-      if (ch === '+') continue;
+      // Fairy-Stockfish prefixes promoted pieces with '+'. Skip the
+      // marker — the next char carries the role letter.
+      if (ch === '+') {
+        if (j + 1 >= row.length) { j++; continue; }
+        const file = String.fromCharCode(97 + fileIdx);
+        pieces[`${file}${rank}` as Square] = row[j + 1];
+        fileIdx++;
+        j += 2;
+        continue;
+      }
       const file = String.fromCharCode(97 + fileIdx); // 'a' + fileIdx
       pieces[`${file}${rank}` as Square] = ch;
       fileIdx++;
+      j++;
     }
   }
   return pieces;
 }
 
-/** Parse a full FEN into structured pieces + clocks. Returns null on
- *  malformed input — callers that need to recover should branch on
- *  the null instead of try/catching. */
+/** Validate a single FEN rank row. Same parsing logic as
+ *  fenToPieceMap but returns null on:
+ *    - unknown piece letter
+ *    - trailing '+' with no role letter after
+ *    - row sums to anything other than exactly 8 files
+ *  Returns the sparse letter map for the rank when valid. */
+function parseRankStrict(
+  row: string,
+  rankNum: number,
+): LetterMap | null {
+  const pieces: LetterMap = {};
+  let fileIdx = 0;
+  let j = 0;
+  while (j < row.length) {
+    const ch = row[j];
+    if (ch >= '1' && ch <= '9') {
+      fileIdx += Number(ch);
+      j++;
+      continue;
+    }
+    let letterCh = ch;
+    if (ch === '+') {
+      if (j + 1 >= row.length) return null;
+      letterCh = row[j + 1];
+      j += 2;
+    } else {
+      j++;
+    }
+    if (letterToRole(letterCh) === null) return null;
+    if (fileIdx > 7) return null;
+    const file = String.fromCharCode(97 + fileIdx);
+    pieces[`${file}${rankNum}` as Square] = letterCh;
+    fileIdx++;
+  }
+  // Each rank MUST account for exactly 8 files. Short rows
+  // (missing piece) and long rows (extra piece) both indicate
+  // corrupted data and must be rejected for the rules layer to
+  // trust the position.
+  if (fileIdx !== 8) return null;
+  return pieces;
+}
+
+/** Parse a full FEN into structured pieces + clocks. Returns null
+ *  on any malformed input:
+ *    - fewer than 6 space-separated fields
+ *    - placement field with anything other than exactly 8 ranks
+ *    - any rank that doesn't sum to 8 files
+ *    - any unknown piece letter in the placement
+ *    - side-to-move not in {'w', 'b'}
+ *    - non-numeric or negative half-move / full-move
+ *
+ *  Callers that need to recover should branch on the null instead
+ *  of try/catching. */
 export function parseFen(fen: string): ParsedFen | null {
   const fields = fen.split(/\s+/);
   if (fields.length < 6) return null;
   // fields[2] is castling rights (Makruk: always '-'). We skip it
   // and read fields[3] (en-passant / counting slot in FS dialect)
-  // into countingSlot. Matches the original src/lib/makruk.ts
-  // parser exactly so existing call sites stay correct.
+  // into countingSlot.
   const [placement, turnRaw, , countingSlot, halfmoveRaw, fullmoveRaw] = fields;
   if (turnRaw !== 'w' && turnRaw !== 'b') return null;
   const halfmove = Number(halfmoveRaw);
   const fullmove = Number(fullmoveRaw);
   if (!Number.isFinite(halfmove) || !Number.isFinite(fullmove)) return null;
+  if (halfmove < 0 || fullmove < 0) return null;
 
-  const letterMap = fenToPieceMap(placement);
+  const ranks = placement.split('/');
+  if (ranks.length !== 8) return null;
   const pieces: PieceMap = {};
-  for (const [sq, letter] of Object.entries(letterMap)) {
-    const piece = letterToRole(letter);
-    if (piece) pieces[sq] = piece;
+  for (let i = 0; i < ranks.length; i++) {
+    const rankNum = 8 - i;
+    const rankMap = parseRankStrict(ranks[i], rankNum);
+    if (rankMap === null) return null;
+    for (const [sq, letter] of Object.entries(rankMap)) {
+      const piece = letterToRole(letter);
+      if (piece === null) return null;
+      pieces[sq] = piece;
+    }
   }
 
   return {
