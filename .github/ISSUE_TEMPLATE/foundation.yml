@@ -1,0 +1,49 @@
+name: Foundation / Architecture
+description: Long-term architecture, contracts, migrations, or repo workflow.
+title: 'P0: '
+labels: ['foundation', 'architecture', 'needs-triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What long-term risk or product limitation does this remove?
+      placeholder: The current implementation couples UI state to engine behavior...
+    validations:
+      required: true
+  - type: textarea
+    id: desired
+    attributes:
+      label: Desired End State
+      description: Describe the durable target architecture or contract.
+      placeholder: A shared pure TS rules core is used by client, worker, and engines...
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What files or modules are likely involved?
+      placeholder: src/lib/makruk.ts, worker/src/rules.ts, tests/e2e/...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: These must be objective and testable.
+      value: |
+        - [ ] Contract is documented.
+        - [ ] Existing saved data remains compatible.
+        - [ ] Tests cover the new contract.
+        - [ ] `npm run build` passes.
+    validations:
+      required: true
+  - type: textarea
+    id: migration
+    attributes:
+      label: Migration / Compatibility Plan
+      description: Required for storage, D1, content, URLs, rules, or engine output changes.
+      placeholder: Additive migration only; old records continue to parse...
+    validations:
+      required: true

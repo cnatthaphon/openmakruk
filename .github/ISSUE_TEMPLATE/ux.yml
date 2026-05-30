@@ -1,0 +1,59 @@
+name: UI / UX Consistency
+description: Board layout, navigation, controls, responsive design, or visual consistency.
+title: 'UX: '
+labels: ['ux', 'needs-triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: UX Problem
+      description: What feels inconsistent, confusing, too crowded, or hard to use?
+    validations:
+      required: true
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected Surfaces
+      value: |
+        - [ ] Play
+        - [ ] Lessons
+        - [ ] Study
+        - [ ] Puzzles
+        - [ ] Custom
+        - [ ] Library
+        - [ ] Profile
+        - [ ] Settings
+        - [ ] Challenge
+        - [ ] Exhibition
+        - [ ] Mobile
+    validations:
+      required: true
+  - type: textarea
+    id: target
+    attributes:
+      label: Target Experience
+      description: Describe the consistent pattern users should experience.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Design Constraints
+      value: |
+        - Reuse shared layout primitives.
+        - Do not duplicate controls in the same viewport.
+        - Board sizing must be stable on desktop and mobile.
+        - Text must not overflow or overlap controls.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      value: |
+        - [ ] Desktop screenshot shows no overlap or horizontal overflow.
+        - [ ] Mobile screenshot shows no horizontal overflow.
+        - [ ] Relevant e2e/visual test added or updated.
+        - [ ] Existing board behavior remains intact.
+    validations:
+      required: true

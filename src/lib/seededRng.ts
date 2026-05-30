@@ -31,9 +31,7 @@ export function hashSeedString(s: string): number {
   }
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
   h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (h1 >>> 0);
+  return h1 >>> 0;
 }
 
 /** Mulberry32 generator — returns a function that yields uniform
