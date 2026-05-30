@@ -93,6 +93,32 @@ test.describe('critical gap coverage', () => {
   });
 
   // ────────────────────────────────────────────────────────────────
+  // 2b. Game-over overlay is dismissable (issue #17)
+  // ────────────────────────────────────────────────────────────────
+  test('game-over overlay can be closed and reopened', async ({ page }) => {
+    test.setTimeout(60_000);
+    await loadCustomFenViaLibrary(
+      page,
+      '7k/8/6K1/8/8/8/8/R7 w - - 0 1',
+      'mate test dismissable',
+    );
+    await dragMove(page, 'a1', 'a8');
+    const overlay = page.locator('.game-over-overlay');
+    await expect(overlay).toBeVisible({ timeout: 10_000 });
+
+    // Close → overlay hidden, sidebar reopen pill appears, board visible.
+    await page.locator('.game-over-close').click();
+    await expect(overlay).toHaveCount(0);
+    await expect(page.locator('.game-over-reopen')).toBeVisible();
+    await expect(page.locator('.cg-wrap').first()).toBeVisible();
+
+    // Reopen pill brings the card back.
+    await page.locator('.game-over-reopen').click();
+    await expect(overlay).toBeVisible();
+    await expect(page.locator('.game-over-reopen')).toHaveCount(0);
+  });
+
+  // ────────────────────────────────────────────────────────────────
   // 3. Promotion — bia reaches rank 6, becomes Met
   // ────────────────────────────────────────────────────────────────
   test('promotion: white bia d5-d6 becomes Met (queen-class)', async ({ page }) => {
