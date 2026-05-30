@@ -14,6 +14,12 @@
 // every full run begins from an empty schema. Within a run, tests
 // create their own users/games so they don't collide — no per-test
 // reset is needed.
+//
+// Issue #8 — diagnostics: every spawned subprocess captures its
+// stdout AND stderr. When a setup step fails, the error includes
+// the tail of both streams so "wrangler migrations apply exited
+// with code 1" is replaced by the actual error message wrangler
+// printed (typically a schema syntax issue or a missing binding).
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { rm } from 'node:fs/promises';
@@ -22,10 +28,14 @@ import { resolve } from 'node:path';
 const WRANGLER_PORT = 8788;        // distinct from manual `wrangler dev` (8787)
 const HEALTH_TIMEOUT_MS = 30_000;
 const HEALTH_POLL_MS = 250;
+const DIAG_TAIL_LINES = 40;
 
 const WORKER_DIR = resolve(__dirname, '..');
 
 let proc: ChildProcessWithoutNullStreams | null = null;
+/** Rolling tail of wrangler-dev output so health-check timeouts can
+ *  surface what wrangler printed instead of failing silently. */
+const wranglerLog: string[] = [];
 
 export async function setup(): Promise<void> {
   // Wipe the local D1 sqlite + re-apply schema so each test run starts
@@ -70,14 +80,21 @@ export async function setup(): Promise<void> {
     },
   );
 
-  // Surface wrangler errors during boot so flakes don't look mysterious.
-  proc.stderr.on('data', (chunk: Buffer) => {
-    const s = chunk.toString();
-    if (s.includes('error') || s.includes('Error')) {
-       
-      console.warn('[wrangler stderr]', s.trim());
+  // Buffer BOTH streams so the health-check error can surface them.
+  // Cap to the most recent DIAG_TAIL_LINES so long-running runs don't
+  // accumulate megabytes of output.
+  const collect = (chunk: Buffer) => {
+    const lines = chunk.toString().split('\n');
+    for (const line of lines) {
+      if (!line) continue;
+      wranglerLog.push(line);
+      if (wranglerLog.length > DIAG_TAIL_LINES * 4) {
+        wranglerLog.splice(0, wranglerLog.length - DIAG_TAIL_LINES * 4);
+      }
     }
-  });
+  };
+  proc.stdout.on('data', collect);
+  proc.stderr.on('data', collect);
 
   // Poll until /api/health responds 200 or we time out.
   const baseUrl = `http://127.0.0.1:${WRANGLER_PORT}`;
@@ -93,7 +110,11 @@ export async function setup(): Promise<void> {
     }
     await sleep(HEALTH_POLL_MS);
   }
-  throw new Error(`wrangler dev did not become healthy within ${HEALTH_TIMEOUT_MS}ms`);
+  throw new Error(
+    `wrangler dev did not become healthy within ${HEALTH_TIMEOUT_MS}ms at ${baseUrl}.\n` +
+    `Last ${DIAG_TAIL_LINES} lines of wrangler output:\n` +
+    tail(wranglerLog, DIAG_TAIL_LINES).map((l) => `  | ${l}`).join('\n'),
+  );
 }
 
 export async function teardown(): Promise<void> {
@@ -109,37 +130,59 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function tail(buf: string[], n: number): string[] {
+  return buf.slice(Math.max(0, buf.length - n));
+}
+
+/** Run a wrangler subcommand to completion. Captures stdout + stderr
+ *  so a non-zero exit yields a useful diagnostic instead of just an
+ *  exit code. */
 async function runWrangler(args: string[]): Promise<void> {
-  return new Promise((resolveP, rejectP) => {
-    const child = spawn(
-      'node',
-      [resolve(WORKER_DIR, 'node_modules/wrangler/bin/wrangler.js'), ...args],
-      {
-        cwd: WORKER_DIR,
-        stdio: 'ignore',
-        env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
-      },
-    );
-    child.on('exit', (code) => {
-      if (code === 0) resolveP();
-      else rejectP(new Error(`wrangler ${args.join(' ')} exited with code ${code}`));
-    });
-    child.on('error', rejectP);
-  });
+  return runCaptured(
+    'node',
+    [resolve(WORKER_DIR, 'node_modules/wrangler/bin/wrangler.js'), ...args],
+    `wrangler ${args.join(' ')}`,
+  );
 }
 
 /** Run any node script with the worker as cwd and exit-code as success
- *  signal. Used for the seed generator. */
+ *  signal. Captures stdout + stderr like runWrangler. */
 async function runNode(args: string[]): Promise<void> {
+  return runCaptured('node', args, `node ${args.join(' ')}`);
+}
+
+function runCaptured(
+  cmd: string,
+  args: string[],
+  label: string,
+): Promise<void> {
   return new Promise((resolveP, rejectP) => {
-    const child = spawn('node', args, {
+    const child = spawn(cmd, args, {
       cwd: WORKER_DIR,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
     });
+    const out: string[] = [];
+    const err: string[] = [];
+    child.stdout.on('data', (b: Buffer) => out.push(b.toString()));
+    child.stderr.on('data', (b: Buffer) => err.push(b.toString()));
     child.on('exit', (code) => {
-      if (code === 0) resolveP();
-      else rejectP(new Error(`node ${args.join(' ')} exited with code ${code}`));
+      if (code === 0) {
+        resolveP();
+        return;
+      }
+      const combined = (err.join('') + out.join('')).trim() || '(no output)';
+      const truncated = combined.length > 4000
+        ? combined.slice(combined.length - 4000)
+        : combined;
+      rejectP(
+        new Error(
+          `${label} exited with code ${code}.\n` +
+          `--- subprocess output (last ${truncated.split('\n').length} lines) ---\n` +
+          truncated,
+        ),
+      );
     });
-    child.on('error', rejectP);
+    child.on('error', (e) => rejectP(new Error(`${label} failed to spawn: ${e.message}`)));
   });
 }
