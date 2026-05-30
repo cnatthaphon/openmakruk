@@ -1,6 +1,14 @@
 // Pure-JS Makruk rules engine — used by the worker to VERIFY moves
 // submitted via POST /api/games. No WASM. Deterministic.
 //
+// Issue #3 — convergence target is `src/core/`. That module already
+// owns the FEN parser, counting helpers, and type contracts. This
+// file still carries its own legal-move generation + check/mate
+// detection because the worker can't reach `src/core/` through the
+// module path yet (separate package boundary). The two
+// implementations are parity-tested via worker/tests/scenarios.test.ts;
+// if behaviour diverges, `src/core/` is the source of truth.
+//
 // Design rule: scope = exactly what's needed to validate a move log.
 // We're not trying to play makruk here; ffish/Fairy-Stockfish does
 // that on the client. The worker only answers two questions:
