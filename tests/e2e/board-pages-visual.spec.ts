@@ -1,20 +1,34 @@
 // Issue #4 — board-page layout consistency contract test.
 //
-// Two assertions, both per-viewport:
+// Coverage is a representative set of board surfaces, not literally
+// every route — index pages without a board (e.g. /#/learn,
+// /#/study) and routes that depend on D1 seed data (e.g. /#/bots/<id>)
+// are out of scope. The selected routes (BOARD_ROUTES below) span
+// every BoardLayout-mounting page type plus the documented Play
+// exception.
 //
-//   1. EVERY route that owns a board must render one without an
+// Two assertions per viewport:
+//
+//   1. EACH route in BOARD_ROUTES must render without an
 //      ErrorBoundary fallback. Catches the wholesale-broken case
 //      (lazy chunk failure, missing content file, route typo).
 //
-//   2. THE CENTER X-AXIS of every visible board must match. We
-//      compute `box.x + box.width / 2` for each board and assert
-//      every value lies within a small tolerance of the same axis.
-//      Boards on different pages may be DIFFERENT SIZES — Play has
-//      viewport-fit math, drills cap at 640 — but they must all
-//      sit on the same vertical line through the viewport. This is
-//      the regression Phase 37 fixed (clicking between tabs visibly
-//      jerked centered content left/right); pinning it here keeps
-//      the fix in place.
+//   2. CENTER X-AXIS alignment across BoardLayout pages. We compute
+//      `box.x + box.width / 2` for each board and assert every
+//      value lies within a small tolerance of the median. Boards
+//      on different pages may be DIFFERENT SIZES — drills cap at
+//      640 etc. — but they must all sit on the same vertical line
+//      through the viewport. This is the regression Phase 37 fixed
+//      (clicking between tabs visibly jerked centered content
+//      left/right); pinning it here keeps the fix in place.
+//
+//      The Play tab is INTENTIONALLY EXCLUDED from the cross-route
+//      axis comparison because its custom viewport-fit + EvalBar
+//      flush-left layout is the documented exception to BoardLayout
+//      (see src/components/BoardLayout.tsx). Play still runs the
+//      "renders without ErrorBoundary" check; when Play migrates
+//      onto BoardLayout (issue #4 follow-up) the exclusion goes
+//      away and full cross-route coverage kicks in.
 //
 // We also sanity-check aspect ratio (≈ square) and width band
 // (≥ 250, ≤ 720) so a future change that accidentally renders
