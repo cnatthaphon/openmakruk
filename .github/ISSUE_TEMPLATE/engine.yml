@@ -1,0 +1,41 @@
+name: Engine / Bot / Analysis
+description: Engine adapters, deterministic bots, analysis, review, or future AlphaZero work.
+title: 'Engine: '
+labels: ['engine', 'needs-triage']
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What engine, bot, review, or analysis limitation is being addressed?
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract Impact
+      description: Does this change MakrukEngine, SearchOpts, move encoding, model metadata, or analysis output?
+    validations:
+      required: true
+  - type: textarea
+    id: determinism
+    attributes:
+      label: Determinism Requirements
+      description: Required for challenge, leaderboard, or replayable bot behavior.
+      value: |
+        - [ ] Same seed + same FEN + same engine version returns the same move.
+        - [ ] Engine/model/rules version can be recorded with competitive results.
+        - [ ] Casual variety is explicitly seeded or clearly outside competitive flows.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      value: |
+        - [ ] Engine behavior stays behind MakrukEngine.
+        - [ ] UI does not import a concrete engine directly.
+        - [ ] Tests cover the engine contract or deterministic behavior.
+        - [ ] `npm run build` passes.
+    validations:
+      required: true

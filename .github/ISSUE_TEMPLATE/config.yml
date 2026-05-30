@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OpenMakruk live site
+    url: https://openmakruk.com
+    about: Use this to reproduce production-only issues.
+  - name: API health check
+    url: https://openmakruk-api.cnatthaphon.workers.dev/api/health
+    about: Use this to verify the production Worker is online.

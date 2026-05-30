@@ -1,0 +1,37 @@
+name: Content / Learning Path
+description: Lessons, puzzles, journey, openings, endgames, drills, or content schemas.
+title: 'Content: '
+labels: ['content', 'learning', 'needs-triage']
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Learning Goal
+      description: What should the player learn or practice?
+    validations:
+      required: true
+  - type: textarea
+    id: content
+    attributes:
+      label: Content Changes
+      description: Lessons, puzzles, journey checkpoints, openings, endgames, or drills involved.
+    validations:
+      required: true
+  - type: textarea
+    id: schema
+    attributes:
+      label: Schema / Migration Impact
+      description: Note any content schema changes and how old content remains valid.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      value: |
+        - [ ] Content loads from schema-driven JSON or existing content pipeline.
+        - [ ] Existing content IDs remain valid.
+        - [ ] Route/deep-link behavior remains stable.
+        - [ ] Relevant verifier or e2e smoke passes.
+    validations:
+      required: true
