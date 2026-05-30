@@ -22,7 +22,7 @@ Bump rules:
 
 1. **Additive change** (new optional field, new union variant): no bump required. Existing data is still readable.
 2. **Field-meaning change or required-field rename**: bump version + write a migration.
-3. **Concept enum addition**: no bump — the type union is open at the value level (string).
+3. **Concept enum addition**: `Concept` is a closed TypeScript string union — adding a new value is a source-code change to `contract.ts` (TS rejects unknown values at compile time). Persisted `JourneyState` data containing the old set is still readable, so no schema bump is required; the new value simply starts showing up in fresh inputs.
 
 ## The core types
 
