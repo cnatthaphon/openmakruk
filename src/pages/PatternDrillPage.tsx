@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { loadPuzzles } from '../lib/content';
 import type { Puzzle } from '../lib/puzzleSchema';
 import { MAKRUK_START_FEN } from '../lib/makruk';
@@ -95,9 +96,7 @@ export function PatternDrillPage() {
   if (phase === 'intro') {
     return (
       <main className="pattern-page">
-        <button className="pattern-back" onClick={() => navigate({ tab: 'study' })}>
-          ← กลับ ทฤษฎี
-        </button>
+        <BackButton to="study">ทฤษฎี</BackButton>
         <header className="pattern-intro">
           <div className="pattern-intro-icon" aria-hidden="true">🧠</div>
           <h2>Pattern Recognition</h2>
