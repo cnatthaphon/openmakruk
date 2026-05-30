@@ -263,32 +263,46 @@ main:has(.board-layout) {
   max-width: 1280px;
   margin: 0 auto;
 }
-/* Desktop: explicit column tracks so the board doesn't fight the
- * panels for width. minmax(0, 1fr) on the center cell lets the board
- * shrink instead of overflowing when the panels are wide. */
-@media (min-width: 881px) {
+/* Desktop ≥ 1024px: three-column layout (left | board | right).
+ * Bumped from 881 → 1024 so users with devtools open (which steals
+ * ~400px of horizontal space) on a 1440 monitor still get the
+ * stacked mobile layout instead of squeezed columns where the
+ * board overlaps the panels (user screenshot at 940px width).
+ *
+ * Panel max widths chosen so a 640 board fits at 1280 page:
+ *   left 220 + gap 16 + board 640 + gap 16 + right 240 = 1132 ≤ 1216 ✓ */
+@media (min-width: 1024px) {
   .board-layout[data-has-left='true'][data-has-right='true'] {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr) minmax(260px, 340px);
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr) minmax(200px, 240px);
   }
   .board-layout[data-has-left='true'][data-has-right='false'] {
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
   }
   .board-layout[data-has-left='false'][data-has-right='true'] {
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
   }
   .board-layout[data-has-left='false'][data-has-right='false'] {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-/* Mobile: stack with board first (most important), then right
- * (controls — needed during play), then left (supplementary text). */
-@media (max-width: 880px) {
+/* Mobile + narrow desktop: stack with board first (most important),
+ * then right (controls — needed during play), then left (supplementary
+ * text goes last so it doesn't push controls below the fold). */
+@media (max-width: 1023px) {
   .board-layout {
     grid-template-columns: 1fr;
   }
   .board-layout-left  { order: 3; }
   .board-layout-center { order: 1; }
   .board-layout-right { order: 2; }
+}
+/* Long-form text in side panels — break aggressive non-breaking
+ * strings (Khun-Pawn-style hyphenated terms, URLs, code) so they
+ * never overflow the column width and overlap the board. */
+.board-layout-left,
+.board-layout-right {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .board-layout-left,
 .board-layout-right {
@@ -310,27 +324,43 @@ main:has(.board-layout) {
   align-items: center;
   width: 100%;
 }
-/* Hard size cap on chessground boards rendered inside a BoardLayout
- * shell. Without this, .cg-wrap defaults to filling its container
- * and the board grows to 600-800px, overflowing the side panels.
- * Cap matches the Play tab's own --cg-edge ceiling (640) so the
- * visual size is consistent across surfaces.
+/* Chessground size policy inside a BoardLayout. Three constraints
+ * that must all hold:
+ *   • Never exceed 640px (matches the Play tab ceiling).
+ *   • Never exceed viewport height minus chrome (board fits screen).
+ *   • Never exceed the center column's actual width (no overflow
+ *     into the side panels — user feedback: "ดูยากไปหมด").
  *
- * Custom / pattern / trainer / rush boards bring their own sizing
- * rules — we leave them alone. */
-.board-layout-board > .cg-wrap,
-.board-layout-board .Board-root > .cg-wrap {
-  width: min(calc(100vh - 180px), 640px) !important;
-  height: min(calc(100vh - 180px), 640px) !important;
-  aspect-ratio: 1 / 1;
-  max-width: 100%;
+ * Previous attempt forced width with !important to a viewport-math
+ * expression. That worked when the center column was wider than the
+ * forced value but overflowed it when panels claimed their max
+ * widths (panel 280 + panel 340 + gaps left only ~540 for center
+ * but board forced 640 → 100px of board hid the side panels).
+ *
+ * New policy: width is 100% of the column, capped by max-width.
+ * Aspect-ratio holds the square. The board now SHRINKS into the
+ * column when needed — no more overlap. */
+/* Chessground needs explicit dimensions (height: auto collapses its
+ * internal absolute-positioned children to 0). Three-way cap:
+ *   • calc(100vh - 180px)  fits vertically with header chrome
+ *   • calc(100vw - 540px)  reserves ~540px for left panel + right
+ *                          panel + gaps + page padding so the board
+ *                          stays inside its column at every desktop
+ *                          width (was overflowing into panels at
+ *                          ~940-1100px viewports)
+ *   • 640px                Play-tab ceiling for visual consistency
+ * On mobile (< 881px), grid stacks single-column so width can match
+ * the column directly. */
+.board-layout-board .cg-wrap {
+  width: min(calc(100vh - 180px), calc(100vw - 540px), 640px) !important;
+  height: min(calc(100vh - 180px), calc(100vw - 540px), 640px) !important;
 }
-@media (max-width: 880px) {
-  .board-layout-board > .cg-wrap,
-  .board-layout-board .Board-root > .cg-wrap {
-    width: min(100%, calc(100vw - 32px)) !important;
-    height: auto !important;
-    aspect-ratio: 1 / 1;
+@media (max-width: 1023px) {
+  /* Stacked layout — board no longer competes with side panels for
+   * horizontal space; size to viewport instead. */
+  .board-layout-board .cg-wrap {
+    width: min(calc(100vh - 180px), calc(100vw - 32px)) !important;
+    height: min(calc(100vh - 180px), calc(100vw - 32px)) !important;
   }
 }
 
@@ -1930,11 +1960,7 @@ main:has(.board-layout) {
 }
 
 .custom-layout {
-  display: flex;
-  gap: 18px;
-  align-items: flex-start;
-  flex-wrap: wrap;
-  justify-content: center;
+  /* Phase 36+ — grid managed by .board-layout. */
 }
 
 .custom-board-wrap {
@@ -6920,10 +6946,9 @@ footer a:hover {
   margin: 0 0 4px;
 }
 .drill-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 20px;
-  align-items: start;
+  /* Phase 36+ — grid managed by .board-layout. This class is passed
+   * through as className for tag-style hooks (e.g. analytics) but
+   * no longer drives the column geometry. */
 }
 .drill-board-col {
   display: flex;
@@ -7964,9 +7989,7 @@ footer a:hover {
   line-height: 1.4;
 }
 .trainer-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
-  gap: 20px; align-items: start;
+  /* Phase 36+ — grid managed by .board-layout. */
 }
 .trainer-board { display: flex; justify-content: center; transition: filter 0.15s ease; }
 .trainer-board.flash-correct { filter: drop-shadow(0 0 12px rgba(122,186,127,0.5)); }
