@@ -33,6 +33,7 @@ import {
 import {
   fenToPieceMap,
   loadFfish,
+  MAKRUK_START_FEN,
   parseLegalMoves,
   type Square,
 } from '../lib/makruk';
@@ -86,6 +87,28 @@ export function LessonView({
   const isFirst = safeStepIdx === 0;
   const step = steps[safeStepIdx];
 
+  // Pick a board to show on the lesson's text-only steps. Scan the
+  // lesson for the first demo that has a renderable FEN — that's the
+  // most representative position for the lesson's topic. Fall back
+  // to the canonical Makruk starting position so the right column
+  // is never empty during a text step (user feedback "ไม่เจอกระดาน").
+  const lessonContextFen = useMemo(() => {
+    for (const s of steps) {
+      if (s.kind !== 'demo') continue;
+      const d = s.demo;
+      if (
+        d.kind === 'position-viewer' ||
+        d.kind === 'position-quiz' ||
+        d.kind === 'try-move' ||
+        d.kind === 'replay' ||
+        d.kind === 'counting-demo'
+      ) {
+        return d.fen;
+      }
+    }
+    return MAKRUK_START_FEN;
+  }, [steps]);
+
   const handleNext = () => {
     if (isLast) {
       onMarkComplete();
@@ -111,7 +134,7 @@ export function LessonView({
         <LessonStepIndicator current={safeStepIdx} total={steps.length} />
       </header>
 
-      <StepRenderer step={step} />
+      <StepRenderer step={step} lessonContextFen={lessonContextFen} />
 
       <footer className="lesson-footer">
         {isLast && !onNextLesson && (
@@ -187,14 +210,17 @@ function LessonStepIndicator({ current, total }: { current: number; total: numbe
 
 // ---- Step dispatcher ---------------------------------------------------
 
-function StepRenderer({ step }: { step: LessonStep | undefined | null }) {
+function StepRenderer({
+  step,
+  lessonContextFen,
+}: { step: LessonStep | undefined | null; lessonContextFen: string }) {
   // Defensive: a transient render between lesson swaps can hand us an
   // undefined step. Returning null here is harmless — the next tick's
   // setStepIdx(0) reset puts us back on solid ground.
   if (!step) return null;
   switch (step.kind) {
     case 'text':
-      return <TextStepView step={step} />;
+      return <TextStepView step={step} contextFen={lessonContextFen} />;
     case 'demo':
       return <DemoRenderer demo={step.demo} caption={step.caption} />;
     default: {
@@ -205,18 +231,35 @@ function StepRenderer({ step }: { step: LessonStep | undefined | null }) {
   }
 }
 
-function TextStepView({ step }: { step: TextStep }) {
+function TextStepView({
+  step,
+  contextFen,
+}: { step: TextStep; contextFen: string }) {
+  // User feedback (Phase 38): "ไม่เจอกระดาน" — text-only steps left
+  // the right column blank and broke the visual rhythm of the
+  // lesson. Now every text step shows a read-only contextual board:
+  // the lesson's first position-viewer demo if one exists, otherwise
+  // the Makruk starting position. Even when the prose doesn't yet
+  // reference a specific position, the board gives the reader a
+  // spatial anchor — and keeps the layout consistent with every
+  // other lesson surface across the site.
+  const pieces = fenToBoardPieces(contextFen);
   return (
-    <div className="lesson-body">
-      {step.heading && <h3 className="lesson-step-heading">{step.heading}</h3>}
-      {step.text.split('\n').map((para, i) =>
-        para.trim() === '' ? null : (
-          <p key={i} className="lesson-explanation">
-            {para}
-          </p>
-        ),
-      )}
-    </div>
+    <BoardLayout
+      left={
+        <div className="lesson-body">
+          {step.heading && <h3 className="lesson-step-heading">{step.heading}</h3>}
+          {step.text.split('\n').map((para, i) =>
+            para.trim() === '' ? null : (
+              <p key={i} className="lesson-explanation">
+                {para}
+              </p>
+            ),
+          )}
+        </div>
+      }
+      board={<LessonBoard pieces={pieces} />}
+    />
   );
 }
 

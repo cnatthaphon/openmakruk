@@ -56,10 +56,13 @@ test.describe('lessons', () => {
     // Step indicator should show "ขั้นที่ 1 / 3"
     await expect(page.locator('.lesson-step-indicator')).toContainText('1 / 3');
 
-    // Step 1: text. No board yet.
-    await expect(page.locator('.lesson-board')).toHaveCount(0);
+    // Step 1: text. Phase 38 — text steps now show a contextual
+    // board too (the lesson's first position-viewer fen, falling
+    // back to MAKRUK_START_FEN). User feedback: "ไม่เจอกระดาน"
+    // when the right column was blank on text steps.
+    await expect(page.locator('.lesson-board')).toBeVisible();
 
-    // Advance to step 2 — should show position-viewer board
+    // Advance to step 2 — interactive position-viewer board
     await page.locator('.lesson-complete-button').click(); // "ถัดไป →"
     await expect(page.locator('.lesson-step-indicator')).toContainText('2 / 3');
     await expect(page.locator('.lesson-board')).toBeVisible();
