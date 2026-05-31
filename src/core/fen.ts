@@ -160,13 +160,38 @@ function parseFenCounter(raw: string | undefined): number | null {
   return n;
 }
 
+/** Validate the FEN counting slot (field 3 — overloaded with the
+ *  en-passant square in standard FEN but always a count target or
+ *  '-' in Makruk). Returns:
+ *    null     — malformed (e.g. 'e3', '-1', '1.5', '1e3', '+5')
+ *    'dash'   — slot is '-' (no count active)
+ *    number   — positive safe integer (count target in half-moves)
+ *
+ *  Standard chess FEN puts an en-passant square here ('e3', 'd6', …)
+ *  — those values are NEVER valid in Makruk and indicate the FEN
+ *  came from a different variant. */
+function parseCountingSlot(raw: string | undefined): 'dash' | number | null {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  if (raw === '-') return 'dash';
+  if (!/^[0-9]+$/.test(raw)) return null;
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n <= 0) return null;
+  return n;
+}
+
 /** Parse a full FEN into structured pieces + clocks. Returns null
  *  on any malformed input:
- *    - fewer than 6 space-separated fields
+ *    - exactly 6 space-separated fields required
  *    - placement field with anything other than exactly 8 ranks
  *    - any rank that doesn't sum to 8 files
  *    - any unknown piece letter in the placement
  *    - side-to-move not in {'w', 'b'}
+ *    - castling rights field anything other than '-' (Makruk has
+ *      no castling; 'KQ', 'KQkq' etc. indicate a non-Makruk FEN)
+ *    - counting slot anything other than '-' or a positive safe
+ *      integer (an en-passant square like 'e3' is malformed for
+ *      Makruk, and so are 0, fractional, exponential, or
+ *      arithmetic-overflowing counting targets)
  *    - half-move or full-move that isn't a non-negative integer
  *      (rejects fractional, exponential, signed, empty)
  *    - full-move === 0  (standard FEN starts move 1; 0 is malformed)
@@ -175,12 +200,19 @@ function parseFenCounter(raw: string | undefined): number | null {
  *  of try/catching. */
 export function parseFen(fen: string): ParsedFen | null {
   const fields = fen.split(/\s+/);
-  if (fields.length < 6) return null;
-  // fields[2] is castling rights (Makruk: always '-'). We skip it
-  // and read fields[3] (en-passant / counting slot in FS dialect)
-  // into countingSlot.
-  const [placement, turnRaw, , countingSlot, halfmoveRaw, fullmoveRaw] = fields;
+  // Strict field count — extra trailing tokens are not part of any
+  // FEN dialect we accept and indicate either a copy-paste mishap
+  // or a tampered position.
+  if (fields.length !== 6) return null;
+  const [placement, turnRaw, castlingRaw, countingSlot, halfmoveRaw, fullmoveRaw] =
+    fields;
   if (turnRaw !== 'w' && turnRaw !== 'b') return null;
+  // Makruk has no castling; the only valid value is '-'. Standard-
+  // chess values like 'KQ', 'KQkq', 'Kq' indicate the FEN came from
+  // the wrong variant and the rules layer cannot trust the position.
+  if (castlingRaw !== '-') return null;
+  const slot = parseCountingSlot(countingSlot);
+  if (slot === null) return null;
   const halfmove = parseFenCounter(halfmoveRaw);
   const fullmove = parseFenCounter(fullmoveRaw);
   if (halfmove === null || fullmove === null) return null;

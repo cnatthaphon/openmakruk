@@ -119,10 +119,57 @@ describe('parseFen — valid input', () => {
 });
 
 describe('parseFen — malformed input is rejected', () => {
-  it('rejects fewer than 6 space-separated fields', () => {
+  it('rejects anything other than exactly 6 space-separated fields', () => {
     assert.equal(parseFen('rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR'), null);
     assert.equal(parseFen('rnsmksnr w'), null);
     assert.equal(parseFen(''), null);
+    // Trailing junk produces a 7th field — reject so callers can
+    // trust the parsed shape.
+    assert.equal(parseFen(`${MAKRUK_START_FEN} extra`), null);
+  });
+
+  it('rejects castling rights other than "-" (Makruk has no castling)', () => {
+    for (const bad of ['KQ', 'KQkq', 'Kq', 'kq', 'K', 'q']) {
+      const fen = MAKRUK_START_FEN.replace(' w - - ', ` w ${bad} - `);
+      assert.equal(parseFen(fen), null, `castling=${bad} must reject`);
+    }
+  });
+
+  it('rejects an en-passant square in the counting slot', () => {
+    // Standard chess puts e3/d6/a3 etc. in field 3. None of those
+    // are valid for Makruk — the slot is either '-' or a positive
+    // count target. A leaked en-passant FEN must surface as null.
+    for (const ep of ['e3', 'd6', 'a8', 'h1']) {
+      const fen = MAKRUK_START_FEN.replace(' w - - ', ` w - ${ep} `);
+      assert.equal(parseFen(fen), null, `counting slot=${ep} must reject`);
+    }
+  });
+
+  it('rejects malformed counting-slot numbers', () => {
+    // Zero is not a valid Makruk count target (count starts ≥ 1).
+    // Fractional / exponential / signed are masked by Number() in
+    // the loose version and must be rejected by the strict gate.
+    for (const bad of ['0', '1.5', '1e3', '+64', '-1', '9007199254740993']) {
+      const fen = MAKRUK_START_FEN.replace(' w - - ', ` w - ${bad} `);
+      assert.equal(
+        parseFen(fen),
+        null,
+        `counting slot=${JSON.stringify(bad)} must reject`,
+      );
+    }
+  });
+
+  it('accepts the canonical valid counting slot shapes', () => {
+    // '-' (no count) and a positive safe integer (count active).
+    const dash = parseFen(MAKRUK_START_FEN);
+    if (!dash) throw new Error('"-" slot must parse');
+    assert.equal(dash.countingSlot, '-');
+
+    const withTarget = parseFen(
+      MAKRUK_START_FEN.replace(' w - - ', ' w - 64 '),
+    );
+    if (!withTarget) throw new Error('numeric slot must parse');
+    assert.equal(withTarget.countingSlot, '64');
   });
 
   it('rejects invalid side-to-move tokens', () => {
