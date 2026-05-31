@@ -2388,7 +2388,10 @@ export default function App() {
               conditional so non-applicable ones drop out cleanly. */}
           <PlaySideInfo
             challenge={challenge}
-            setChallenge={setChallenge}
+            onClearChallenge={() => {
+              clearChallengeTarget();
+              setChallenge(null);
+            }}
             history={history}
             mode={mode}
             state={state}

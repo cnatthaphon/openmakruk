@@ -11,7 +11,6 @@
 // `src/features/play/` directory.
 
 import type { ChallengeTarget } from '../../lib/challenge';
-import { clearChallengeTarget } from '../../lib/challenge';
 import { findNarrative } from '../../lib/personalities/narrative';
 import { DidYouKnowCard } from '../../components/DidYouKnowCard';
 import { TodayStrip } from '../../components/TodayStrip';
@@ -27,9 +26,12 @@ type GameState = {
 type Props = {
   /** Active challenge target, or null when none is set. */
   challenge: ChallengeTarget | null;
-  /** State setter so the "✕ จบ" close button can clear local state
-   *  the same render that calls clearChallengeTarget(). */
-  setChallenge: (next: ChallengeTarget | null) => void;
+  /** Invoked when the user clicks "✕ จบ" on the challenge banner.
+   *  App owns the storage write (clearChallengeTarget) and the
+   *  local state update — this module stays free of `lib/challenge`
+   *  coupling so future hosts (Storybook, alternate runtime, etc.)
+   *  can mount PlaySideInfo without dragging the storage layer in. */
+  onClearChallenge: () => void;
   /** Move history — length === 0 means lobby state. */
   history: readonly unknown[];
   /** Current play mode. Quick-actions only render in human-vs-CPU. */
@@ -53,7 +55,7 @@ type Props = {
 export function PlaySideInfo(props: Props) {
   const {
     challenge,
-    setChallenge,
+    onClearChallenge,
     history,
     mode,
     state,
@@ -106,10 +108,7 @@ export function PlaySideInfo(props: Props) {
           </div>
           <button
             className="challenge-banner-clear"
-            onClick={() => {
-              clearChallengeTarget();
-              setChallenge(null);
-            }}
+            onClick={onClearChallenge}
             title="หยุดท้าดวลตัวนี้ — เกมต่อไปจะนับเป็น difficulty ปกติ"
           >
             ✕ จบ
