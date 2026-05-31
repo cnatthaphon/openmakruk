@@ -25,6 +25,7 @@ import type {
 } from '../lib/extraContentSchema';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { navigate } from '../lib/router';
 import { MAKRUK_START_FEN, loadFfish } from '../lib/makruk';
 import { thaiUci } from '../lib/thaiUci';
 import { SkeletonGrid } from '../components/Skeleton';
@@ -56,13 +57,13 @@ export function StudyPage({
         <div className="study-banner-row">
           <button
             className="study-trainer-banner"
-            onClick={() => { window.location.hash = '#/movetrainer'; }}
+            onClick={() => navigate({ tab: 'movetrainer' })}
           >
             🎯 Move Trainer · ฝึกจำ opening ทีละตา →
           </button>
           <button
             className="study-trainer-banner"
-            onClick={() => { window.location.hash = '#/pattern'; }}
+            onClick={() => navigate({ tab: 'pattern' })}
           >
             🧠 Pattern Recognition · 10 รอบ visualization →
           </button>
