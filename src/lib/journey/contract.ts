@@ -34,22 +34,44 @@ export type DrillId = string;
 export type ChallengeCode = string;
 
 /** Skill / concept taxonomy. Motifs we already detect in review
- *  (pin / fork / discovered attack etc.) are normalized to this
+ *  (`src/lib/coach/types.ts CoachMotif`) are normalized to this
  *  enum so journey progress can talk about them without quoting
- *  raw strings throughout the codebase. */
+ *  raw strings throughout the codebase. The mapping from existing
+ *  coach motif kinds lives in `COACH_MOTIF_TO_CONCEPT` below. */
 export type Concept =
   | 'piece-movement'
+  | 'capture-trade'
   | 'check-detection'
   | 'mate-recognition'
+  | 'mate-threat-awareness'
   | 'tactical-pin'
   | 'tactical-fork'
   | 'tactical-skewer'
   | 'tactical-discovered'
   | 'tactical-double-attack'
+  | 'tactical-hanging-piece'
   | 'endgame-counting'
   | 'endgame-bare-king'
+  | 'endgame-promotion'
   | 'opening-development'
   | 'opening-center-control';
+
+/** Mapping from existing coach-motif kinds (the runtime emits these
+ *  from review.ts) to canonical Concept ids. Codex review on PR #14:
+ *  without this mapping, the review-summary input loses every motif
+ *  that doesn't already match a Concept name. The reducer reads this
+ *  table when consuming `kind: 'review-summary'` events. Adding a
+ *  new coach motif = one line here, no schema bump. */
+export const COACH_MOTIF_TO_CONCEPT: Readonly<Record<string, Concept>> = {
+  capture:        'capture-trade',
+  check:          'check-detection',
+  mate:           'mate-recognition',
+  mateThreat:     'mate-threat-awareness',
+  fork:           'tactical-fork',
+  hangingTarget:  'tactical-hanging-piece',
+  develop:        'opening-development',
+  promotion:      'endgame-promotion',
+};
 
 /** Mastery score for a single concept, 0..1. Conceptually:
  *    0.00 — not introduced
@@ -60,6 +82,10 @@ export type Concept =
  *  How the score is computed from the contributing inputs is the
  *  reducer's business; the contract just says scores live in [0, 1]. */
 export type MasteryScore = number;
+
+/** Star rating from a drill clear: 1 = passed, 2 = good, 3 = optimal.
+ *  Aligns with the trainer scoreboard in countingDrill.ts. */
+export type DrillStars = 1 | 2 | 3;
 
 /** A checkpoint is a milestone in the journey: a labeled goal the
  *  player can be working toward. Checkpoints reference content
@@ -87,16 +113,60 @@ export type Checkpoint = {
 };
 
 /** One requirement clause. Discriminated union — each kind has its
- *  own shape so the reducer can pattern-match exhaustively. */
+ *  own shape so the reducer can pattern-match exhaustively.
+ *
+ *  Codex review on PR #14: the `drill-passed` requirement and the
+ *  `drill-passed` input MUST share a comparison unit. Both use
+ *  stars (DrillStars) — the previous mismatch (`minScore: number`
+ *  in the requirement but `stars` in the input) meant the reducer
+ *  couldn't evaluate the requirement at all. */
 export type CheckpointRequirement =
   | { kind: 'lesson-completed'; lessonId: LessonId }
   | { kind: 'puzzle-solved'; puzzleId: PuzzleId }
   | { kind: 'puzzle-category-solved'; category: string; count: number }
-  | { kind: 'drill-passed'; drillId: DrillId; minScore?: number }
+  | { kind: 'drill-passed'; drillId: DrillId; minStars?: DrillStars }
   | { kind: 'concept-mastered'; concept: Concept; minScore: MasteryScore }
   | { kind: 'games-played'; minCount: number; rated?: boolean }
   | { kind: 'rating-reached'; minRating: number }
   | { kind: 'challenge-completed'; code?: ChallengeCode };
+
+/** Evidence the reducer needs to evaluate combined-requirement
+ *  checkpoints purely from JourneyState (no re-fetching events).
+ *
+ *  Codex review on PR #14: the previous JourneyState only carried
+ *  cleared-checkpoint ids and a sparse mastery map, so a requirement
+ *  like "solved 5 mate-in-1 puzzles" couldn't be answered from
+ *  state alone. The evidence section keeps the minimum set of
+ *  raw counters / id sets a pure reducer would need.
+ *
+ *  Every field is OPTIONAL on read (missing → "not yet recorded")
+ *  so the schema can grow additively without bumping
+ *  JOURNEY_SCHEMA_VERSION. */
+export type JourneyEvidence = {
+  /** Lesson ids the player has completed at least once. Stored as
+   *  array (not Set) so it serialises to JSON cleanly. The reducer
+   *  treats it as a set: duplicate completions don't compound. */
+  completedLessons?: LessonId[];
+  /** Puzzle ids the player has solved at least once. */
+  solvedPuzzles?: PuzzleId[];
+  /** Per-category puzzle-solved counts (e.g. { 'mate-1': 5, ... }).
+   *  Lets `puzzle-category-solved` requirements be evaluated without
+   *  walking the full solvedPuzzles list. */
+  puzzleCountsByCategory?: Record<string, number>;
+  /** Best star result per drill id. Lets `drill-passed { minStars }`
+   *  be evaluated; reducer keeps the MAX over re-attempts. */
+  drillBestStars?: Record<DrillId, DrillStars>;
+  /** Challenge codes the player has completed (any outcome). */
+  completedChallenges?: ChallengeCode[];
+  /** Lifetime games-played counters split by rated/casual. Either
+   *  one of `gamesPlayedRated`/`gamesPlayedCasual` may be missing
+   *  on older journeys. */
+  gamesPlayedRated?: number;
+  gamesPlayedCasual?: number;
+  /** Latest known rating. The rating-changed input simply overwrites
+   *  this; the reducer does no smoothing. */
+  rating?: number;
+};
 
 /** Versioned aggregate state for the journey. A consumer reads this
  *  and decides what to render (next-checkpoint card, mastery chart,
@@ -112,6 +182,9 @@ export type JourneyState = {
   /** Per-concept mastery scores. Keys are Concept identifiers; missing
    *  keys default to 0. */
   mastery: Partial<Record<Concept, MasteryScore>>;
+  /** Explicit evidence the reducer keeps for combined-requirement
+   *  evaluation. See JourneyEvidence for the per-field rationale. */
+  evidence: JourneyEvidence;
   /** When the journey state was last touched. Used by sync logic to
    *  pick the freshest copy when local + cloud disagree. */
   updatedAt: number;
@@ -133,6 +206,10 @@ export type ProgressInput =
   | {
       kind: 'puzzle-solved';
       puzzleId: PuzzleId;
+      /** Category id from the puzzle's content row (mate-1, defense,
+       *  counting, etc.). Lets the reducer maintain
+       *  evidence.puzzleCountsByCategory without re-loading content. */
+      category: string;
       at: number;
       /** Did the player solve on the first attempt without a hint? */
       optimal: boolean;
@@ -143,21 +220,32 @@ export type ProgressInput =
       kind: 'drill-passed';
       drillId: DrillId;
       at: number;
-      stars: 1 | 2 | 3;
+      stars: DrillStars;
       concepts?: Concept[];
     }
   | {
       kind: 'review-summary';
       gameId: string;
       at: number;
-      /** Per-concept counts from the post-game analysis (motif totals,
-       *  blunders avoided, mate-recognition wins). */
-      conceptDeltas: Partial<Record<Concept, number>>;
+      /** Raw motif totals from the post-game review pipeline. Keys
+       *  are CoachMotif `kind` strings (capture / check / mate /
+       *  mateThreat / fork / hangingTarget / develop / promotion).
+       *  The reducer translates each key through
+       *  COACH_MOTIF_TO_CONCEPT before bumping
+       *  state.mastery, so adding a new motif is a one-line table
+       *  edit, not a contract change. */
+      motifTotals: Record<string, number>;
     }
   | {
       kind: 'challenge-completed';
       code: ChallengeCode;
       at: number;
+      outcome: 'win' | 'draw' | 'loss';
+    }
+  | {
+      kind: 'game-recorded';
+      at: number;
+      mode: 'rated' | 'casual';
       outcome: 'win' | 'draw' | 'loss';
     }
   | {
@@ -181,6 +269,7 @@ export function emptyJourney(now: number = Date.now()): JourneyState {
     v: JOURNEY_SCHEMA_VERSION,
     cleared: [],
     mastery: {},
+    evidence: {},
     updatedAt: now,
   };
 }
@@ -194,4 +283,11 @@ export function masteryFor(state: JourneyState, concept: Concept): MasteryScore 
 /** Helper: did the player clear this checkpoint? */
 export function isCheckpointCleared(state: JourneyState, id: string): boolean {
   return state.cleared.includes(id);
+}
+
+/** Helper: translate a coach-motif kind into a Concept. Returns null
+ *  for unknown motifs so the reducer can decide whether to ignore
+ *  silently or log. */
+export function conceptForCoachMotif(motifKind: string): Concept | null {
+  return COACH_MOTIF_TO_CONCEPT[motifKind] ?? null;
 }

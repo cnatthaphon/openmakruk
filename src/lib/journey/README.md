@@ -31,19 +31,64 @@ JourneyState = {
   v: 1                                         // version stamp
   cleared: string[]                            // checkpoint ids
   mastery: Partial<Record<Concept, number>>    // per-concept 0..1
+  evidence: {                                  // raw counters the
+    completedLessons?:        LessonId[]       //   reducer needs to
+    solvedPuzzles?:           PuzzleId[]       //   answer combined
+    puzzleCountsByCategory?:  Record<string,n> //   requirements
+    drillBestStars?:          Record<DrillId, 1|2|3>
+    completedChallenges?:     ChallengeCode[]
+    gamesPlayedRated?:        number
+    gamesPlayedCasual?:       number
+    rating?:                  number
+  }
   updatedAt: number                            // ms epoch
 }
 
 ProgressInput =
-  | { kind: 'lesson-completed', lessonId, at, concepts? }
-  | { kind: 'puzzle-solved',    puzzleId, at, optimal, concepts? }
-  | { kind: 'drill-passed',     drillId,  at, stars, concepts? }
-  | { kind: 'review-summary',   gameId,   at, conceptDeltas }
-  | { kind: 'challenge-completed', code,  at, outcome }
-  | { kind: 'rating-changed',           at, rating }
+  | { kind: 'lesson-completed',    lessonId, at, concepts? }
+  | { kind: 'puzzle-solved',       puzzleId, category, at, optimal, concepts? }
+  | { kind: 'drill-passed',        drillId,  at, stars, concepts? }
+  | { kind: 'review-summary',      gameId,   at, motifTotals }
+  | { kind: 'challenge-completed', code,     at, outcome }
+  | { kind: 'game-recorded',                 at, mode, outcome }
+  | { kind: 'rating-changed',                at, rating }
 ```
 
 Each existing store emits ONE of these `ProgressInput` kinds — the rest is the reducer's job. The reducer signature is `(state, input) → state` and must be pure.
+
+The `evidence` field is what makes the reducer **purely** evaluable: every `CheckpointRequirement` clause has a corresponding evidence field, so the reducer can answer "is this checkpoint cleared?" by reading state alone — no event log replay, no store re-read.
+
+## CheckpointRequirement ↔ JourneyState.evidence
+
+| Requirement clause | Evidence read |
+|---|---|
+| `lesson-completed { lessonId }` | `evidence.completedLessons.includes(lessonId)` |
+| `puzzle-solved { puzzleId }` | `evidence.solvedPuzzles.includes(puzzleId)` |
+| `puzzle-category-solved { category, count }` | `evidence.puzzleCountsByCategory[category] ≥ count` |
+| `drill-passed { drillId, minStars }` | `(evidence.drillBestStars[drillId] ?? 0) ≥ minStars` |
+| `concept-mastered { concept, minScore }` | `state.mastery[concept] ≥ minScore` |
+| `games-played { minCount, rated? }` | combination of `evidence.gamesPlayedRated` + `gamesPlayedCasual` |
+| `rating-reached { minRating }` | `(evidence.rating ?? 0) ≥ minRating` |
+| `challenge-completed { code? }` | `code` present → check inclusion; absent → array non-empty |
+
+Note the drill clause uses `minStars` (1/2/3), NOT `minScore`. The drill-passed INPUT also reports `stars` — both ends of the contract share the unit so the reducer's comparison is unambiguous.
+
+## Coach motifs → Concepts
+
+`review-summary` events carry `motifTotals` keyed by the existing CoachMotif `kind` strings (`capture`, `check`, `mate`, `mateThreat`, `fork`, `hangingTarget`, `develop`, `promotion`). The reducer translates each through `COACH_MOTIF_TO_CONCEPT` from `contract.ts`:
+
+| Coach motif | Concept |
+|---|---|
+| `capture` | `capture-trade` |
+| `check` | `check-detection` |
+| `mate` | `mate-recognition` |
+| `mateThreat` | `mate-threat-awareness` |
+| `fork` | `tactical-fork` |
+| `hangingTarget` | `tactical-hanging-piece` |
+| `develop` | `opening-development` |
+| `promotion` | `endgame-promotion` |
+
+Adding a new coach motif = one row in the table + (if needed) one Concept enum value. No schema bump unless persisted shapes change.
 
 ## Adding new content
 
