@@ -94,5 +94,39 @@ for (const vp of VIEWPORTS) {
         expect(count, `${route} should have exactly 1 .back-button`).toBe(1);
       }
     });
+
+    // Codex review on PR #10: presence/uniqueness isn't enough —
+    // a back button that goes nowhere or to the wrong tab is the
+    // failure mode that introduced this whole nav cleanup. Drive
+    // each click and assert the resulting hash so a future label-
+    // shuffle / wrong-target regression fails CI.
+    const BACK_TARGETS: Array<{ from: string; expectedHash: string }> = [
+      { from: '/#/counting/l1-k-rr-vs-k', expectedHash: '#/counting' },
+      { from: '/#/movetrainer',           expectedHash: '#/study' },
+      { from: '/#/bossrush',              expectedHash: '#/profile' },
+      { from: '/#/pattern',               expectedHash: '#/study' },
+      { from: '/#/survive',               expectedHash: '#/puzzles' },
+      { from: '/#/rush',                  expectedHash: '#/puzzles' },
+    ];
+    for (const { from, expectedHash } of BACK_TARGETS) {
+      test(`back button on ${from} navigates to ${expectedHash}`, async ({ page }) => {
+        await page.goto('/');
+        await clearAppState(page);
+        await page.goto(from);
+        await waitForContentReady(page);
+        await page.waitForTimeout(500);
+
+        const back = page.locator('.back-button');
+        await expect(back).toHaveCount(1);
+        await back.click();
+
+        // The router uses window.location.hash; poll until it settles
+        // on the expected target so we don't race the hashchange
+        // listener.
+        await expect
+          .poll(() => new URL(page.url()).hash, { timeout: 5_000 })
+          .toBe(expectedHash);
+      });
+    }
   });
 }
