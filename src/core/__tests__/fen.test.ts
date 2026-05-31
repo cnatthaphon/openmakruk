@@ -137,6 +137,31 @@ describe('parseFen — malformed input is rejected', () => {
     assert.equal(parseFen(b), null);
   });
 
+  it('rejects fractional, exponential, signed, or empty counters', () => {
+    for (const bad of ['1.5', '1e3', '-3', '+5', ' ', '0.0', 'NaN']) {
+      const fen = MAKRUK_START_FEN.replace(' 0 1', ` ${bad} 1`);
+      assert.equal(
+        parseFen(fen),
+        null,
+        `halfmove=${JSON.stringify(bad)} must reject`,
+      );
+    }
+    for (const bad of ['1.5', '1e3', '-1', '+1', '0', '0.5']) {
+      const fen = MAKRUK_START_FEN.replace(' 0 1', ` 0 ${bad}`);
+      assert.equal(
+        parseFen(fen),
+        null,
+        `fullmove=${JSON.stringify(bad)} must reject`,
+      );
+    }
+  });
+
+  it('accepts the minimum legal full-move number (1)', () => {
+    const p = parseFen(MAKRUK_START_FEN);
+    if (!p) throw new Error('start position must parse');
+    assert.equal(p.fullmove, 1);
+  });
+
   it('rejects placement with the wrong number of ranks', () => {
     // 7 ranks instead of 8
     const seven = 'rnsmksnr/8/pppppppp/8/8/PPPPPPPP/RNSKMSNR w - - 0 1';
@@ -199,5 +224,20 @@ describe('parseCounting', () => {
 
   it('returns inactive for a malformed counting slot', () => {
     assert.deepEqual(parseCounting('rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR w - z 0 1'), { active: false });
+  });
+
+  it('quickParseClocks (via string overload) is integer-strict on halfmove', () => {
+    // Fractional / exponential / signed half-move on the string
+    // overload must surface as inactive — same strictness as parseFen
+    // applies to the counter field.
+    const start = 'rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR w - 64';
+    for (const bad of ['1.5', '1e2', '-3', '+5', '']) {
+      const fen = `${start} ${bad} 1`;
+      assert.deepEqual(
+        parseCounting(fen),
+        { active: false },
+        `halfmove=${JSON.stringify(bad)} must be inactive`,
+      );
+    }
   });
 });

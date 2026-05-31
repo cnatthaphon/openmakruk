@@ -138,6 +138,28 @@ function parseRankStrict(
   return pieces;
 }
 
+/** Strict integer parse for FEN counter fields. Returns null on:
+ *   - the empty string / non-digit characters (Number('') is 0, hides bugs)
+ *   - leading + or - signs ('+5', '-3')
+ *   - fractional values ('1.5')
+ *   - exponential values ('1e3') — Number(...) accepts these but a
+ *     well-formed FEN must not
+ *   - leading zeros longer than the value itself ('01' tolerated;
+ *     standard FEN writers don't pad)
+ *
+ *  Caller decides whether 0 is acceptable (half-move clock can be
+ *  0 at game start; full-move number cannot — see parseFen). */
+function parseFenCounter(raw: string | undefined): number | null {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  // Strict digits — no signs, no decimal point, no exponent. This
+  // rules out '1.5', '-3', '1e3', '+5', 'NaN', '' all at once.
+  if (!/^[0-9]+$/.test(raw)) return null;
+  const n = Number(raw);
+  // Guard against gigantic strings that overflow safe integer range.
+  if (!Number.isSafeInteger(n)) return null;
+  return n;
+}
+
 /** Parse a full FEN into structured pieces + clocks. Returns null
  *  on any malformed input:
  *    - fewer than 6 space-separated fields
@@ -145,7 +167,9 @@ function parseRankStrict(
  *    - any rank that doesn't sum to 8 files
  *    - any unknown piece letter in the placement
  *    - side-to-move not in {'w', 'b'}
- *    - non-numeric or negative half-move / full-move
+ *    - half-move or full-move that isn't a non-negative integer
+ *      (rejects fractional, exponential, signed, empty)
+ *    - full-move === 0  (standard FEN starts move 1; 0 is malformed)
  *
  *  Callers that need to recover should branch on the null instead
  *  of try/catching. */
@@ -157,10 +181,12 @@ export function parseFen(fen: string): ParsedFen | null {
   // into countingSlot.
   const [placement, turnRaw, , countingSlot, halfmoveRaw, fullmoveRaw] = fields;
   if (turnRaw !== 'w' && turnRaw !== 'b') return null;
-  const halfmove = Number(halfmoveRaw);
-  const fullmove = Number(fullmoveRaw);
-  if (!Number.isFinite(halfmove) || !Number.isFinite(fullmove)) return null;
-  if (halfmove < 0 || fullmove < 0) return null;
+  const halfmove = parseFenCounter(halfmoveRaw);
+  const fullmove = parseFenCounter(fullmoveRaw);
+  if (halfmove === null || fullmove === null) return null;
+  // Half-move clock may be 0 (game start, fresh count). Full-move
+  // starts at 1 in standard FEN — 0 indicates corrupted data.
+  if (fullmove < 1) return null;
 
   const ranks = placement.split('/');
   if (ranks.length !== 8) return null;

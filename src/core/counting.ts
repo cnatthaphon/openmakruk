@@ -50,15 +50,22 @@ export function parseCounting(fen: ParsedFen | string): CountInfo {
  *  the clock from a long move history. Matches the field indices
  *  the legacy `src/lib/makruk.ts` parser used: fields[3] for the
  *  FS-overloaded en-passant / counting slot, fields[4] for the
- *  half-move clock. */
+ *  half-move clock.
+ *
+ *  Integer-strict on the half-move field: rejects fractional,
+ *  exponential, signed, or empty values that Number() would
+ *  silently coerce. Stays in sync with parseFen's strictness so
+ *  the two parsers never disagree on what 'valid' means. */
 function quickParseClocks(fen: string): {
   countingSlot: string;
   halfmove: number;
 } | null {
   const fields = fen.split(/\s+/);
   if (fields.length < 6) return null;
-  const halfmove = Number(fields[4]);
-  if (!Number.isFinite(halfmove)) return null;
+  const raw = fields[4];
+  if (typeof raw !== 'string' || !/^[0-9]+$/.test(raw)) return null;
+  const halfmove = Number(raw);
+  if (!Number.isSafeInteger(halfmove)) return null;
   return { countingSlot: fields[3] ?? '-', halfmove };
 }
 
