@@ -39,7 +39,12 @@ export function parseCounting(fen: ParsedFen | string): CountInfo {
   const slot = parsed.countingSlot;
   if (slot === '-' || !/^\d+$/.test(slot)) return { active: false };
   const target = Number(slot);
-  if (!Number.isFinite(target) || target <= 0) return { active: false };
+  // Number.isSafeInteger guards against overflow: a literal slot like
+  // '9007199254740993' coerces to 9007199254740992 via Number() and
+  // would silently change the count target. Reject anything past
+  // MAX_SAFE_INTEGER so the rules layer never trusts a rounded value.
+  // Matches the strict gate parseFen uses on the same field.
+  if (!Number.isSafeInteger(target) || target <= 0) return { active: false };
   const current = parsed.halfmove;
   const remaining = Math.max(0, target - current);
   return { active: true, target, current, remaining };

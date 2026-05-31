@@ -273,6 +273,31 @@ describe('parseCounting', () => {
     assert.deepEqual(parseCounting('rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR w - z 0 1'), { active: false });
   });
 
+  it('rejects unsafe-integer counting targets (no silent rounding)', () => {
+    // Number('9007199254740993') === 9007199254740992 — JS coerces
+    // anything past Number.MAX_SAFE_INTEGER to a rounded value.
+    // Without the isSafeInteger gate the rules layer would trust
+    // a target it never received.
+    const overflow = '9007199254740993'; // MAX_SAFE_INTEGER + 1
+    const wayOver  = '99999999999999999'; // 17 digits
+    const start = 'rnsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR w -';
+    for (const bad of [overflow, wayOver]) {
+      const fen = `${start} ${bad} 0 1`;
+      assert.deepEqual(
+        parseCounting(fen),
+        { active: false },
+        `slot=${bad} must be inactive (would round to ${Number(bad)})`,
+      );
+    }
+    // Sanity boundary: MAX_SAFE_INTEGER itself is accepted — the
+    // gate is "safe integer", not "small integer".
+    const safe = String(Number.MAX_SAFE_INTEGER);
+    const okFen = `${start} ${safe} 0 1`;
+    const ok = parseCounting(okFen);
+    if (!ok.active) throw new Error(`MAX_SAFE_INTEGER target must parse, got ${JSON.stringify(ok)}`);
+    assert.equal(ok.target, Number.MAX_SAFE_INTEGER);
+  });
+
   it('quickParseClocks (via string overload) is integer-strict on halfmove', () => {
     // Fractional / exponential / signed half-move on the string
     // overload must surface as inactive — same strictness as parseFen
