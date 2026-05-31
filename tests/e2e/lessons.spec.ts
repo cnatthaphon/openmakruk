@@ -39,7 +39,7 @@ test.describe('lessons', () => {
     await expect(page.locator('h2')).toContainText('ตำแหน่งเริ่มต้น');
 
     // Walk back to the list and verify lesson #1 now carries the ✓ status
-    await page.locator('.lesson-back').click();
+    await page.locator('.back-button').click();
     await expect(page.locator('.learn-card').first()).toContainText('✓');
   });
 

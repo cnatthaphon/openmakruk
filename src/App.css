@@ -2414,6 +2414,29 @@ main:has(.board-layout) {
   border-color: var(--accent);
 }
 
+/* Shared <BackButton> — one source of truth for the back affordance.
+ * Issue #9 audit consolidated half a dozen near-duplicate classes
+ * (.lesson-back, .drill-back, .trainer-back, .survive-back,
+ *  .pattern-back, .rush-mode-back, .bot-detail-back, .exhibition-back).
+ * Visuals match .lesson-back so existing pages don't shift on the
+ * day a page migrates. New code should always use <BackButton>. */
+.back-button {
+  margin-bottom: 12px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--fg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent);
+}
+
 .lesson-header h2 {
   margin: 0 0 6px;
   font-size: 22px;
