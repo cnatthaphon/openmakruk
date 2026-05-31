@@ -119,6 +119,50 @@ test.describe('critical gap coverage', () => {
   });
 
   // ────────────────────────────────────────────────────────────────
+  // 2c. Forced-result games stay non-playable after dismiss (issue #18)
+  // ────────────────────────────────────────────────────────────────
+  test('forced-result (resign) keeps board non-playable after closing overlay', async ({ page }) => {
+    test.setTimeout(60_000);
+    // Start a normal game (Play tab default) so we have a legal
+    // position to move from, then trigger a resign — which is a
+    // forced result, NOT state.isGameOver=true. Before the fix,
+    // closing the overlay let the user keep dragging pieces.
+    await page.goto('/#/play');
+    await waitForContentReady(page);
+    await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
+    // Make one move so the game isn't in the lobby state, then
+    // surface the quick-action row (which becomes interactive
+    // after the first ply).
+    await dragMove(page, 'e3', 'e4');
+    await page.waitForTimeout(500);
+    // Resign — opens a toast.confirm; the user confirms to set
+    // forcedResult. Mirror the mobile-touch suite's confirm flow.
+    const resignBtn = page.locator('.play-quick-resign');
+    await expect(resignBtn).toBeEnabled({ timeout: 10_000 });
+    await resignBtn.click();
+    await page.getByRole('button', { name: 'ยอมแพ้', exact: true }).click();
+    await expect(page.locator('.game-over-overlay')).toBeVisible({ timeout: 10_000 });
+
+    // Capture the rendered FEN now — after closing the overlay and
+    // trying to move, it must NOT change.
+    const fenBefore = await readBoardFen(page);
+
+    // Close the overlay so the board is reachable.
+    await page.locator('.game-over-close').click();
+    await expect(page.locator('.game-over-overlay')).toHaveCount(0);
+
+    // Attempt a legal move — Bia e4-e5 (was a Bia push at e3, now
+    // at e4 after the earlier move). Should be rejected because
+    // forcedResult is set.
+    await dragMove(page, 'e4', 'e5');
+    await page.waitForTimeout(400);
+    const fenAfter = await readBoardFen(page);
+    expect(fenAfter, 'forced-result must reject moves even with overlay closed')
+      .toBe(fenBefore);
+  });
+
+  // ────────────────────────────────────────────────────────────────
   // 3. Promotion — bia reaches rank 6, becomes Met
   // ────────────────────────────────────────────────────────────────
   test('promotion: white bia d5-d6 becomes Met (queen-class)', async ({ page }) => {

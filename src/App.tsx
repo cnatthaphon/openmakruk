@@ -1321,6 +1321,14 @@ export default function App() {
       log('user.move.reject', { reason: 'gameOver', from, to });
       return;
     }
+    // Forced results (resign / accepted draw / time-out) end the
+    // game without flipping state.isGameOver. Issue #18: when the
+    // dismissable overlay (#17) is closed the board accepts input
+    // unless we also gate on forcedResult here.
+    if (forcedResult !== null) {
+      log('user.move.reject', { reason: 'forcedResult', forcedResult, from, to });
+      return;
+    }
     if (thinking) {
       log('user.move.reject', { reason: 'thinking', from, to });
       return;
@@ -1714,6 +1722,14 @@ export default function App() {
     inspectedView !== null ||
     thinking ||
     state.isGameOver ||
+    // Issue #17 / #18 — forced results (resign / draw-accept / time-out)
+    // end the game outside of ffish's normal state machine. Until #17
+    // shipped the dismiss button, the centered overlay covered the
+    // board, so a click never reached chessground anyway. Now that the
+    // overlay can be closed, the board sits there waiting for input
+    // and the user could still drag a piece. Including forcedResult
+    // here matches the move-rejection guard in handleMove() below.
+    forcedResult !== null ||
     (userSide !== 'both' && userSide !== state.turn);
   const reviewCurrent = reviewActive && reviewPly > 0 ? reviewMoves[reviewPly - 1] : null;
 
