@@ -98,7 +98,18 @@ export function pieceCountingLimit(pos: ParsedFen): number | null {
   // otherwise it's Honor counting territory (separate rule).
   if (bias > 0) return null;
   if (rooks >= 2) return 8;
-  if (rooks === 1) return 16;
+  if (rooks === 1) {
+    // K+R alone forces mate in 16; adding any non-pawn helper
+    // (Met / Khon / Knight) extends the count to 22. Matches the
+    // existing counting-trainer levels (countingDrill.ts):
+    //   L2 K+R vs K            = 16
+    //   L3 K+R+M vs K          = 22
+    // Earlier this branch fell through to `rooks === 1 → 16` for
+    // K+R+M as well — the helper disagreed with what the trainer
+    // showed users.
+    if (mets + khons + knights > 0) return 22;
+    return 16;
+  }
   if (knights >= 2) return 32;
   if (khons === 2) return 22;
   if (khons === 1 && knights === 1) return 44;
