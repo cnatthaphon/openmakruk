@@ -216,6 +216,49 @@ export function recordGame(
   };
 }
 
+/**
+ * Remove one game from the user's history by id. Returns a fresh
+ * UserStats with the row stripped AND the per-level + total counters
+ * decremented. Rating is NOT recalculated — historical Elo math is
+ * monotonic in event-order and we can't "un-apply" a single match
+ * without re-running every game that came after it. The displayed
+ * rating stays as-is; the by-level totals are what the user sees
+ * change when they delete.
+ *
+ * Idempotent: deleting an id that's no longer in history returns the
+ * input stats unchanged so callers can safely retry after a partial
+ * cloud-sync failure.
+ */
+export function removeGameRecord(stats: UserStats, id: string): UserStats {
+  const idx = stats.history.findIndex((g) => g.id === id);
+  if (idx < 0) return stats;
+  const removed = stats.history[idx];
+  const history = [
+    ...stats.history.slice(0, idx),
+    ...stats.history.slice(idx + 1),
+  ];
+
+  // Decrement the matching by-level bucket. Guard against unknown
+  // opponents (e.g. a hand-edited import with a stale enum value) by
+  // treating a missing bucket as zero — never let counters go negative.
+  const bucket = stats.byLevel[removed.opponent] ?? EMPTY_LEVEL;
+  const byLevel: Record<Difficulty, LevelRecord> = {
+    ...stats.byLevel,
+    [removed.opponent]: {
+      wins: Math.max(0, bucket.wins - (removed.outcome === 'win' ? 1 : 0)),
+      losses: Math.max(0, bucket.losses - (removed.outcome === 'loss' ? 1 : 0)),
+      draws: Math.max(0, bucket.draws - (removed.outcome === 'draw' ? 1 : 0)),
+    },
+  };
+
+  return {
+    ...stats,
+    totalGames: Math.max(0, stats.totalGames - 1),
+    byLevel,
+    history,
+  };
+}
+
 /** Map the rating to a sensible difficulty to play next. */
 export function recommendedLevel(rating: number): Difficulty {
   if (rating < 1100) return 'easy';

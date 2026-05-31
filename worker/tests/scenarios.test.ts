@@ -1064,3 +1064,77 @@ describe('exhibition submit (external runner)', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('DELETE /api/games/:id (issue #21)', () => {
+  test('owner deletes own game → row disappears from history', async () => {
+    const u = await createAnonUser('GameDeleter');
+    const g = await recordGame(u.token, {
+      opponent: 'medium',
+      outcome: 'win',
+    });
+
+    const before = await getGameHistory(u.token);
+    expect(before.games.find((row) => row.id === g.id)).toBeDefined();
+
+    const del = await fetch(`${baseUrl()}/api/games/${encodeURIComponent(g.id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(del.status).toBe(200);
+    expect(await del.json()).toEqual({ ok: true, deleted: true });
+
+    const after = await getGameHistory(u.token);
+    expect(after.games.find((row) => row.id === g.id)).toBeUndefined();
+  });
+
+  test('deleting twice is idempotent — second call returns deleted=false', async () => {
+    const u = await createAnonUser('IdempotentDeleter');
+    const g = await recordGame(u.token, {
+      opponent: 'easy',
+      outcome: 'loss',
+    });
+
+    const first = await fetch(`${baseUrl()}/api/games/${encodeURIComponent(g.id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(await first.json()).toEqual({ ok: true, deleted: true });
+
+    const second = await fetch(`${baseUrl()}/api/games/${encodeURIComponent(g.id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${u.token}` },
+    });
+    expect(second.status).toBe(200);
+    expect(await second.json()).toEqual({ ok: true, deleted: false });
+  });
+
+  test('non-owner deleting another user\'s game does NOT remove it', async () => {
+    // Owner records a game …
+    const owner = await createAnonUser('TheOwner');
+    const g = await recordGame(owner.token, {
+      opponent: 'medium',
+      outcome: 'draw',
+    });
+
+    // … attacker (different anon user) tries to delete it. The server
+    // answers `deleted: false` (no info leak) and the row stays put.
+    const attacker = await createAnonUser('TheAttacker');
+    const res = await fetch(`${baseUrl()}/api/games/${encodeURIComponent(g.id)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${attacker.token}` },
+    });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, deleted: false });
+
+    // Owner's history still shows the row.
+    const ownerHistory = await getGameHistory(owner.token);
+    expect(ownerHistory.games.find((row) => row.id === g.id)).toBeDefined();
+  });
+
+  test('unauthenticated DELETE → 401', async () => {
+    const res = await fetch(`${baseUrl()}/api/games/anything`, {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(401);
+  });
+});

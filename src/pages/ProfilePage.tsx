@@ -10,10 +10,12 @@ import {
   importStatsJSON,
   loadStats,
   recommendedLevel,
+  removeGameRecord,
   saveStats,
   type GameRecord,
   type UserStats,
 } from '../lib/stats';
+import { HistoryReplay } from '../features/history/HistoryReplay';
 import { DIFFICULTY_LABELS, type Difficulty } from '../lib/engine';
 import { personalityEngineId } from '../lib/personalities/scoredBot';
 import { downloadPgn, gameToPgn, gamesToPgn } from '../lib/pgn';
@@ -93,7 +95,68 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(stats.displayName);
   const [subTab, setSubTab] = useState<ProfileSubTab>('overview');
+  // When non-null, the entire ProfilePage swaps to a per-row replay
+  // viewer. This stays inside the profile tab so the user's mental
+  // model is "I'm still in my profile, just looking at one game" —
+  // the back button restores the previous sub-tab without losing
+  // their scroll position elsewhere on the page (we keep state).
+  const [replayingId, setReplayingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const replayingRecord = useMemo(
+    () => (replayingId ? stats.history.find((g) => g.id === replayingId) ?? null : null),
+    [replayingId, stats.history],
+  );
+
+  const handleDeleteGame = (record: GameRecord) => {
+    const dateLabel = new Date(record.date).toLocaleString('th-TH');
+    toast.confirm(
+      `ลบเกมนี้? (vs ${DIFFICULTY_LABELS[record.opponent]} · ${dateLabel}) — กู้ไม่ได้`,
+      {
+        confirmLabel: 'ลบเกม',
+        destructive: true,
+        onConfirm: () => {
+          const next = removeGameRecord(stats, record.id);
+          saveStats(next);
+          onStatsChange(next);
+
+          // If the user just deleted the game they were watching, drop
+          // out of the replay view so they don't end up staring at a
+          // record that no longer exists.
+          if (replayingId === record.id) setReplayingId(null);
+
+          // Cloud-sync mirror. Best-effort: a failure here doesn't undo
+          // the local delete — the next successful sync will reconcile.
+          // The route is idempotent on the server so retries are safe.
+          const backend = getBackend();
+          if (backend.deleteGame !== undefined) {
+            const session = loadSession();
+            if (session.token.length > 0) {
+              backend.deleteGame(session.token, record.id).catch((err: unknown) => {
+                toast.error(`ลบบน server ไม่สำเร็จ: ${String(err)}`);
+              });
+            }
+          }
+
+          toast.success('ลบเกมแล้ว');
+        },
+      },
+    );
+  };
+
+  // If we're inside a replay, render that surface alone — keeping the
+  // header/back navigation simple. Subtabs + history list re-appear
+  // when the user closes the replay.
+  if (replayingRecord) {
+    return (
+      <Page variant="wide" className="profile-page profile-page-replay">
+        <HistoryReplay
+          record={replayingRecord}
+          onClose={() => setReplayingId(null)}
+        />
+      </Page>
+    );
+  }
 
   const suggested = recommendedLevel(stats.rating);
   const winRate = computeWinRate(stats.history);
@@ -325,7 +388,13 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
       </section>
       )}
 
-      {subTab === 'stats' && <HistorySection stats={stats} />}
+      {subTab === 'stats' && (
+        <HistorySection
+          stats={stats}
+          onReplay={(id) => setReplayingId(id)}
+          onDelete={handleDeleteGame}
+        />
+      )}
 
       {subTab === 'manage' && (
         <section className="profile-section">
@@ -414,9 +483,13 @@ function TitleLadderExplainer({ rating }: { rating: number }) {
 function ProfileHistoryRow({
   record,
   userName,
+  onReplay,
+  onDelete,
 }: {
   record: GameRecord;
   userName: string;
+  onReplay: (id: string) => void;
+  onDelete: (record: GameRecord) => void;
 }) {
   const date = new Date(record.date);
   const dateStr = `${date.getMonth() + 1}/${date.getDate()} ${date
@@ -450,11 +523,38 @@ function ProfileHistoryRow({
       <span className="history-rating">→ {record.ratingAfter}</span>
       <span className="history-date">{dateStr}</span>
       <button
-        className="history-pgn-button"
+        className="history-row-button history-replay-button"
+        onClick={() => onReplay(record.id)}
+        disabled={!record.moves || record.moves.length === 0}
+        title={
+          record.moves && record.moves.length > 0
+            ? 'ดูเกมนี้ใน OpenMakruk'
+            : 'ไม่มีรายละเอียดตา (เก่าเกินไป)'
+        }
+      >
+        ▶ ดูเกม
+      </button>
+      <button
+        className="history-row-button history-reanalyze-button"
+        disabled
+        title="🔧 ยังไม่พร้อม — รอ Review pipeline (issue #19)"
+      >
+        🔍 รีวิว
+      </button>
+      <button
+        className="history-row-button history-pgn-button"
         onClick={handleExport}
         title="Export this game to PGN"
       >
         📋 PGN
+      </button>
+      <button
+        className="history-row-button history-delete-button"
+        onClick={() => onDelete(record)}
+        title="ลบเกมนี้ออกจากประวัติ"
+        aria-label="ลบเกมนี้"
+      >
+        🗑
       </button>
     </div>
   );
@@ -641,7 +741,15 @@ function GauntletSection() {
   );
 }
 
-function HistorySection({ stats }: { stats: UserStats }) {
+function HistorySection({
+  stats,
+  onReplay,
+  onDelete,
+}: {
+  stats: UserStats;
+  onReplay: (id: string) => void;
+  onDelete: (record: GameRecord) => void;
+}) {
   const [visible, setVisible] = useState(50);
   if (stats.history.length === 0) {
     return (
@@ -675,6 +783,8 @@ function HistorySection({ stats }: { stats: UserStats }) {
             key={g.id ?? i}
             record={g}
             userName={stats.displayName}
+            onReplay={onReplay}
+            onDelete={onDelete}
           />
         ))}
       </div>

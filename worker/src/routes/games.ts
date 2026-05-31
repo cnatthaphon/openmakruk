@@ -255,6 +255,46 @@ gamesRoute.get('/', authMiddleware, async (c) => {
   });
 });
 
+/** Delete one of the caller's own games by id. Idempotent — deleting
+ *  a row that doesn't exist (or belongs to a different user) returns
+ *  `{ ok: true, deleted: false }` rather than 404, so the client can
+ *  safely retry after a partial-failure without the retry surfacing an
+ *  error toast.
+ *
+ *  Authorisation: the WHERE clause includes `user_id = ?` so an
+ *  attacker who guesses another user's id sees the same "not deleted"
+ *  response — no information leak about whether the id exists. The
+ *  per-game ownership check is fused with the delete so there is no
+ *  read → mutate gap an attacker could race.
+ *
+ *  What we do NOT do here:
+ *    - Re-apply the user's rating. Elo math is monotonic in
+ *      event-order; un-applying one historical match would require
+ *      replaying every subsequent game. The visible rating stays as
+ *      it was (matches the client's behaviour in `removeGameRecord`).
+ *    - Touch bot ratings. Bots are shared state; reversing one human's
+ *      individual game would leak into other players' leaderboards.
+ *    - Cascade into derived rollups (badges, golf attempts). Those
+ *      surfaces accept that 'deleted games' is a slightly leaky
+ *      abstraction; the alternative is a many-table transaction every
+ *      single delete pays for. */
+gamesRoute.delete('/:id', authMiddleware, async (c) => {
+  const user = getUser(c);
+  const id = c.req.param('id');
+  if (!id || typeof id !== 'string') {
+    return c.json({ error: 'bad_request', reason: 'id_required' }, 400);
+  }
+  const res = await c.env.DB.prepare(
+    'DELETE FROM games WHERE id = ? AND user_id = ?',
+  )
+    .bind(id, user.id)
+    .run();
+  // D1's `changes` is set for DML statements; treat undefined as 0
+  // so a future driver change can't silently lie about deletion.
+  const changes = (res.meta?.changes ?? 0) as number;
+  return c.json({ ok: true, deleted: changes > 0 });
+});
+
 /** Totals by opponent — used by the personal Match leaderboard.
  *  Returns one row per opponent with win/loss/draw counts. */
 gamesRoute.get('/me/totals', authMiddleware, async (c) => {

@@ -377,6 +377,12 @@ export type BackendAdapter = {
   /** Record a completed game. Server returns the new rating. */
   recordGame?(token: string, game: GameSubmit): Promise<GameSubmitResult>;
 
+  /** Delete one of the caller's own games by id. The route is
+   *  idempotent on the server: deleting a missing id returns
+   *  `{ ok: true, deleted: false }` so the client can retry after a
+   *  partial-failure without the second call surfacing an error. */
+  deleteGame?(token: string, id: string): Promise<{ ok: boolean; deleted: boolean }>;
+
   /** Fetch the user's recent games (server-authoritative history). */
   fetchGameHistory?(
     token: string,
