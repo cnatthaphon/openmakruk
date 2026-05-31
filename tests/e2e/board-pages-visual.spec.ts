@@ -1,39 +1,31 @@
 // Issue #4 — board-page layout consistency contract test.
 //
-// Coverage is a representative set of board surfaces, not literally
-// every route — index pages without a board (e.g. /#/learn,
-// /#/study) and routes that depend on D1 seed data (e.g. /#/bots/<id>)
-// are out of scope. The selected routes (BOARD_ROUTES below) span
-// every BoardLayout-mounting page type plus the documented Play
-// exception.
+// Routes are split into two explicit lists so a missing board on a
+// page that's SUPPOSED to render one fails CI loudly, instead of
+// being silently skipped by a `count === 0 → continue` short-circuit
+// (Codex review on PR #13):
 //
-// Two assertions per viewport:
+//   RENDER_ONLY_ROUTES  — index / feed pages that DO NOT mount a
+//                         board on the audited deep-link.
+//                         Assertion: page renders without an
+//                         ErrorBoundary + no uncaught throws.
 //
-//   1. EACH route in BOARD_ROUTES must render without an
-//      ErrorBoundary fallback. Catches the wholesale-broken case
-//      (lazy chunk failure, missing content file, route typo).
+//   BOARD_GEOMETRY_ROUTES — surfaces that MUST mount a chess /
+//                         custom / pattern board. Assertions:
+//                         page renders cleanly, board element
+//                         exists + is visible, aspect ratio ≈
+//                         square, width sits in a sensible band,
+//                         and (cross-route) the center X-axis is
+//                         within 12px of the median.
 //
-//   2. CENTER X-AXIS alignment across BoardLayout pages. We compute
-//      `box.x + box.width / 2` for each board and assert every
-//      value lies within a small tolerance of the median. Boards
-//      on different pages may be DIFFERENT SIZES — drills cap at
-//      640 etc. — but they must all sit on the same vertical line
-//      through the viewport. This is the regression Phase 37 fixed
-//      (clicking between tabs visibly jerked centered content
-//      left/right); pinning it here keeps the fix in place.
-//
-//      The Play tab is INTENTIONALLY EXCLUDED from the cross-route
-//      axis comparison because its custom viewport-fit + EvalBar
-//      flush-left layout is the documented exception to BoardLayout
-//      (see src/components/BoardLayout.tsx). Play still runs the
-//      "renders without ErrorBoundary" check; when Play migrates
-//      onto BoardLayout (issue #4 follow-up) the exclusion goes
-//      away and full cross-route coverage kicks in.
-//
-// We also sanity-check aspect ratio (≈ square) and width band
-// (≥ 250, ≤ 720) so a future change that accidentally renders
-// the board as a tall strip or balloons it past the side panels
-// fails CI.
+//   The Play tab is in BOARD_GEOMETRY_ROUTES so the visibility +
+//   sanity gates apply to it, but it's INTENTIONALLY EXCLUDED from
+//   the cross-route center-axis comparison because its
+//   viewport-fit + EvalBar-flush-left layout is the documented
+//   exception to BoardLayout. See src/components/BoardLayout.tsx.
+//   When Play migrates onto BoardLayout (issue #4 follow-up), the
+//   PLAY_EXCLUDED_FROM_AXIS flag goes away and full coverage kicks
+//   in.
 
 import { test, expect } from '@playwright/test';
 import { clearAppState, pinTestApiBase, waitForContentReady } from './helpers';
@@ -43,33 +35,46 @@ const VIEWPORTS = [
   { name: 'mobile',  width: 390,  height: 844 },
 ] as const;
 
-// Every route that owns a board, plus the deep-link variant that
-// actually mounts one (drill index pages don't have a board until
-// you click a level — we open the canonical first level instead).
-// The Play tab is included so the "renders without ErrorBoundary"
-// gate still applies to it; the cross-route center-axis comparison
-// EXCLUDES it (see COMPARED_ROUTES filter inside the axis test)
-// because Play's viewport-fit math is the documented exception to
-// BoardLayout. See src/components/BoardLayout.tsx for the
-// rationale.
-const BOARD_ROUTES = [
-  { route: '/#/play',                            label: 'play' },
-  { route: '/#/custom',                          label: 'custom' },
-  { route: '/#/pattern',                         label: 'pattern-intro' },
-  { route: '/#/counting/l1-k-rr-vs-k',           label: 'counting-drill' },
-  { route: '/#/movetrainer/khun-pawn',           label: 'movetrainer' },
-  { route: '/#/survive/survive-001',             label: 'survive-drill' },
-  { route: '/#/puzzles/mate-001',                label: 'puzzle' },
-  { route: '/#/exhibition',                      label: 'exhibition-feed' },
-  { route: '/#/rush',                            label: 'puzzle-rush' },
+/** Surfaces that mount a board on the audited deep-link. Each id
+ *  must be a real entry in its content file:
+ *    - movetrainer:    public/content/openings/all.json     → 'op-khun-pawn'
+ *    - survive-drill:  public/content/puzzles/all.json#defense → 'defense-001'
+ *    - counting-drill: src/lib/countingDrill.ts DRILL_LEVELS → 'l1-k-rr-vs-k'
+ *    - puzzle:         public/content/puzzles/all.json       → 'mate-001'
+ *  If any of these renames, the geometry test fails loudly (board
+ *  doesn't mount) — that's the assertion shape we want. */
+const BOARD_GEOMETRY_ROUTES = [
+  { route: '/#/play',                       label: 'play' },
+  { route: '/#/custom',                     label: 'custom' },
+  { route: '/#/counting/l1-k-rr-vs-k',      label: 'counting-drill' },
+  { route: '/#/movetrainer/op-khun-pawn',   label: 'movetrainer' },
+  { route: '/#/survive/defense-001',        label: 'survive-drill' },
+  { route: '/#/puzzles/mate-001',           label: 'puzzle' },
+] as const;
+
+/** Index / feed routes that legitimately do NOT show a board until
+ *  the user interacts. Listed here so they still get the render-
+ *  without-ErrorBoundary gate, but they're NOT in the geometry list
+ *  — a board appearing here would be a regression in either
+ *  direction. */
+const RENDER_ONLY_ROUTES = [
+  { route: '/#/pattern',     label: 'pattern-intro' },
+  { route: '/#/exhibition',  label: 'exhibition-feed' },
+  { route: '/#/rush',        label: 'puzzle-rush-intro' },
 ] as const;
 
 /** Pixel tolerance for "boards sit on the same axis". Generous
- *  because each board reads its own width from a different style
- *  source and sub-pixel rounding can drift a few px; the regression
- *  we're catching is the 20-100px shift caused by per-page max-width
- *  divergence, which is orders of magnitude over this band. */
+ *  because each board reads its width from a different style
+ *  source and sub-pixel rounding drifts a few px; the regression
+ *  we're catching is the 20–100px shift caused by per-page max-
+ *  width divergence, which is orders of magnitude over this band. */
 const CENTER_AXIS_TOLERANCE_PX = 12;
+
+/** Play is the documented exception to BoardLayout — its viewport-
+ *  fit math intentionally diverges. We still measure its board for
+ *  the per-route geometry gates but skip the cross-route axis
+ *  comparison until Play migrates onto BoardLayout. */
+const PLAY_EXCLUDED_FROM_AXIS = '/#/play';
 
 for (const vp of VIEWPORTS) {
   test.describe(`board-page geometry · ${vp.name}`, () => {
@@ -79,8 +84,14 @@ for (const vp of VIEWPORTS) {
       await pinTestApiBase(page);
     });
 
-    for (const { route, label } of BOARD_ROUTES) {
-      test(`${label} renders without ErrorBoundary`, async ({ page }) => {
+    // Render-only routes: assert the page mounts without an
+    // ErrorBoundary fallback or pageerror event. We do NOT look
+    // for a board here — these surfaces don't render one on the
+    // audited deep-link. (If you find yourself wanting to assert a
+    // board, move the route into BOARD_GEOMETRY_ROUTES instead of
+    // weakening this gate.)
+    for (const { route, label } of RENDER_ONLY_ROUTES) {
+      test(`${label} (no-board route) renders without ErrorBoundary`, async ({ page }) => {
         const pageErrors: string[] = [];
         page.on('pageerror', (e) => pageErrors.push(e.message));
 
@@ -88,26 +99,56 @@ for (const vp of VIEWPORTS) {
         await clearAppState(page);
         await page.goto(route);
         await waitForContentReady(page);
-        await page.waitForTimeout(1500); // ffish + lazy chunks
+        await page.waitForTimeout(1500);
 
         await expect(page.locator('.error-boundary')).toHaveCount(0);
         expect(pageErrors, `${label} should not throw`).toEqual([]);
       });
     }
 
-    test('every visible board sits on the same center axis', async ({ page }) => {
-      const centers: { label: string; centerX: number; width: number; height: number }[] = [];
+    // Geometry routes: assert the page mounts AND mounts a board.
+    // Per-route sanity (aspect ratio + width band) runs here so
+    // 'board rendered as a strip' fails even when only one route
+    // is broken.
+    for (const { route, label } of BOARD_GEOMETRY_ROUTES) {
+      test(`${label} mounts a visible board`, async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', (e) => pageErrors.push(e.message));
 
-      // Play tab is excluded from the cross-route comparison because
-      // its custom layout (viewport-fit + EvalBar flush left, not
-      // inside the left slot's padding) is the documented exception
-      // to BoardLayout. See src/components/BoardLayout.tsx for the
-      // rationale. The "render without ErrorBoundary" check above
-      // still runs for /#/play. When Play migrates to BoardLayout
-      // (issue #4 follow-up), remove this exclusion.
-      const COMPARED_ROUTES = BOARD_ROUTES.filter((r) => r.route !== '/#/play');
+        await page.goto('/');
+        await clearAppState(page);
+        await page.goto(route);
+        await waitForContentReady(page);
+        await page.waitForTimeout(1500);
 
-      for (const { route, label } of COMPARED_ROUTES) {
+        await expect(page.locator('.error-boundary')).toHaveCount(0);
+        expect(pageErrors, `${label} should not throw`).toEqual([]);
+
+        const board = page.locator('.cg-wrap, .custom-board, .pattern-board').first();
+        await expect(
+          board,
+          `${label}: must mount a board element`,
+        ).toBeVisible({ timeout: 10_000 });
+
+        const box = await board.boundingBox();
+        expect(box, `${label}: board must have a bounding box`).not.toBeNull();
+        if (box) {
+          const ratio = box.width / box.height;
+          expect(ratio, `${label}: aspect ratio`).toBeGreaterThan(0.85);
+          expect(ratio, `${label}: aspect ratio`).toBeLessThan(1.15);
+          expect(box.width, `${label}: width band`).toBeGreaterThan(250);
+          expect(box.width, `${label}: width band`).toBeLessThan(720);
+        }
+      });
+    }
+
+    // Cross-route center-axis comparison: every BOARD_GEOMETRY route
+    // EXCEPT Play must place its board on the same horizontal axis.
+    test('every BoardLayout-driven board sits on the same center axis', async ({ page }) => {
+      const centers: { label: string; centerX: number }[] = [];
+
+      for (const { route, label } of BOARD_GEOMETRY_ROUTES) {
+        if (route === PLAY_EXCLUDED_FROM_AXIS) continue;
         await page.goto('/');
         await clearAppState(page);
         await page.goto(route);
@@ -115,37 +156,15 @@ for (const vp of VIEWPORTS) {
         await page.waitForTimeout(1500);
 
         const board = page.locator('.cg-wrap, .custom-board, .pattern-board').first();
-        const count = await board.count();
-        if (count === 0) continue; // route shows no board until interaction
+        await expect(board).toBeVisible({ timeout: 10_000 });
         const box = await board.boundingBox();
+        expect(box, `${label}: bounding box`).not.toBeNull();
         if (!box) continue;
-
-        // Per-board sanity: aspect ratio ≈ square + width inside the
-        // sensible band. Catches "board rendered as strip" or
-        // "board ballooned past panels" without depending on the
-        // center-axis cross-route check.
-        const ratio = box.width / box.height;
-        expect(ratio, `${label}: aspect ratio`).toBeGreaterThan(0.85);
-        expect(ratio, `${label}: aspect ratio`).toBeLessThan(1.15);
-        expect(box.width, `${label}: width band`).toBeGreaterThan(250);
-        expect(box.width, `${label}: width band`).toBeLessThan(720);
-
-        centers.push({
-          label,
-          centerX: box.x + box.width / 2,
-          width: box.width,
-          height: box.height,
-        });
+        centers.push({ label, centerX: box.x + box.width / 2 });
       }
 
-      // Need at least two boards to compare. If a routing change ever
-      // hides every board on the audited routes, this surfaces it as
-      // a clear failure rather than a silent skip.
-      expect(centers.length, 'must measure at least two boards').toBeGreaterThanOrEqual(2);
+      expect(centers.length, 'must measure ≥ 2 boards').toBeGreaterThanOrEqual(2);
 
-      // Reference axis = median of measured centers. We compare every
-      // other board against it; failures include the offending label
-      // + its actual centerX so the regression is debuggable.
       const sortedX = [...centers].sort((a, b) => a.centerX - b.centerX);
       const median = sortedX[Math.floor(sortedX.length / 2)].centerX;
       for (const c of centers) {
