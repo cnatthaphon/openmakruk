@@ -46,9 +46,12 @@ const VIEWPORTS = [
 // Every route that owns a board, plus the deep-link variant that
 // actually mounts one (drill index pages don't have a board until
 // you click a level — we open the canonical first level instead).
-// The Play tab is included because its layout is the documented
-// exception to BoardLayout; we still pin its center axis so drift
-// fails CI.
+// The Play tab is included so the "renders without ErrorBoundary"
+// gate still applies to it; the cross-route center-axis comparison
+// EXCLUDES it (see COMPARED_ROUTES filter inside the axis test)
+// because Play's viewport-fit math is the documented exception to
+// BoardLayout. See src/components/BoardLayout.tsx for the
+// rationale.
 const BOARD_ROUTES = [
   { route: '/#/play',                            label: 'play' },
   { route: '/#/custom',                          label: 'custom' },
