@@ -166,7 +166,13 @@ function runCaptured(
     const err: string[] = [];
     child.stdout.on('data', (b: Buffer) => out.push(b.toString()));
     child.stderr.on('data', (b: Buffer) => err.push(b.toString()));
-    child.on('exit', (code) => {
+    // 'close' (not 'exit'): exit fires the moment the child terminates,
+    // before stdio buffers are flushed. On a fast failure the rejected
+    // Error included a TRUNCATED tail because the last few hundred
+    // bytes of stderr arrived after 'exit'. 'close' fires after stdio
+    // is fully drained, so the captured `out` + `err` are complete by
+    // the time we build the diagnostic.
+    child.on('close', (code) => {
       if (code === 0) {
         resolveP();
         return;
