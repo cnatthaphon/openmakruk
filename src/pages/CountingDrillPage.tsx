@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { loadFfish, parseLegalMoves } from '../lib/makruk';
 import { searchBestMove, DIFFICULTY_PRESETS } from '../lib/engine';
 import {
@@ -90,12 +91,7 @@ function DrillIndex() {
         })}
       </div>
 
-      <button
-        className="drill-back"
-        onClick={() => navigate({ tab: 'puzzles' })}
-      >
-        ← กลับ Puzzles
-      </button>
+      <BackButton to="puzzles">ปริศนา</BackButton>
     </main>
   );
 }
@@ -242,13 +238,7 @@ function DrillRunner({ level }: { level: DrillLevel }) {
 
   return (
     <main className="drill-page drill-runner">
-      <button
-        className="drill-back"
-        onClick={() => navigate({ tab: 'counting' })}
-        aria-label="กลับรายการ"
-      >
-        ← รายการ
-      </button>
+      <BackButton to="counting">รายการ drill</BackButton>
 
       <BoardLayout
         className="drill-layout"

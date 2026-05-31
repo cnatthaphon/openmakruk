@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { Page } from '../components/Page';
+import { BackButton } from '../components/BackButton';
 import { navigate } from '../lib/router';
 import {
   TIER_LABELS,
@@ -64,9 +65,7 @@ export function BossRushPage() {
 
   return (
     <Page variant="medium" className="rush-mode-page">
-      <button className="rush-mode-back" onClick={() => navigate({ tab: 'profile' })}>
-        ← กลับโปรไฟล์
-      </button>
+      <BackButton to="profile">โปรไฟล์</BackButton>
       <header className="rush-mode-header">
         <h2>🏆 Boss Rush</h2>
         <p className="label-aside">

@@ -178,8 +178,7 @@ import { BottomNav } from './components/BottomNav';
 import { NavBar } from './components/NavBar';
 import { CelebrationOverlay } from './components/CelebrationOverlay';
 import { detectCelebration, resetCelebrations, type CelebrationKind } from './lib/celebrations';
-import { TodayStrip } from './components/TodayStrip';
-import { DidYouKnowCard } from './components/DidYouKnowCard';
+import { PlaySideInfo } from './features/play/PlaySideInfo';
 import { hasOnboarded } from './lib/onboarding';
 import { haptic } from './lib/haptic';
 import {
@@ -2412,99 +2411,22 @@ export default function App() {
               actions (mid-game tools) → DYK card (lobby discovery) →
               TodayStrip (daily routine). Each piece is independently
               conditional so non-applicable ones drop out cleanly. */}
-          <div className="play-side-info">
-            {challenge && (
-              <div className="challenge-banner" role="status">
-                <span className="challenge-banner-icon">⚔️</span>
-                <div className="challenge-banner-body">
-                  <strong>
-                    {challenge.avatar} กำลังท้าดวล {challenge.displayName}
-                  </strong>
-                  <span className="label-aside">
-                    rating {challenge.rating} · ผลเกมจะนับใน Bot Hall of Fame
-                  </span>
-                  {(() => {
-                    const narr = findNarrative(challenge.personality);
-                    if (!narr || history.length > 0) return null;
-                    return (
-                      <span className="challenge-banner-quote">
-                        💬 {narr.preGameQuote}
-                      </span>
-                    );
-                  })()}
-                </div>
-                <button
-                  className="challenge-banner-clear"
-                  onClick={() => {
-                    clearChallengeTarget();
-                    setChallenge(null);
-                  }}
-                  title="หยุดท้าดวลตัวนี้ — เกมต่อไปจะนับเป็น difficulty ปกติ"
-                >
-                  ✕ จบ
-                </button>
-              </div>
-            )}
-            {(mode === 'play-white' || mode === 'play-black') &&
-              !state?.isGameOver &&
-              !forcedResult &&
-              !reviewActive && (
-                <div className="play-quick-actions">
-                  <button
-                    className="play-quick-button"
-                    onClick={handleOfferDraw}
-                    disabled={thinking || drawOfferPending || history.length === 0}
-                    title={
-                      history.length === 0
-                        ? 'ขอเสมอ — เปิดให้กดหลังจากเดินตาแรก'
-                        : 'ขอเสมอ — คอมจะตัดสินจากค่า eval ปัจจุบัน'
-                    }
-                  >
-                    {drawOfferPending ? (
-                      <>
-                        <span className="spinner-sm" aria-hidden="true" />
-                        กำลังพิจารณา...
-                      </>
-                    ) : (
-                      <>🤝 ขอเสมอ</>
-                    )}
-                  </button>
-                  <button
-                    className="play-quick-button play-quick-resign"
-                    onClick={handleResign}
-                    disabled={thinking || history.length === 0}
-                    title={
-                      history.length === 0
-                        ? 'ยอมแพ้ — เปิดให้กดหลังจากเดินตาแรก'
-                        : 'ยอมแพ้ — บันทึกเป็น loss'
-                    }
-                  >
-                    🏳 ยอมแพ้
-                  </button>
-                </div>
-              )}
-            {(() => {
-              // DidYouKnow + TodayStrip only show in the canonical
-              // lobby state (start position, no moves, no challenge,
-              // no review). Once a game is in progress they collapse
-              // out so the move-list + analysis panels have room.
-              const piecePart = state?.fen?.split(' ')[0];
-              const atStart = piecePart === MAKRUK_START_FEN.split(' ')[0];
-              const showLobby =
-                atStart &&
-                history.length === 0 &&
-                !challenge &&
-                !state?.isGameOver &&
-                !reviewActive;
-              if (!showLobby) return null;
-              return (
-                <>
-                  <DidYouKnowCard />
-                  <TodayStrip />
-                </>
-              );
-            })()}
-          </div>
+          <PlaySideInfo
+            challenge={challenge}
+            onClearChallenge={() => {
+              clearChallengeTarget();
+              setChallenge(null);
+            }}
+            history={history}
+            mode={mode}
+            state={state}
+            forcedResult={forcedResult}
+            reviewActive={reviewActive}
+            thinking={thinking}
+            drawOfferPending={drawOfferPending}
+            handleOfferDraw={handleOfferDraw}
+            handleResign={handleResign}
+          />
           {clock && !reviewActive && (
             <ClockDisplay
               clock={clock}

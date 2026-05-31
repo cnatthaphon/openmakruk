@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { loadFfish, parseLegalMoves } from '../lib/makruk';
 import { loadPuzzles } from '../lib/content';
 import type { Puzzle } from '../lib/puzzleSchema';
@@ -47,9 +48,7 @@ function SurviveIndex() {
 
   return (
     <main className="survive-page">
-      <button className="survive-back" onClick={() => navigate({ tab: 'puzzles' })}>
-        ← กลับ Puzzles
-      </button>
+      <BackButton to="puzzles">ปริศนา</BackButton>
       <header className="survive-header">
         <h2>🛡️ Survive the attack</h2>
         <p className="label-aside">
@@ -215,9 +214,7 @@ function SurviveRunner({ positionId }: { positionId: string }) {
 
   return (
     <main className="survive-page survive-runner">
-      <button className="survive-back" onClick={() => navigate({ tab: 'survive' })}>
-        ← รายการ
-      </button>
+      <BackButton to="survive">รายการ Survive</BackButton>
       {!puzzle && status === 'mated' && (
         <p className="survive-error">⚠ ไม่พบตำแหน่ง</p>
       )}
