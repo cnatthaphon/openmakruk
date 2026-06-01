@@ -25,11 +25,24 @@ import { evaluateBadges } from '../badgeEvaluator';
 const PAGE_SIZE = 50;
 const VALID_OUTCOMES = new Set<Outcome>(['win', 'loss', 'draw']);
 const VALID_SIDES = new Set(['white', 'black']);
+const VALID_BUCKETS = new Set(['easy', 'medium', 'hard', 'master']);
+/** Format gate for client-supplied game ids. Loose enough to accept
+ *  both legacy server UUIDs (-) and the canonical `game_<base36>_<base36>`
+ *  format; tight enough to keep stray HTML / SQL out of the row key. */
+const CLIENT_GAME_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const gamesRoute = new Hono<{ Bindings: Env; Variables: AuthVars }>();
 
 type GameSubmitBody = {
+  /** Client-supplied row id. Validated against CLIENT_GAME_ID_RE.
+   *  Idempotent on duplicate (same id, same user). */
+  clientGameId?: string;
   opponent?: string;
+  /** Explicit Elo bucket for non-Difficulty opponents (bot/personality).
+   *  If absent and opponent is a Difficulty, we derive it. */
+  ratingBucket?: string;
+  /** Optional display label echoed back on history reads. */
+  opponentLabel?: string;
   userSide?: 'white' | 'black';
   outcome?: Outcome;
   plyCount?: number;
@@ -76,7 +89,54 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   if (!body.finalFen || typeof body.finalFen !== 'string') {
     return c.json({ error: 'bad_request', reason: 'finalFen_required' }, 400);
   }
+  if (body.clientGameId !== undefined) {
+    if (typeof body.clientGameId !== 'string' || !CLIENT_GAME_ID_RE.test(body.clientGameId)) {
+      return c.json({ error: 'bad_request', reason: 'clientGameId_invalid' }, 400);
+    }
+  }
+  if (body.ratingBucket !== undefined && !VALID_BUCKETS.has(body.ratingBucket)) {
+    return c.json({ error: 'bad_request', reason: 'ratingBucket_invalid' }, 400);
+  }
   const mode = body.mode === 'casual' ? 'casual' : 'rated';
+
+  // ── idempotency check ────────────────────────────────────────────
+  // Same clientGameId + same user = already-recorded write. Return
+  // the existing row's rating result instead of inserting again. This
+  // is what makes "POST retried after a flaky network" safe: the
+  // user's rating doesn't move twice, the leaderboard counts once.
+  if (body.clientGameId) {
+    const existing = await c.env.DB.prepare(
+      `SELECT id, rating_before, rating_after, rating_delta, verified, created_at
+         FROM games WHERE id = ? AND user_id = ?`,
+    )
+      .bind(body.clientGameId, user.id)
+      .first<{
+        id: string;
+        rating_before: number;
+        rating_after: number;
+        rating_delta: number;
+        verified: number;
+        created_at: number;
+      }>();
+    if (existing) {
+      return c.json({
+        id: existing.id,
+        ratingBefore: existing.rating_before,
+        ratingAfter: existing.rating_after,
+        ratingDelta: existing.rating_delta,
+        verified: existing.verified === 1,
+        createdAt: existing.created_at,
+        newBadges: [],
+      });
+    }
+  }
+
+  // Resolve the rating bucket. Explicit body field wins; otherwise we
+  // derive: a Difficulty opponent IS its own bucket; anything else
+  // falls back to null (server-side leaderboards stay rated-by-opponent
+  // for non-Difficulty rows).
+  const ratingBucket = body.ratingBucket
+    ?? (VALID_BUCKETS.has(body.opponent) ? body.opponent : null);
 
   // ── resolve bot opponent (if any) BEFORE verification, so an
   //    unknown-bot fast-fails with 400 instead of getting masked by
@@ -145,7 +205,11 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   }
 
   // ── persist ──────────────────────────────────────────────────────
-  const id = newId();
+  // Use the caller-supplied id when present so the row is joinable
+  // across local + server + future review pipeline. Fall back to a
+  // server-minted id only for older callers that haven't been
+  // updated yet.
+  const id = body.clientGameId ?? newId();
   const now = Date.now();
   const movesJson = JSON.stringify(body.moves ?? []);
 
@@ -155,14 +219,17 @@ gamesRoute.post('/', authMiddleware, async (c) => {
   const statements: D1PreparedStatement[] = [
     c.env.DB.prepare(
       `INSERT INTO games
-         (id, user_id, opponent, user_side, outcome, ply_count, moves_json,
+         (id, user_id, opponent, rating_bucket, opponent_label,
+          user_side, outcome, ply_count, moves_json,
           final_fen, rating_before, rating_after, rating_delta,
           time_control_id, mode, created_at, verified)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       id,
       user.id,
       body.opponent,
+      ratingBucket,
+      body.opponentLabel ?? null,
       body.userSide,
       body.outcome,
       plyCount,
@@ -234,7 +301,8 @@ gamesRoute.get('/', authMiddleware, async (c) => {
   }
 
   const sql = `
-    SELECT id, opponent, user_side, outcome, ply_count, moves_json,
+    SELECT id, opponent, rating_bucket, opponent_label,
+           user_side, outcome, ply_count, moves_json,
            final_fen, rating_before, rating_after, rating_delta,
            time_control_id, mode, created_at, verified
     FROM games
@@ -253,6 +321,46 @@ gamesRoute.get('/', authMiddleware, async (c) => {
     games: page.map(rowToGame),
     nextCursor,
   });
+});
+
+/** Delete one of the caller's own games by id. Idempotent — deleting
+ *  a row that doesn't exist (or belongs to a different user) returns
+ *  `{ ok: true, deleted: false }` rather than 404, so the client can
+ *  safely retry after a partial-failure without the retry surfacing an
+ *  error toast.
+ *
+ *  Authorisation: the WHERE clause includes `user_id = ?` so an
+ *  attacker who guesses another user's id sees the same "not deleted"
+ *  response — no information leak about whether the id exists. The
+ *  per-game ownership check is fused with the delete so there is no
+ *  read → mutate gap an attacker could race.
+ *
+ *  What we do NOT do here:
+ *    - Re-apply the user's rating. Elo math is monotonic in
+ *      event-order; un-applying one historical match would require
+ *      replaying every subsequent game. The visible rating stays as
+ *      it was (matches the client's behaviour in `removeGameRecord`).
+ *    - Touch bot ratings. Bots are shared state; reversing one human's
+ *      individual game would leak into other players' leaderboards.
+ *    - Cascade into derived rollups (badges, golf attempts). Those
+ *      surfaces accept that 'deleted games' is a slightly leaky
+ *      abstraction; the alternative is a many-table transaction every
+ *      single delete pays for. */
+gamesRoute.delete('/:id', authMiddleware, async (c) => {
+  const user = getUser(c);
+  const id = c.req.param('id');
+  if (!id || typeof id !== 'string') {
+    return c.json({ error: 'bad_request', reason: 'id_required' }, 400);
+  }
+  const res = await c.env.DB.prepare(
+    'DELETE FROM games WHERE id = ? AND user_id = ?',
+  )
+    .bind(id, user.id)
+    .run();
+  // D1's `changes` is set for DML statements; treat undefined as 0
+  // so a future driver change can't silently lie about deletion.
+  const changes = (res.meta?.changes ?? 0) as number;
+  return c.json({ ok: true, deleted: changes > 0 });
 });
 
 /** Totals by opponent — used by the personal Match leaderboard.
@@ -279,6 +387,8 @@ gamesRoute.get('/me/totals', authMiddleware, async (c) => {
 type GameRow = {
   id: string;
   opponent: string;
+  rating_bucket: string | null;
+  opponent_label: string | null;
   user_side: string;
   outcome: string;
   ply_count: number;
@@ -305,6 +415,8 @@ function rowToGame(r: GameRow) {
   return {
     id: r.id,
     opponent: r.opponent,
+    ratingBucket: r.rating_bucket ?? undefined,
+    opponentLabel: r.opponent_label ?? undefined,
     userSide: r.user_side,
     outcome: r.outcome,
     plyCount: r.ply_count,

@@ -4896,6 +4896,110 @@ footer a:hover {
   border-color: var(--accent);
 }
 
+/* Issue #21 — per-row actions share the .history-row-button base.
+   Hover lights up with the page accent; disabled is greyed out (the
+   "ยังไม่พร้อม" rีวิว button + the no-moves replay button rely on
+   the disabled style to communicate why they can't be clicked). */
+.history-row-button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--fg);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+.history-row-button:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.history-row-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.history-delete-button:hover:not(:disabled) {
+  background: #b94a4a;
+  border-color: #b94a4a;
+  color: #fff;
+}
+
+/* HistoryReplay viewer (issue #21) — lives inside Profile so the
+   header / sub-tab styling above already does most of the work. We
+   only need a top bar with the back button, a header strip with
+   outcome + meta, and a centered stepper. */
+.history-replay {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.history-replay-back {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.history-replay-back:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.history-replay-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.history-replay-vs {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.history-replay-outcome.is-win  { color: #6abf69; font-weight: 600; }
+.history-replay-outcome.is-loss { color: #d57272; font-weight: 600; }
+.history-replay-outcome.is-draw { color: #c8b06b; font-weight: 600; }
+.history-replay-warning {
+  background: rgba(204, 116, 26, 0.12);
+  border: 1px solid rgba(204, 116, 26, 0.35);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #d49a55;
+}
+.history-replay-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.history-replay-stepper button {
+  min-width: 2.4rem;
+  padding: 6px 10px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--fg);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.history-replay-stepper button:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.history-replay-stepper button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.history-replay-ply {
+  min-width: 6rem;
+  text-align: center;
+}
+
 /* Error boundary fallback ------------------------------------------- */
 .error-boundary {
   max-width: 640px;

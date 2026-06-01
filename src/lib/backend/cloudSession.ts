@@ -21,6 +21,11 @@ import { setBackend } from './index';
 import { cloudflareBackend, BackendError } from './cloudflareBackend';
 import { NoOpBackend } from './types';
 
+/** Recognised Stockfish difficulty buckets. Used in the cloud-sync
+ *  translation to decide whether a server-side `opponent` string can
+ *  be lifted directly into `ratingBucket`. */
+const DIFFICULTIES = new Set<string>(['easy', 'medium', 'hard', 'master']);
+
 // Schema v2 — added province + region (Phase 9H-1). v1 stores migrate
 // with both fields null; the server is the source of truth so they
 // fill in on the next /me sync.
@@ -234,32 +239,96 @@ export async function deleteCurrentAccount(): Promise<void> {
   setBackend(NoOpBackend);
 }
 
-/** Fetch server-side game history and merge into the local UserStats.
- *  Called after the cloud session activates so multi-device users see
- *  yesterday's games on tomorrow's browser.
+/**
+ * Fetch server-side game history and merge into the local UserStats.
+ * Called after the cloud session activates so multi-device users see
+ * yesterday's games on tomorrow's browser.
  *
- *  Merge strategy: union by `id`, with server entries authoritative
- *  for fields like rating_after / verified. New-to-this-device games
- *  are appended; locally-known games keep their existing position
- *  (newest-first) but adopt the server's rating numbers. */
+ * Merge strategy: union by `id`, with server entries authoritative
+ * for fields like rating_after / verified. New-to-this-device games
+ * are appended; locally-known games keep their existing position
+ * (newest-first) but adopt the server's rating numbers.
+ *
+ * Tombstone reconciliation (issue #21 follow-up): the caller hands in
+ * the local `deletedIds` list. Any server row whose id appears in
+ * that list is EXCLUDED from the merge AND we fire a fresh DELETE
+ * for it. When the DELETE succeeds (200 with `deleted: true` OR
+ * `deleted: false` meaning the server has already removed it), the
+ * id is dropped from the returned `deletedIds`. Failures leave the
+ * tombstone in place so the next sync retries — that's what makes
+ * the local delete durable across a flaky network.
+ */
 export async function syncHistoryFromServer(
   localHistory: import('../stats').GameRecord[],
-): Promise<import('../stats').GameRecord[]> {
+  localDeletedIds: string[] = [],
+): Promise<{
+  history: import('../stats').GameRecord[];
+  deletedIds: string[];
+}> {
   const backend = cloudflareBackend;
-  if (!backend.isOnline()) return localHistory;
+  if (!backend.isOnline()) {
+    return { history: localHistory, deletedIds: localDeletedIds };
+  }
   const session = loadSession();
-  if (!session.token) return localHistory;
+  if (!session.token) {
+    return { history: localHistory, deletedIds: localDeletedIds };
+  }
+
+  const tombstones = new Set(localDeletedIds);
+
+  // Retry pending deletes. Run in parallel — they're idempotent on the
+  // server (issue #21 DELETE /api/games/:id returns ok:true regardless
+  // of whether the row was there to begin with). On success, drop the
+  // tombstone. On failure, keep it for the next sync.
+  if (tombstones.size > 0 && backend.deleteGame) {
+    const stillTombstoned = new Set<string>();
+    await Promise.all(
+      Array.from(tombstones).map(async (id) => {
+        try {
+          await backend.deleteGame!(session.token, id);
+          // Either branch (deleted=true / false) means the row is now
+          // absent from the server — both are wins.
+        } catch {
+          // Network or 5xx — keep the tombstone for next time.
+          stillTombstoned.add(id);
+        }
+      }),
+    );
+    // Replace `tombstones` with the still-pending set so the filter
+    // below uses the same source of truth as the returned ids.
+    tombstones.clear();
+    for (const id of stillTombstoned) tombstones.add(id);
+  }
 
   try {
     const { games } = await backend.fetchGameHistory(session.token, { limit: 50 });
     const byId = new Map<string, import('../stats').GameRecord>();
     for (const g of localHistory) byId.set(g.id, g);
     for (const s of games) {
-      // Translate server shape → local GameRecord shape.
+      // Server rows the user already deleted locally must NOT come
+      // back through sync. If the delete-retry above failed, the
+      // tombstone is still in `tombstones` and we skip the row.
+      if (tombstones.has(s.id)) continue;
+      // Translate server shape → local GameRecord shape. The server
+      // stores the user's canonical opponentId verbatim (e.g.
+      // 'medium' OR 'bot:attacker-master'); we lift that into the
+      // v4 GameRecord shape. ratingBucket comes from the explicit
+      // `ratingBucket` field if the server provided one, otherwise
+      // we derive it from opponent for plain Difficulty rows; bot
+      // / personality rows that never carried a server bucket fall
+      // back to 'medium' (the recommendedLevel default).
+      const ratingBucket: import('../engine').Difficulty =
+        s.ratingBucket && DIFFICULTIES.has(s.ratingBucket)
+          ? (s.ratingBucket as import('../engine').Difficulty)
+          : DIFFICULTIES.has(s.opponent)
+            ? (s.opponent as import('../engine').Difficulty)
+            : 'medium';
       const local: import('../stats').GameRecord = {
         id: s.id,
         outcome: s.outcome as 'win' | 'loss' | 'draw',
-        opponent: s.opponent as import('../engine').Difficulty,
+        opponentId: s.opponent,
+        ratingBucket,
+        opponentLabel: s.opponentLabel,
         userSide: s.userSide,
         date: s.createdAt,
         plyCount: s.plyCount,
@@ -274,9 +343,13 @@ export async function syncHistoryFromServer(
       byId.set(s.id, local);
     }
     // Sort newest-first to match the local history convention.
-    return Array.from(byId.values()).sort((a, b) => b.date - a.date).slice(0, 50);
+    const history = Array.from(byId.values())
+      .sort((a, b) => b.date - a.date)
+      .slice(0, 50);
+    return { history, deletedIds: Array.from(tombstones) };
   } catch {
-    // Network blip — leave local history alone.
-    return localHistory;
+    // Network blip — leave local history alone but keep the pending
+    // tombstones so they retry on the next sync.
+    return { history: localHistory, deletedIds: Array.from(tombstones) };
   }
 }
