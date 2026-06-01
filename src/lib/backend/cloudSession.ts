@@ -21,6 +21,11 @@ import { setBackend } from './index';
 import { cloudflareBackend, BackendError } from './cloudflareBackend';
 import { NoOpBackend } from './types';
 
+/** Recognised Stockfish difficulty buckets. Used in the cloud-sync
+ *  translation to decide whether a server-side `opponent` string can
+ *  be lifted directly into `ratingBucket`. */
+const DIFFICULTIES = new Set<string>(['easy', 'medium', 'hard', 'master']);
+
 // Schema v2 — added province + region (Phase 9H-1). v1 stores migrate
 // with both fields null; the server is the source of truth so they
 // fill in on the next /me sync.
@@ -304,11 +309,26 @@ export async function syncHistoryFromServer(
       // back through sync. If the delete-retry above failed, the
       // tombstone is still in `tombstones` and we skip the row.
       if (tombstones.has(s.id)) continue;
-      // Translate server shape → local GameRecord shape.
+      // Translate server shape → local GameRecord shape. The server
+      // stores the user's canonical opponentId verbatim (e.g.
+      // 'medium' OR 'bot:attacker-master'); we lift that into the
+      // v4 GameRecord shape. ratingBucket comes from the explicit
+      // `ratingBucket` field if the server provided one, otherwise
+      // we derive it from opponent for plain Difficulty rows; bot
+      // / personality rows that never carried a server bucket fall
+      // back to 'medium' (the recommendedLevel default).
+      const ratingBucket: import('../engine').Difficulty =
+        s.ratingBucket && DIFFICULTIES.has(s.ratingBucket)
+          ? (s.ratingBucket as import('../engine').Difficulty)
+          : DIFFICULTIES.has(s.opponent)
+            ? (s.opponent as import('../engine').Difficulty)
+            : 'medium';
       const local: import('../stats').GameRecord = {
         id: s.id,
         outcome: s.outcome as 'win' | 'loss' | 'draw',
-        opponent: s.opponent as import('../engine').Difficulty,
+        opponentId: s.opponent,
+        ratingBucket,
+        opponentLabel: s.opponentLabel,
         userSide: s.userSide,
         date: s.createdAt,
         plyCount: s.plyCount,

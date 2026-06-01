@@ -103,7 +103,7 @@ export function computeInsights(history: GameRecord[]): Insights {
     if (g.userSide === 'white') out.asWhite = addOutcome(out.asWhite, g.outcome);
     else out.asBlack = addOutcome(out.asBlack, g.outcome);
 
-    out.byLevel[g.opponent] = addOutcome(out.byLevel[g.opponent], g.outcome);
+    out.byLevel[g.ratingBucket] = addOutcome(out.byLevel[g.ratingBucket], g.outcome);
 
     totalPlies += g.plyCount;
     if (g.plyCount < 30) out.shortGames++;
@@ -123,10 +123,10 @@ export function computeInsights(history: GameRecord[]): Insights {
       currentWinStreak++;
       currentLossStreak = 0;
       if (currentWinStreak > out.longestWinStreak) out.longestWinStreak = currentWinStreak;
-      const idx = levelOrder.indexOf(g.opponent);
+      const idx = levelOrder.indexOf(g.ratingBucket);
       if (idx > bestWinIdx) {
         bestWinIdx = idx;
-        out.bestWinAgainst = g.opponent;
+        out.bestWinAgainst = g.ratingBucket;
       }
     } else if (g.outcome === 'loss') {
       currentLossStreak++;

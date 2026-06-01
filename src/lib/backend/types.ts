@@ -290,7 +290,28 @@ export type UserProfile = {
 
 /** Game-record submission. Server computes Elo update. */
 export type GameSubmit = {
+  /**
+   * Caller-supplied id. The worker uses it verbatim as the row's
+   * primary key (validated against `^[A-Za-z0-9_-]{1,64}$`). Sending
+   * the same id twice is idempotent — the server returns the
+   * existing row's rating result without re-applying Elo.
+   *
+   * Optional only to keep older callers compiling; production code
+   * MUST set this so local and server agree on identity for
+   * sync / delete / review joins.
+   */
+  clientGameId?: string;
+  /** Canonical opponent id — e.g. 'medium', 'bot:attacker-master',
+   *  'personality:hunter'. Stored verbatim. */
   opponent: string;
+  /** Optional explicit Elo bucket for non-Difficulty opponents (bots
+   *  / personality engines). When the opponent IS a Difficulty the
+   *  server can derive this; for bot games the client must send it. */
+  ratingBucket?: 'easy' | 'medium' | 'hard' | 'master';
+  /** Optional human-readable display label (e.g. 'ผู้พิชิต Master').
+   *  Echoed back on history reads so the receiving device can render
+   *  the bot's nickname without round-tripping the bot registry. */
+  opponentLabel?: string;
   userSide: 'white' | 'black';
   outcome: 'win' | 'loss' | 'draw';
   plyCount: number;

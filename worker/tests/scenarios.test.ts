@@ -1138,3 +1138,160 @@ describe('DELETE /api/games/:id (issue #21)', () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe('canonical game identity (issue #21 / PR #22 review)', () => {
+  // The point of `clientGameId` is to make local ↔ server agree on
+  // identity. These tests pin the three guarantees we depend on
+  // downstream (sync joins, DELETE tombstones, future review pipeline).
+
+  test('POST with clientGameId uses it as the row id', async () => {
+    const u = await createAnonUser('IdHolder');
+    const clientGameId = 'game_idtest_aaa';
+    const fixture = verifiedGameFor('win');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${u.token}`,
+      },
+      body: JSON.stringify({
+        clientGameId,
+        opponent: 'medium',
+        ratingBucket: 'medium',
+        userSide: fixture.userSide,
+        outcome: 'win',
+        plyCount: fixture.moves.length,
+        moves: fixture.moves,
+        finalFen: fixture.finalFen,
+        mode: 'rated',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { id: string };
+    expect(body.id).toBe(clientGameId);
+
+    // History reads must surface the same id.
+    const hist = await getGameHistory(u.token);
+    expect(hist.games.find((g) => g.id === clientGameId)).toBeDefined();
+  });
+
+  test('POST twice with the same clientGameId is idempotent (rating moves once)', async () => {
+    const u = await createAnonUser('Idempotent');
+    const ratingBefore = u.rating;
+    const clientGameId = 'game_idemp_bbb';
+    const fixture = verifiedGameFor('win');
+    const body = {
+      clientGameId,
+      opponent: 'medium',
+      ratingBucket: 'medium',
+      userSide: fixture.userSide,
+      outcome: 'win',
+      plyCount: fixture.moves.length,
+      moves: fixture.moves,
+      finalFen: fixture.finalFen,
+      mode: 'rated',
+    };
+
+    const first = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${u.token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    expect(first.status).toBe(200);
+    const f = (await first.json()) as { id: string; ratingAfter: number; ratingDelta: number };
+    const ratingAfterFirst = f.ratingAfter;
+    expect(f.ratingDelta).toBeGreaterThan(0);
+
+    // Same id → same outcome, but rating must NOT advance again.
+    const second = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${u.token}`,
+      },
+      body: JSON.stringify(body),
+    });
+    expect(second.status).toBe(200);
+    const s = (await second.json()) as { id: string; ratingAfter: number; ratingDelta: number };
+    expect(s.id).toBe(clientGameId);
+    expect(s.ratingAfter).toBe(ratingAfterFirst);
+    expect(s.ratingDelta).toBe(f.ratingDelta);
+
+    // Server-side: profile rating reflects ONE applied delta from the
+    // starting 1000 — not two.
+    const me = await getProfile(u.token);
+    expect(me.rating).toBe(ratingAfterFirst);
+    expect(me.rating - ratingBefore).toBe(f.ratingDelta);
+
+    // History has exactly ONE row for this id.
+    const hist = await getGameHistory(u.token);
+    const matches = hist.games.filter((g) => g.id === clientGameId);
+    expect(matches.length).toBe(1);
+  });
+
+  test('POST with malformed clientGameId → 400', async () => {
+    const u = await createAnonUser('BadId');
+    const res = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${u.token}`,
+      },
+      body: JSON.stringify({
+        clientGameId: 'game with spaces!!',
+        opponent: 'medium',
+        userSide: 'white',
+        outcome: 'win',
+        plyCount: 10,
+        finalFen: 'r1bk3r/p2pBpNp/n4n2/1p1NP2P/6P1/3P4/P1P1K3/q5b1 b - - 0 1',
+        mode: 'casual',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { reason?: string };
+    expect(body.reason).toBe('clientGameId_invalid');
+  });
+
+  test('history echoes ratingBucket + opponentLabel for bot games', async () => {
+    const u = await createAnonUser('BotPlayer');
+    const clientGameId = 'game_bottest_ccc';
+    const fixture = verifiedGameFor('win');
+    // Pick a real bot opponent so the existing bot-rating path runs.
+    // 'bot:attacker-master' is seeded by 0004_bot_characters.sql.
+    const post = await fetch(`${baseUrl()}/api/games`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${u.token}`,
+      },
+      body: JSON.stringify({
+        clientGameId,
+        opponent: 'bot:attacker-master',
+        ratingBucket: 'master',
+        opponentLabel: 'ผู้พิชิต Master',
+        userSide: fixture.userSide,
+        outcome: 'win',
+        plyCount: fixture.moves.length,
+        moves: fixture.moves,
+        finalFen: fixture.finalFen,
+        mode: 'rated',
+      }),
+    });
+    expect(post.status).toBe(200);
+
+    const hist = await getGameHistory(u.token);
+    const row = hist.games.find((g) => g.id === clientGameId) as {
+      id: string;
+      opponent: string;
+      ratingBucket?: string;
+      opponentLabel?: string;
+    };
+    expect(row).toBeDefined();
+    expect(row.opponent).toBe('bot:attacker-master');
+    expect(row.ratingBucket).toBe('master');
+    expect(row.opponentLabel).toBe('ผู้พิชิต Master');
+  });
+});

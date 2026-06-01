@@ -261,6 +261,147 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     expect(stored).toBeNull();
   });
 
+  // PR #22 follow-up: local + server must agree on game identity. The
+  // local recordGame mints a `game_*` id and passes it as clientGameId
+  // on the cloud POST; the server uses it verbatim as the row pk. This
+  // test pins that identity stays consistent end-to-end so the next
+  // sync doesn't double-show the game.
+  test('played game appears exactly once after sync (no duplicate by id)', async ({ page }) => {
+    await page.goto('/#/settings');
+    await openAccountTab(page);
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Drive the same code path App.tsx uses on game-end: generate a
+    // canonical clientGameId, write to local stats AND POST to the
+    // worker with the same id. Then run syncHistoryFromServer and
+    // assert the merged history has exactly ONE row with that id.
+    const { localId, syncedHistoryLength } = await page.evaluate(async ({ mate, winnerSide }) => {
+      // @ts-expect-error dynamic
+      const statsMod = await import('/src/lib/stats.ts');
+      // @ts-expect-error dynamic
+      const backendMod = await import('/src/lib/backend/index.ts');
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const backend = backendMod.getBackend();
+      const session = sessionMod.loadSession();
+      const id = statsMod.newLocalGameId();
+      // Write locally with the canonical id.
+      const cur = statsMod.loadStats();
+      const next = statsMod.recordGame(cur, {
+        id,
+        opponentId: 'medium',
+        ratingBucket: 'medium',
+        userSide: winnerSide,
+        result: winnerSide === 'white' ? '1-0' : '0-1',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
+        mode: 'rated',
+      });
+      statsMod.saveStats(next);
+      // POST to the worker with the SAME id.
+      await backend.recordGame(session.token, {
+        clientGameId: id,
+        opponent: 'medium',
+        ratingBucket: 'medium',
+        userSide: winnerSide,
+        outcome: 'win',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
+        mode: 'rated',
+      });
+      // Now sync from the server. The merged history must show one row.
+      const post = statsMod.loadStats();
+      const out = await sessionMod.syncHistoryFromServer(post.history, post.deletedIds);
+      return {
+        localId: id,
+        syncedHistoryLength: out.history.filter((g: { id: string }) => g.id === id).length,
+      };
+    }, { mate: MATE, winnerSide: WINNER_SIDE });
+    expect(localId).toMatch(/^game_/);
+    // EXACTLY one row — not two. This is the regression case before
+    // clientGameId: local minted game_xxx, server minted UUID, sync
+    // unioned by id and showed both.
+    expect(syncedHistoryLength).toBe(1);
+  });
+
+  // PR #22 follow-up: a played-then-deleted-then-synced game must stay
+  // gone. The previous version targeted the wrong id on DELETE (local
+  // id vs server UUID), so the server row stayed and next sync brought
+  // the row back. With clientGameId end-to-end, the same id targets
+  // both sides — and the tombstone retry in syncHistoryFromServer
+  // closes the loop for offline / flaky-network cases.
+  test('deleting a freshly played cloud-synced game removes it durably', async ({ page }) => {
+    await page.goto('/#/settings');
+    await openAccountTab(page);
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    const result = await page.evaluate(async ({ mate, winnerSide }) => {
+      // @ts-expect-error dynamic
+      const statsMod = await import('/src/lib/stats.ts');
+      // @ts-expect-error dynamic
+      const backendMod = await import('/src/lib/backend/index.ts');
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const backend = backendMod.getBackend();
+      const session = sessionMod.loadSession();
+      const id = statsMod.newLocalGameId();
+
+      // 1. Record locally.
+      let stats = statsMod.recordGame(statsMod.loadStats(), {
+        id,
+        opponentId: 'medium',
+        ratingBucket: 'medium',
+        userSide: winnerSide,
+        result: winnerSide === 'white' ? '1-0' : '0-1',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
+        mode: 'rated',
+      });
+      statsMod.saveStats(stats);
+
+      // 2. Mirror to server with the SAME id.
+      await backend.recordGame(session.token, {
+        clientGameId: id,
+        opponent: 'medium',
+        ratingBucket: 'medium',
+        userSide: winnerSide,
+        outcome: 'win',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
+        mode: 'rated',
+      });
+
+      // 3. User deletes locally — produces a tombstone with the same id.
+      stats = statsMod.removeGameRecord(statsMod.loadStats(), id);
+      statsMod.saveStats(stats);
+      const tombstoneCarriedId = stats.deletedIds.includes(id);
+
+      // 4. Delete on server (same id flows through cleanly).
+      const del = await backend.deleteGame(session.token, id);
+
+      // 5. Sync round-trip — server row gone, no resurrection.
+      const out = await sessionMod.syncHistoryFromServer(
+        statsMod.loadStats().history,
+        statsMod.loadStats().deletedIds,
+      );
+      return {
+        tombstoneCarriedId,
+        deleted: del.deleted,
+        rowsAfterSyncWithId: out.history.filter((g: { id: string }) => g.id === id).length,
+      };
+    }, { mate: MATE, winnerSide: WINNER_SIDE });
+
+    expect(result.tombstoneCarriedId).toBe(true);
+    expect(result.deleted).toBe(true);
+    expect(result.rowsAfterSyncWithId).toBe(0);
+  });
+
   // Issue #22 / Codex follow-up: a failed cloud DELETE used to let the
   // row resurrect itself on the next syncHistoryFromServer call (server
   // still had the row → union with local → row reappears in history).

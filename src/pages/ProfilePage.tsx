@@ -112,7 +112,7 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
   const handleDeleteGame = (record: GameRecord) => {
     const dateLabel = new Date(record.date).toLocaleString('th-TH');
     toast.confirm(
-      `ลบเกมนี้? (vs ${DIFFICULTY_LABELS[record.opponent]} · ${dateLabel}) — กู้ไม่ได้`,
+      `ลบเกมนี้? (vs ${record.opponentLabel ?? DIFFICULTY_LABELS[record.ratingBucket]} · ${dateLabel}) — กู้ไม่ได้`,
       {
         confirmLabel: 'ลบเกม',
         destructive: true,
@@ -530,7 +530,7 @@ function ProfileHistoryRow({
         {record.outcome === 'win' ? 'W' : record.outcome === 'loss' ? 'L' : 'D'}
       </span>
       <span className="history-opponent">
-        vs {DIFFICULTY_LABELS[record.opponent]}
+        vs {record.opponentLabel ?? DIFFICULTY_LABELS[record.ratingBucket]}
       </span>
       <span className="history-side">
         ({record.userSide === 'white' ? '♔' : '♚'})
@@ -775,7 +775,9 @@ function HistorySection({
     return (
       <section className="profile-section">
         <h3>ประวัติเกม (0)</h3>
-        <p className="label-aside">ยังไม่มีเกมที่บันทึก — เล่นโหมด Rated ก่อน</p>
+        <p className="label-aside">
+          ยังไม่มีเกมที่บันทึก — เล่นเกมแรกเพื่อเริ่มประวัติ (rated / casual บันทึกทั้งคู่)
+        </p>
       </section>
     );
   }

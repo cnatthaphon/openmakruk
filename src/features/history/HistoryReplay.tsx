@@ -123,7 +123,7 @@ export function HistoryReplay({ record, onClose }: Props) {
                 {outcomeLabel}
               </span>
               <span className="history-replay-side">
-                vs {DIFFICULTY_LABELS[record.opponent]}
+                vs {record.opponentLabel ?? DIFFICULTY_LABELS[record.ratingBucket]}
               </span>
             </div>
             <p className="label-aside">

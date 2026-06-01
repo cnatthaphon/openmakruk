@@ -46,7 +46,8 @@ async function seedHistory(
           {
             id,
             outcome: 'win',
-            opponent: 'medium',
+            opponentId: 'medium',
+            ratingBucket: 'medium',
             userSide: 'white',
             date: Date.now(),
             plyCount,

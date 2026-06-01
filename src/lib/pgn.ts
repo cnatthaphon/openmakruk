@@ -30,7 +30,12 @@ export function gameToPgn(record: GameRecord, opts: PgnExportOptions = {}): stri
   const dateStr = `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`;
   const event = opts.eventName ?? `OpenMakruk ${record.mode === 'casual' ? 'Casual' : 'Rated'}`;
   const site = opts.site ?? 'https://openmakruk.com';
-  const cpuName = `Fairy-Stockfish ${record.opponent}`;
+  // Display label preference: human-readable opponentLabel (bot names,
+  // personality nicknames) wins; otherwise we fall back to the
+  // difficulty bracket so PGN exports of "easy" / "medium" / "hard" /
+  // "master" games render cleanly.
+  const cpuName =
+    record.opponentLabel ?? `Fairy-Stockfish ${record.ratingBucket}`;
   const white = opts.whiteName ?? (record.userSide === 'white' ? 'Player' : cpuName);
   const black = opts.blackName ?? (record.userSide === 'black' ? 'Player' : cpuName);
   const result = pgnResult(record);
