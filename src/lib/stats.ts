@@ -290,15 +290,27 @@ export function exportStatsJSON(stats: UserStats): string {
 
 export function importStatsJSON(json: string): UserStats | null {
   try {
-    const parsed = JSON.parse(json) as Partial<UserStats>;
+    const parsed = JSON.parse(json) as Partial<UserStats> & {
+      history?: Array<Partial<GameRecord> & { opponent?: Difficulty }>;
+    };
     if (typeof parsed.rating !== 'number') return null;
     const base = initialStats();
+    // Lift every imported history row through the same v3→v4
+    // migration the store uses. Without this, an exported profile
+    // from a pre-v4 build (history rows shaped as `{ opponent: 'medium' }`)
+    // would be SAVED at version: 4 but its history would still carry
+    // the old shape — every downstream surface (ProfilePage row, PGN
+    // export, insights, replay header) reads `record.ratingBucket` and
+    // would see `undefined` for every row in the imported profile.
+    const history: GameRecord[] = Array.isArray(parsed.history)
+      ? parsed.history.map(migrateGameRecord)
+      : [];
     return {
       ...base,
       ...parsed,
       version: STATS_VERSION,
       byLevel: { ...base.byLevel, ...(parsed.byLevel ?? {}) },
-      history: parsed.history ?? [],
+      history,
       deletedIds: Array.isArray(parsed.deletedIds) ? parsed.deletedIds : [],
       displayName: parsed.displayName ?? base.displayName,
       createdAt: parsed.createdAt ?? base.createdAt,

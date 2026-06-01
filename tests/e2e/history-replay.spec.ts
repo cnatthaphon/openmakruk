@@ -247,6 +247,83 @@ test.describe('game history viewer (issue #21)', () => {
     await expect(deltaPill).toHaveText(/^\+?0$/);
   });
 
+  // PR #22 review cycle 3: importStatsJSON used to return the parsed
+  // history verbatim. A profile exported from a pre-v4 build (rows
+  // shaped as `{ opponent: 'medium' }`) would be re-saved at version:4
+  // but every imported row still carried the legacy field — so
+  // ProfilePage / PGN / Insights read `record.ratingBucket` and got
+  // undefined for every imported game. The fix runs each row through
+  // the same migrateGameRecord path the store uses; this test pins
+  // the contract.
+  test('importStatsJSON migrates legacy history rows to v4 shape', async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('openmakruk_onboarded', '1'));
+    await page.goto('/#/profile');
+    await waitForContentReady(page);
+
+    // Build a pre-v4 profile JSON (rows missing opponentId + ratingBucket).
+    const result = await page.evaluate(async () => {
+      // @ts-expect-error dynamic ESM import resolved at runtime by Vite
+      const statsMod = await import('/src/lib/stats.ts');
+      const legacy = JSON.stringify({
+        version: 2,
+        displayName: 'LegacyUser',
+        createdAt: 1700000000000,
+        rating: 1234,
+        totalGames: 2,
+        byLevel: {
+          easy:   { wins: 0, losses: 0, draws: 0 },
+          medium: { wins: 1, losses: 1, draws: 0 },
+          hard:   { wins: 0, losses: 0, draws: 0 },
+          master: { wins: 0, losses: 0, draws: 0 },
+        },
+        history: [
+          {
+            id: 'legacy_win',
+            outcome: 'win',
+            opponent: 'medium',      // ← old shape: no opponentId, no ratingBucket
+            userSide: 'white',
+            date: 1700000000000,
+            plyCount: 30,
+            ratingBefore: 1100,
+            ratingAfter: 1134,
+            ratingDelta: 34,
+          },
+          {
+            id: 'legacy_loss',
+            outcome: 'loss',
+            opponent: 'medium',
+            userSide: 'black',
+            date: 1700000000000,
+            plyCount: 25,
+            ratingBefore: 1134,
+            ratingAfter: 1100,
+            ratingDelta: -34,
+          },
+        ],
+      });
+      const imported = statsMod.importStatsJSON(legacy);
+      if (!imported) return null;
+      return {
+        version: imported.version,
+        rowOne: imported.history[0],
+        rowTwo: imported.history[1],
+      };
+    });
+
+    expect(result).not.toBeNull();
+    // Saved as v4 …
+    expect(result!.version).toBe(4);
+    // … and every row carries the new identity fields.
+    expect(result!.rowOne.opponentId).toBe('medium');
+    expect(result!.rowOne.ratingBucket).toBe('medium');
+    expect(result!.rowTwo.opponentId).toBe('medium');
+    expect(result!.rowTwo.ratingBucket).toBe('medium');
+    // Legacy field name MUST be gone (or at least not the source of
+    // truth) — downstream readers only look at opponentId.
+    expect((result!.rowOne as { opponent?: unknown }).opponent).toBeUndefined();
+  });
+
   test('legacy row without moves disables the replay button', async ({ page }) => {
     test.setTimeout(60_000);
     await seedHistory(page, { moves: [] });
