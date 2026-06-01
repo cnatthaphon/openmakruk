@@ -177,6 +177,20 @@ export type JourneyEvidence = {
    *  In practice 99th-percentile users finish < 5000 games, so a
    *  flat array stays small. */
   recordedGameIds?: string[];
+  /** Per-game mastery contribution from review-summary events.
+   *
+   *  Review summaries are keyed by GameRecord.id and may be re-emitted
+   *  on startup/cloud sync, or replaced when the same game is reviewed
+   *  again. The reducer MUST store the translated per-concept
+   *  contribution for each gameId before mutating state.mastery so it
+   *  can replace an old contribution instead of adding the same game
+   *  twice.
+   *
+   *  The values are canonical Concept deltas, not raw coach motifs. That
+   *  keeps replay independent from the motif mapping table if the table
+   *  is extended later.
+   */
+  reviewContributionsByGameId?: Record<string, Partial<Record<Concept, MasteryScore>>>;
   /** Latest known rating. The rating-changed input simply overwrites
    *  this; the reducer does no smoothing. */
   rating?: number;
@@ -246,8 +260,10 @@ export type ProgressInput =
        *  mateThreat / fork / hangingTarget / develop / promotion).
        *  The reducer translates each key through
        *  COACH_MOTIF_TO_CONCEPT before bumping
-       *  state.mastery, so adding a new motif is a one-line table
-       *  edit, not a contract change. */
+       *  state.mastery, and persists the translated contribution under
+       *  evidence.reviewContributionsByGameId[gameId] so duplicate
+       *  review-summary emissions are idempotent. Adding a new motif is
+       *  a one-line table edit, not a contract change. */
       motifTotals: Record<string, number>;
     }
   | {

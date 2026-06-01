@@ -40,6 +40,7 @@ JourneyState = {
     gamesPlayedRated?:        number
     gamesPlayedCasual?:       number
     recordedGameIds?:         string[]      //   dedupe ledger
+    reviewContributionsByGameId?: Record<string, Partial<Record<Concept,number>>>
     rating?:                  number
   }
   updatedAt: number                            // ms epoch
@@ -57,7 +58,9 @@ ProgressInput =
 
 Every kind that mutates an evidence counter carries a stable id (`lessonId`, `puzzleId`, `drillId`, `gameId`, `code`). The reducer treats a re-emitted event whose id is already counted as a no-op — required for safe cloud-sync replay and startup backfill of `stats.history` (PR #14 review: Codex flagged that `game-recorded` was the only mutating event lacking an id, so duplicate emissions could unlock `games-played` checkpoints on games the user never actually played twice).
 
-Each existing store emits ONE of these `ProgressInput` kinds — the rest is the reducer's job. The reducer signature is `(state, input) → state` and must be pure.
+`review-summary` is the exception to "duplicate id = no-op": if a stored summary for the same `gameId` is replaced, the reducer compares against `evidence.reviewContributionsByGameId[gameId]`, removes/replaces the old per-concept contribution, then persists the new translated contribution. That makes startup/cloud replay idempotent without freezing legitimate review updates.
+
+Each existing store emits the `ProgressInput` kind(s) listed below — the rest is the reducer's job. The reducer signature is `(state, input) → state` and must be pure.
 
 The `evidence` field is what makes the reducer **purely** evaluable: every `CheckpointRequirement` clause has a corresponding evidence field, so the reducer can answer "is this checkpoint cleared?" by reading state alone — no event log replay, no store re-read.
 
@@ -129,7 +132,7 @@ Each is tracked as a follow-up to issue #7. Building them on the contract this P
 | `src/lib/reviewMastery.ts` | Per-game review summary | `review-summary` |
 | `src/lib/conceptMastery.ts` | Motif totals derived from games | (read-only consumer of review-summary) |
 | `src/lib/asyncChallenge.ts` | Async challenge history | `challenge-completed` |
-| `src/lib/stats.ts` | Rating + game history | `rating-changed` |
+| `src/lib/stats.ts` | Rating + game history | `rating-changed` + `game-recorded` |
 | `src/lib/countingDrill.ts` | Drill scores | `drill-passed` |
 
 The wiring layer will be a thin adapter file per store — no store needs to change its public API. Backwards compatibility for existing localStorage payloads is preserved.
