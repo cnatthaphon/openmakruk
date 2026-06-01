@@ -432,9 +432,14 @@ export default function App() {
         // and merge into local stats. Lets a user who plays on phone
         // and then opens laptop see those games immediately.
         const local = loadStats();
-        const merged = await syncHistoryFromServer(local.history);
-        if (merged !== local.history) {
-          const next = { ...local, history: merged };
+        const { history, deletedIds } = await syncHistoryFromServer(
+          local.history,
+          local.deletedIds,
+        );
+        // Only persist when something actually changed — avoids a
+        // redundant IDB write on every boot when nothing moved.
+        if (history !== local.history || deletedIds.length !== local.deletedIds.length) {
+          const next = { ...local, history, deletedIds };
           saveStats(next);
           setStats(next);
         }
@@ -708,19 +713,28 @@ export default function App() {
     if (gameRecordedRef.current) return;
     if (mode !== 'play-white' && mode !== 'play-black') return;
     if (history.length === 0) return; // safeguard against stale gameover on init
-    // Only Rated games hit the rating ledger — Casual practice doesn't.
-    if (!rated) {
-      log('stats.skip', { reason: 'casual', result: forcedResult ?? state.result });
-      gameRecordedRef.current = true;
-      return;
-    }
     const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
     const recordResult = forcedResult ?? state.result;
+    // Rated games hit the rating ledger AND record. Casual games skip
+    // the rating math but still record into history (with zero delta)
+    // so the user can replay them via the per-row ▶ button from
+    // Profile. Casual rows are visibly tagged in the UI; the rating
+    // counters and by-level totals stay rated-only.
     setStats((prev) => {
-      const next = recordGame(prev, difficulty, userColor, recordResult, history.length);
+      const next = recordGame(prev, {
+        opponent: difficulty,
+        userSide: userColor,
+        result: recordResult,
+        plyCount: history.length,
+        moves: history,
+        finalFen: state.fen,
+        timeControlId: timeControlId === 'unlimited' ? null : timeControlId,
+        mode: rated ? 'rated' : 'casual',
+      });
       saveStats(next);
       log('stats.gameRecorded', {
         result: state.result,
+        mode: rated ? 'rated' : 'casual',
         outcome:
           state.result === '1-0'
             ? userColor === 'white' ? 'win' : 'loss'

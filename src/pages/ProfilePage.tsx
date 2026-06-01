@@ -7,6 +7,7 @@ import { Page } from '../components/Page';
 import {
   CPU_RATINGS,
   exportStatsJSON,
+  forgetDeletedId,
   importStatsJSON,
   loadStats,
   recommendedLevel,
@@ -125,16 +126,35 @@ export function ProfilePage({ stats, onStatsChange, onResetAll }: Props) {
           // record that no longer exists.
           if (replayingId === record.id) setReplayingId(null);
 
-          // Cloud-sync mirror. Best-effort: a failure here doesn't undo
-          // the local delete — the next successful sync will reconcile.
-          // The route is idempotent on the server so retries are safe.
+          // Cloud-sync mirror. The local tombstone (`stats.deletedIds`,
+          // set by removeGameRecord) is what makes the delete durable —
+          // if this call fails OR the user is offline, the next
+          // syncHistoryFromServer will retry the DELETE and refuse to
+          // resurrect the row. On success we drop the tombstone so it
+          // doesn't accumulate forever.
           const backend = getBackend();
           if (backend.deleteGame !== undefined) {
             const session = loadSession();
             if (session.token.length > 0) {
-              backend.deleteGame(session.token, record.id).catch((err: unknown) => {
-                toast.error(`ลบบน server ไม่สำเร็จ: ${String(err)}`);
-              });
+              backend
+                .deleteGame(session.token, record.id)
+                .then(() => {
+                  // Drop the tombstone — the server agrees the row is
+                  // gone. Re-read latest stats because other state
+                  // changes (rating, badges) may have landed since
+                  // the local delete.
+                  const latest = loadStats();
+                  const cleaned = forgetDeletedId(latest, record.id);
+                  if (cleaned !== latest) {
+                    saveStats(cleaned);
+                    onStatsChange(cleaned);
+                  }
+                })
+                .catch((err: unknown) => {
+                  toast.info(
+                    `ลบบน server ค้างไว้ — จะลองใหม่ตอน sync ครั้งหน้า (${String(err)})`,
+                  );
+                });
             }
           }
 

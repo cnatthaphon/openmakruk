@@ -15,7 +15,7 @@
 //      decrements the visible totalGames + by-level counter.
 
 import { test, expect } from '@playwright/test';
-import { waitForContentReady } from './helpers';
+import { dragMove, waitForContentReady } from './helpers';
 
 /** A two-move game (e3-e4, e6-e5) seeded as the only history row. The
  *  moves are chosen to be legal makruk openings on both sides so the
@@ -158,6 +158,92 @@ test.describe('game history viewer (issue #21)', () => {
 
     // No row should remain in the DOM.
     await expect(page.locator('.profile-history-row')).toHaveCount(0);
+  });
+
+  // Issue #22 / Codex review: replay must work on a REAL newly-recorded
+  // game (not just seeded fixtures). Before the recordGame contract was
+  // extended to accept an options bag, the local stats path silently
+  // dropped moves/finalFen, so the ▶ button was forever disabled for
+  // every game the user actually played. This test exercises the
+  // end-to-end path: play one move → resign → check that the freshly
+  // recorded row has a working replay button.
+  test('newly recorded rated game (resign after one move) has replay enabled', async ({ page }) => {
+    test.setTimeout(60_000);
+    // Set onboarded flag BEFORE navigating to /#/play (otherwise the
+    // first paint mounts the onboarding modal and intercepts every
+    // subsequent click). The /goto / clear is already done in
+    // beforeEach so localStorage is empty here.
+    await page.evaluate(() => localStorage.setItem('openmakruk_onboarded', '1'));
+    await page.goto('/#/play');
+    await page.reload();
+    await waitForContentReady(page);
+    await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
+
+    // Make sure Rated is on so the rating ledger AND the local history
+    // row both get written. (Default is casual; check the box.)
+    const ratedToggle = page.locator('.rated-toggle input[type="checkbox"]');
+    await ratedToggle.check();
+    await expect(ratedToggle).toBeChecked();
+
+    // Move e3→e4 to enable the resign button (requires history.length>0).
+    await dragMove(page, 'e3', 'e4');
+
+    // Wait for the resign button to be enabled — it's disabled while
+    // the engine is still thinking after the user's move. Otherwise
+    // we race the CPU reply and the click is a no-op.
+    const resignBtn = page.locator('.play-quick-resign');
+    await expect(resignBtn).toBeEnabled({ timeout: 20_000 });
+    await resignBtn.click();
+    // Confirm in the toast. The label is exactly 'ยอมแพ้'.
+    await page.getByRole('button', { name: 'ยอมแพ้', exact: true }).click();
+    await expect(page.locator('.game-over-overlay')).toBeVisible({ timeout: 10_000 });
+
+    // Now navigate to Profile → สถิติ. The history row must exist AND
+    // the ▶ button must be enabled (proves moves was persisted).
+    await page.goto('/#/profile');
+    await waitForContentReady(page);
+    await page.getByRole('tab', { name: /สถิติ/ }).click();
+    await page.waitForSelector('.profile-history-row', { timeout: 10_000 });
+
+    const replayBtn = page.locator('.history-replay-button').first();
+    await expect(replayBtn).toBeEnabled();
+  });
+
+  // Issue #22 / Codex review: casual games used to be silently dropped
+  // from the local stats path entirely — only the cloud backend kept
+  // them. That meant offline users could never replay a casual game.
+  // The recordGame refactor persists casual rows locally with zero
+  // rating delta; this test pins that behaviour.
+  test('newly recorded CASUAL game also appears in history with replay enabled', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.evaluate(() => localStorage.setItem('openmakruk_onboarded', '1'));
+    await page.goto('/#/play');
+    await page.reload();
+    await waitForContentReady(page);
+    await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+    await page.waitForSelector('.cg-wrap', { timeout: 30_000 });
+
+    // Stay in Casual (default). Confirm the toggle is unchecked.
+    const ratedToggle = page.locator('.rated-toggle input[type="checkbox"]');
+    await expect(ratedToggle).not.toBeChecked();
+
+    await dragMove(page, 'e3', 'e4');
+    await page.locator('.play-quick-resign').click();
+    await page.getByRole('button', { name: 'ยอมแพ้', exact: true }).click();
+    await expect(page.locator('.game-over-overlay')).toBeVisible({ timeout: 10_000 });
+
+    await page.goto('/#/profile');
+    await waitForContentReady(page);
+    await page.getByRole('tab', { name: /สถิติ/ }).click();
+    await page.waitForSelector('.profile-history-row', { timeout: 10_000 });
+
+    const replayBtn = page.locator('.history-replay-button').first();
+    await expect(replayBtn).toBeEnabled();
+
+    // Rating delta must be zero — casual doesn't move the needle.
+    const deltaPill = page.locator('.profile-history-row .history-delta').first();
+    await expect(deltaPill).toHaveText(/^\+?0$/);
   });
 
   test('legacy row without moves disables the replay button', async ({ page }) => {

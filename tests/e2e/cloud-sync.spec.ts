@@ -260,4 +260,95 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     const stored = await page.evaluate(() => localStorage.getItem('openmakruk_cloud_session'));
     expect(stored).toBeNull();
   });
+
+  // Issue #22 / Codex follow-up: a failed cloud DELETE used to let the
+  // row resurrect itself on the next syncHistoryFromServer call (server
+  // still had the row → union with local → row reappears in history).
+  // The fix is a tombstone: removeGameRecord pushes the id into
+  // `stats.deletedIds`, and syncHistoryFromServer (a) filters server
+  // rows whose id is in the tombstone, AND (b) retries the DELETE.
+  // This test pins both behaviours.
+  test('deleted-but-server-still-has-it is filtered + DELETE is retried (issue #22)', async ({ page }) => {
+    await page.goto('/#/settings');
+    await openAccountTab(page);
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Record a verified rated game on the server. We need the server-
+    // side id so we can stage the tombstone scenario.
+    const gameId = await page.evaluate(async ({ mate, winnerSide }) => {
+      // @ts-expect-error dynamic
+      const backendMod = await import('/src/lib/backend/index.ts');
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const backend = backendMod.getBackend();
+      const session = sessionMod.loadSession();
+      const res = await backend.recordGame(session.token, {
+        opponent: 'medium',
+        userSide: winnerSide,
+        outcome: 'win',
+        plyCount: mate.moves.length,
+        moves: mate.moves,
+        finalFen: mate.finalFen,
+        mode: 'rated',
+      });
+      return res.id as string;
+    }, { mate: MATE, winnerSide: WINNER_SIDE });
+    expect(gameId).toBeTruthy();
+
+    // Simulate the "cloud delete previously failed" state by writing
+    // the tombstone directly: local history has the row removed AND
+    // `deletedIds` carries the id. This is the durable state the user
+    // would land in if the network died between the local delete and
+    // the server DELETE call.
+    await page.evaluate(async (id) => {
+      // @ts-expect-error dynamic
+      const statsMod = await import('/src/lib/stats.ts');
+      const cur = statsMod.loadStats();
+      statsMod.saveStats({
+        ...cur,
+        history: [],
+        deletedIds: [...cur.deletedIds, id],
+      });
+    }, gameId);
+
+    // Drive the sync helper directly. We expect:
+    //   1. The server row is filtered out — history stays empty even
+    //      though the server still has it (until the retry below).
+    //   2. The DELETE retry succeeds — `deletedIds` is now empty.
+    const result = await page.evaluate(async () => {
+      // @ts-expect-error dynamic
+      const statsMod = await import('/src/lib/stats.ts');
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const cur = statsMod.loadStats();
+      const out = await sessionMod.syncHistoryFromServer(cur.history, cur.deletedIds);
+      // Persist what the App.tsx caller would.
+      statsMod.saveStats({
+        ...cur,
+        history: out.history,
+        deletedIds: out.deletedIds,
+      });
+      return {
+        historyLength: out.history.length,
+        deletedIds: out.deletedIds,
+      };
+    });
+    // (a) the row stayed filtered out:
+    expect(result.historyLength).toBe(0);
+    // (b) the retry cleared the tombstone:
+    expect(result.deletedIds).toEqual([]);
+
+    // (c) on the next sync, with a clean tombstone list, the server row
+    // is also gone — so a second pass returns empty history with empty
+    // tombstones. This proves the server-side DELETE actually landed.
+    const secondPass = await page.evaluate(async () => {
+      // @ts-expect-error dynamic
+      const sessionMod = await import('/src/lib/backend/cloudSession.ts');
+      const out = await sessionMod.syncHistoryFromServer([], []);
+      return out;
+    });
+    expect(secondPass.history).toEqual([]);
+    expect(secondPass.deletedIds).toEqual([]);
+  });
 });
