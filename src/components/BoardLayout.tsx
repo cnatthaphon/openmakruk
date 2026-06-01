@@ -5,6 +5,32 @@
 //    รายละเอียดอยู่ใต้กระดาน ต้องเลื่อนขึ้นลง · ทุกหน้าต้องใช้ pattern
 //    เดียวกัน ไม่งั้นงงไปหมด"
 //
+// Adoption (issue #4 audit, as of this commit):
+//   ✓ src/pages/LessonView.tsx          — all 6 demo views + text steps
+//   ✓ src/pages/PuzzleView.tsx
+//   ✓ src/pages/CountingDrillPage.tsx
+//   ✓ src/pages/SurvivePage.tsx
+//   ✓ src/pages/MoveTrainerPage.tsx
+//   ✓ src/pages/PatternDrillPage.tsx
+//   ✓ src/pages/PuzzleRushPage.tsx
+//   ✓ src/pages/CustomPage.tsx
+//   ✓ src/pages/StudyPage.tsx
+//   ✓ src/pages/ExhibitionPage.tsx
+//   ⚠ src/App.tsx (Play tab) — custom flex layout
+//        Reason: Play has needs no other surface has —
+//          (1) viewport-fit (`.play-stack { height: calc(100vh - 180px);
+//              overflow: hidden }`) so the board never causes scroll
+//              once the game is in progress;
+//          (2) `<EvalBar>` flush to the left edge of the board, NOT
+//              inside the left slot's natural padding;
+//          (3) a sidebar that hosts 6+ distinct widget kinds (clock,
+//              review panel, side-info, sidebar-tabs + content) — far
+//              richer than any single right slot today.
+//        Visual contract still matches BoardLayout: board centered,
+//        controls right. Migrating onto this primitive needs a
+//        viewport-fit + edge-flush extension; tracked as a follow-up
+//        to issue #4.
+//
 // Pattern: left (optional narrative / menu) · board (center) ·
 // right (controls / sidebar). Top stays clean — no strips pushing
 // the board down. On desktop the three columns render side-by-side;
