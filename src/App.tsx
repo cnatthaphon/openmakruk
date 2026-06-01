@@ -37,6 +37,7 @@ import {
   clearStats,
   loadStats,
   recommendedLevel,
+  newLocalGameId,
   recordGame,
   saveStats,
   type UserStats,
@@ -432,9 +433,14 @@ export default function App() {
         // and merge into local stats. Lets a user who plays on phone
         // and then opens laptop see those games immediately.
         const local = loadStats();
-        const merged = await syncHistoryFromServer(local.history);
-        if (merged !== local.history) {
-          const next = { ...local, history: merged };
+        const { history, deletedIds } = await syncHistoryFromServer(
+          local.history,
+          local.deletedIds,
+        );
+        // Only persist when something actually changed — avoids a
+        // redundant IDB write on every boot when nothing moved.
+        if (history !== local.history || deletedIds.length !== local.deletedIds.length) {
+          const next = { ...local, history, deletedIds };
           saveStats(next);
           setStats(next);
         }
@@ -708,26 +714,68 @@ export default function App() {
     if (gameRecordedRef.current) return;
     if (mode !== 'play-white' && mode !== 'play-black') return;
     if (history.length === 0) return; // safeguard against stale gameover on init
-    // Only Rated games hit the rating ledger — Casual practice doesn't.
-    if (!rated) {
-      log('stats.skip', { reason: 'casual', result: forcedResult ?? state.result });
-      gameRecordedRef.current = true;
-      return;
-    }
     const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
     const recordResult = forcedResult ?? state.result;
+
+    // Canonical identity for this game. Computed ONCE here so both
+    // the local recordGame AND the cloud backend.recordGame use the
+    // same id + opponent identity. Without this, local would mint
+    // `game_<base36>` while server returned a UUID — and the two
+    // would diverge: sync would union by id and double-show the
+    // game, DELETE would target the wrong id, sync would resurrect.
+    //
+    // Opponent-id hierarchy (was previously only in the cloud branch):
+    //   1. bot-challenge run → challenge.botId (e.g. 'bot:attacker-master')
+    //      label = challenge.displayName.
+    //   2. ratedAsDifficulty engine → difficulty bucket ('easy'..'master').
+    //      label = undefined; UI falls back to DIFFICULTY_LABELS.
+    //   3. personality engine → settings.engineId (e.g. 'personality:hunter').
+    //      label = active engine's display name from the registry.
+    const clientGameId = newLocalGameId();
+    const activeEngine = getActiveEngineSync();
+    const opponentId: string = challenge
+      ? challenge.botId
+      : activeEngine?.capabilities.ratedAsDifficulty
+        ? difficulty
+        : settings.engineId;
+    const opponentLabel: string | undefined = challenge
+      ? challenge.displayName
+      : activeEngine?.capabilities.ratedAsDifficulty
+        ? undefined
+        : activeEngine?.name;
+
+    // Rated games hit the rating ledger AND record. Casual games skip
+    // the rating math but still record into history (with zero delta)
+    // so the user can replay them via the per-row ▶ button from
+    // Profile. Casual rows are visibly tagged in the UI; the rating
+    // counters and by-level totals stay rated-only.
     setStats((prev) => {
-      const next = recordGame(prev, difficulty, userColor, recordResult, history.length);
+      const next = recordGame(prev, {
+        id: clientGameId,
+        opponentId,
+        ratingBucket: difficulty,
+        opponentLabel,
+        userSide: userColor,
+        result: recordResult,
+        plyCount: history.length,
+        moves: history,
+        finalFen: state.fen,
+        timeControlId: timeControlId === 'unlimited' ? null : timeControlId,
+        mode: rated ? 'rated' : 'casual',
+      });
       saveStats(next);
       log('stats.gameRecorded', {
+        id: clientGameId,
         result: state.result,
+        mode: rated ? 'rated' : 'casual',
         outcome:
           state.result === '1-0'
             ? userColor === 'white' ? 'win' : 'loss'
             : state.result === '0-1'
               ? userColor === 'black' ? 'win' : 'loss'
               : 'draw',
-        opponent: difficulty,
+        opponentId,
+        ratingBucket: difficulty,
         ratingBefore: prev.rating,
         ratingAfter: next.rating,
         delta: next.rating - prev.rating,
@@ -832,9 +880,9 @@ export default function App() {
     }
 
     // Cloud sync — fire-and-forget. Falls through quietly if backend is
-    // NoOp or recordGame is not supported. We compute the outcome from
-    // the same state above; duplicating the small switch here is cheaper
-    // than restructuring the entire effect to share locals.
+    // NoOp or recordGame is not supported. Reuses the canonical id +
+    // opponent identity computed above so local and server agree on
+    // every field that future joins (sync, delete, review) key off.
     const backend = getBackend();
     if (backend.isOnline() && backend.recordGame) {
       const userColor: 'white' | 'black' = mode === 'play-white' ? 'white' : 'black';
@@ -846,26 +894,12 @@ export default function App() {
       if (outcome) {
         const session = loadSession();
         if (session.token) {
-          // Opponent identity hierarchy:
-          //   1. If user is in a bot-challenge run, use the bot's full
-          //      id (e.g. `bot:attacker-master`) — backs the per-bot
-          //      head-to-head stats in Bot Hall of Fame.
-          //   2. Else if the active engine declares ratedAsDifficulty,
-          //      use the difficulty bucket as the opponent label.
-          //   3. Else use the engine id directly (personality engines).
-          // The engine-name conditional that used to live here was
-          // replaced with a capability check — see capabilities.ratedAsDifficulty
-          // in lib/engines/types.ts. Adding a new "leveled" engine no
-          // longer requires editing this file.
-          const activeEngine = getActiveEngineSync();
-          const opponentId = challenge
-            ? challenge.botId
-            : activeEngine?.capabilities.ratedAsDifficulty
-              ? difficulty
-              : settings.engineId;
           backend
             .recordGame(session.token, {
+              clientGameId,
               opponent: opponentId,
+              ratingBucket: difficulty,
+              opponentLabel,
               userSide: userColor,
               outcome,
               plyCount: history.length,
@@ -2975,7 +3009,7 @@ function ProfilePanel({
                   <span className={`h-outcome ${g.outcome}`}>
                     {g.outcome === 'win' ? 'W' : g.outcome === 'loss' ? 'L' : 'D'}
                   </span>
-                  <span className="h-opponent">{DIFFICULTY_LABELS[g.opponent]}</span>
+                  <span className="h-opponent">{g.opponentLabel ?? DIFFICULTY_LABELS[g.ratingBucket]}</span>
                   <span className="h-date">{formatDateShort(g.date)}</span>
                   <span className={`h-delta ${g.ratingDelta >= 0 ? 'up' : 'down'}`}>
                     {g.ratingDelta >= 0 ? '+' : ''}
