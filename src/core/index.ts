@@ -11,6 +11,6 @@
 // '../core/fen' etc. directly — go through this barrel so renames
 // stay safe.
 
-export * from './types';
-export * from './fen';
-export * from './counting';
+export * from './types.ts';
+export * from './fen.ts';
+export * from './counting.ts';
