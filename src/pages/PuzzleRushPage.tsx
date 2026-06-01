@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { loadFfish, parseLegalMoves } from '../lib/makruk';
 import { loadPuzzles } from '../lib/content';
 import type { Puzzle } from '../lib/puzzleSchema';
@@ -153,12 +154,7 @@ export function PuzzleRushPage() {
   if (status === 'intro') {
     return (
       <main className="rush-page">
-        <button
-          className="rush-back"
-          onClick={() => navigate({ tab: 'puzzles' })}
-        >
-          ← กลับ Puzzles
-        </button>
+        <BackButton to="puzzles">ปริศนา</BackButton>
         <header className="rush-intro">
           <div className="rush-intro-icon" aria-hidden="true">
             🔥

@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { haptic } from '../lib/haptic';
 import { getBackend } from '../lib/backend';
 import { loadSession } from '../lib/backend/cloudSession';
@@ -384,9 +385,7 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
 
   return (
     <div className="puzzle-view">
-      <button className="lesson-back" onClick={onClose}>
-        ← กลับไปรายการปริศนา
-      </button>
+      <BackButton onClick={onClose}>รายการปริศนา</BackButton>
       <BoardLayout
         className="puzzle-layout"
         left={
