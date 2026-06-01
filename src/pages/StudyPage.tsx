@@ -310,37 +310,54 @@ function EndgameView({ endgame, onClose }: { endgame: EndgameStudy; onClose: () 
     () => endgame.commentary.find((c) => c.plyAfter === ply),
     [endgame.commentary, ply],
   );
+  // Issue #4 audit follow-up (PR #13 review): EndgameView previously
+  // rendered the board inside its own `.study-view-board` wrapper.
+  // The board now mounts through the shared <BoardLayout> shell so
+  // the visual rhythm matches Play / Lesson / Puzzle / Exhibition,
+  // and the audit suite's geometry sweep can catch drift on this
+  // surface.
   return (
     <div className="study-view">
-      <button className="study-back" onClick={onClose}>← กลับ</button>
-      <h3>{endgame.title}</h3>
-      <div className="study-view-board">
-        <Board
-          fen={currentFen}
-          legalMoves={[]}
-          flipped={false}
-          disabled
-          turn={ply % 2 === 0 ? 'white' : 'black'}
-          isCheck={false}
-          lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
-          hint={null}
-          onMove={() => undefined}
-        />
-      </div>
-      {/* Note slot is always rendered (even when empty) so the page
-          height doesn't jump when stepping into / out of an annotated
-          ply. min-height reserves a stable two-line block; the dim
-          placeholder hints that other plies have commentary. */}
-      <div className={`study-view-note${note ? '' : ' is-empty'}`} aria-live="polite">
-        {note ? <>📝 {note.text}</> : <span className="label-aside">— ตานี้ไม่มีคำอธิบายเพิ่มเติม —</span>}
-      </div>
-      <div className="study-view-stepper">
-        <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
-        <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
-        <span className="label-aside">ตา {ply} / {endgame.moves.length}</span>
-        <button onClick={() => setPly((p) => Math.min(endgame.moves.length, p + 1))} disabled={ply === endgame.moves.length}>▶</button>
-        <button onClick={() => setPly(endgame.moves.length)} disabled={ply === endgame.moves.length}>⏭</button>
-      </div>
+      <BoardLayout
+        left={
+          <header className="study-view-header">
+            <button className="study-back" onClick={onClose}>← กลับ</button>
+            <h3>{endgame.title}</h3>
+          </header>
+        }
+        board={
+          <Board
+            fen={currentFen}
+            legalMoves={[]}
+            flipped={false}
+            disabled
+            turn={ply % 2 === 0 ? 'white' : 'black'}
+            isCheck={false}
+            lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
+            hint={null}
+            onMove={() => undefined}
+          />
+        }
+        right={
+          <div className="study-view-stepper">
+            <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
+            <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
+            <span className="label-aside">ตา {ply} / {endgame.moves.length}</span>
+            <button onClick={() => setPly((p) => Math.min(endgame.moves.length, p + 1))} disabled={ply === endgame.moves.length}>▶</button>
+            <button onClick={() => setPly(endgame.moves.length)} disabled={ply === endgame.moves.length}>⏭</button>
+          </div>
+        }
+        belowBoard={
+          /* Note slot is always rendered (even when empty) so the
+             page height doesn't jump when stepping into / out of an
+             annotated ply. min-height reserves a stable two-line
+             block; the dim placeholder hints that other plies have
+             commentary. */
+          <div className={`study-view-note${note ? '' : ' is-empty'}`} aria-live="polite">
+            {note ? <>📝 {note.text}</> : <span className="label-aside">— ตานี้ไม่มีคำอธิบายเพิ่มเติม —</span>}
+          </div>
+        }
+      />
     </div>
   );
 }
@@ -462,43 +479,52 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
     [game.commentary, ply],
   );
 
+  // Issue #4 audit follow-up (PR #13 review): MasterGameView mounts
+  // its board through <BoardLayout> for the same reason as Endgames
+  // above — shared shell, audit coverage, no per-page geometry.
   return (
     <div className="study-view">
-      <button className="study-back" onClick={onClose}>← กลับ</button>
-      <h3>{game.title}</h3>
-      <p className="study-view-desc">
-        {game.whiteName} vs {game.blackName} · ผลลัพธ์ <strong>{game.result}</strong>
-      </p>
-      <div className="study-view-board">
-        <Board
-          fen={currentFen}
-          legalMoves={[]}
-          flipped={false}
-          disabled
-          turn={ply % 2 === 0 ? 'white' : 'black'}
-          isCheck={false}
-          lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
-          hint={null}
-          onMove={() => undefined}
-        />
-      </div>
-      {/* Note slot is always rendered (even when empty) so the page
-          height doesn't jump when stepping into / out of an annotated
-          ply. min-height reserves a stable two-line block; the dim
-          placeholder hints that other plies have commentary. */}
-      <div className={`study-view-note${note ? '' : ' is-empty'}`} aria-live="polite">
-        {note ? <>📝 {note.text}</> : <span className="label-aside">— ตานี้ไม่มีคำอธิบายเพิ่มเติม —</span>}
-      </div>
-      <div className="study-view-stepper">
-        <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
-        <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
-        <span className="label-aside">ตา {ply} / {game.moves.length}</span>
-        <button
-          onClick={() => setPly((p) => Math.min(game.moves.length, p + 1))}
-          disabled={ply === game.moves.length}
-        >▶</button>
-        <button onClick={() => setPly(game.moves.length)} disabled={ply === game.moves.length}>⏭</button>
-      </div>
+      <BoardLayout
+        left={
+          <header className="study-view-header">
+            <button className="study-back" onClick={onClose}>← กลับ</button>
+            <h3>{game.title}</h3>
+            <p className="study-view-desc">
+              {game.whiteName} vs {game.blackName} · ผลลัพธ์ <strong>{game.result}</strong>
+            </p>
+          </header>
+        }
+        board={
+          <Board
+            fen={currentFen}
+            legalMoves={[]}
+            flipped={false}
+            disabled
+            turn={ply % 2 === 0 ? 'white' : 'black'}
+            isCheck={false}
+            lastMove={lastMoveUci ? { from: lastMoveUci.slice(0, 2), to: lastMoveUci.slice(2, 4) } : null}
+            hint={null}
+            onMove={() => undefined}
+          />
+        }
+        right={
+          <div className="study-view-stepper">
+            <button onClick={() => setPly(0)} disabled={ply === 0}>⏮</button>
+            <button onClick={() => setPly((p) => Math.max(0, p - 1))} disabled={ply === 0}>◀</button>
+            <span className="label-aside">ตา {ply} / {game.moves.length}</span>
+            <button
+              onClick={() => setPly((p) => Math.min(game.moves.length, p + 1))}
+              disabled={ply === game.moves.length}
+            >▶</button>
+            <button onClick={() => setPly(game.moves.length)} disabled={ply === game.moves.length}>⏭</button>
+          </div>
+        }
+        belowBoard={
+          <div className={`study-view-note${note ? '' : ' is-empty'}`} aria-live="polite">
+            {note ? <>📝 {note.text}</> : <span className="label-aside">— ตานี้ไม่มีคำอธิบายเพิ่มเติม —</span>}
+          </div>
+        }
+      />
     </div>
   );
 }

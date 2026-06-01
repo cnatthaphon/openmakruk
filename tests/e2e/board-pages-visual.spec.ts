@@ -142,6 +142,41 @@ for (const vp of VIEWPORTS) {
       });
     }
 
+    // Study detail surfaces (Endgames + Master Games) — these are
+    // gated behind a click on the index, not a deep-link URL, so they
+    // can't sit in BOARD_GEOMETRY_ROUTES verbatim. Drive them through
+    // the interactive path instead so the audit catches drift (PR #13
+    // review: Codex flagged that those views still used the legacy
+    // `.study-view-board` wrapper).
+    for (const subTab of ['endgames', 'master-games'] as const) {
+      test(`study → ${subTab} detail mounts a BoardLayout board`, async ({ page }) => {
+        const pageErrors: string[] = [];
+        page.on('pageerror', (e) => pageErrors.push(e.message));
+
+        await page.goto('/');
+        await clearAppState(page);
+        await page.goto('/#/study');
+        await waitForContentReady(page);
+
+        // Click the sub-tab. Labels carry emoji + Thai — matched by the
+        // distinctive substring (see SUBTABS in StudyPage.tsx).
+        const tabLabel = subTab === 'endgames' ? 'หมากปลายเกม' : 'เกมตัวอย่าง';
+        await page.getByRole('tab', { name: new RegExp(tabLabel) }).click();
+        // Wait for cards then click the first one to open the detail.
+        await page.waitForSelector('.study-card', { timeout: 15_000 });
+        await page.locator('.study-card').first().click();
+
+        // Board mounts through BoardLayout — the wrapper carries the
+        // `.board-layout` class regardless of which page it serves.
+        await expect(page.locator('.study-view .board-layout')).toBeVisible({
+          timeout: 15_000,
+        });
+        const board = page.locator('.study-view .cg-wrap').first();
+        await expect(board).toBeVisible({ timeout: 15_000 });
+        expect(pageErrors, 'study detail should not throw').toEqual([]);
+      });
+    }
+
     // Cross-route center-axis comparison: every BOARD_GEOMETRY route
     // EXCEPT Play must place its board on the same horizontal axis.
     test('every BoardLayout-driven board sits on the same center axis', async ({ page }) => {
