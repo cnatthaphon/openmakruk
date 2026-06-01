@@ -185,6 +185,14 @@ export class CloudflareBackend implements BackendAdapter {
     return (await res.json()) as GameSubmitResult;
   }
 
+  async deleteGame(token: string, id: string): Promise<{ ok: boolean; deleted: boolean }> {
+    const res = await this.request(`/api/games/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      token,
+    });
+    return (await res.json()) as { ok: boolean; deleted: boolean };
+  }
+
   async fetchGameHistory(
     token: string,
     opts: { limit?: number; cursor?: string | null } = {},
