@@ -94,6 +94,7 @@ The Profile and `/#/stats` pages label each section with its family tag (A / B /
 
 ### Profile + Settings
 - Match Score, Gauntlet, Tournaments, Bot Hall of Fame, badges, journey, achievements, streak, recent games.
+- **Game history** — every finished game (rated *and* casual) lands in a per-user history with a per-row ▶ in-app replay, 📋 PGN export, and 🗑 delete. Identity is a canonical `clientGameId` shared end-to-end (local → worker → leaderboards) so sync never duplicates and a delete is durable across a flaky network (failed cloud `DELETE` retries on the next sync via a tombstone ledger).
 - **Insights** — color split, level split, game-length distribution, recent form trend, day-of-week activity.
 - **Global Match Leaderboard** (opt-in via cloud sync).
 - **Engine selector** — every registered engine (Fairy-Stockfish, baselines, all 7 personalities) shows up in the dropdown automatically.
