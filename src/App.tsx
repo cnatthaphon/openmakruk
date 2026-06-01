@@ -286,6 +286,13 @@ export default function App() {
   const [nnueProgress, setNnueProgress] = useState<{ loaded: number; total: number } | null>(null);
 
   // Move review state
+  // Issue #17 — game-over overlay dismissable. Tracks whether the
+  // user has explicitly closed the centered card. Resets whenever a
+  // new game starts (game-over → game-active transition, see effect
+  // further down). When true, the overlay JSX returns null but the
+  // result is still reachable via a quieter "ดูผลเกม" pill in the
+  // sidebar.
+  const [gameOverDismissed, setGameOverDismissed] = useState(false);
   const [reviewMoves, setReviewMoves] = useState<AnnotatedMove[]>([]);
   const [reviewPly, setReviewPly] = useState(0); // 0 = initial position
   const [reviewActive, setReviewActive] = useState(false);
@@ -702,6 +709,15 @@ export default function App() {
     setAnalysisLines([]);
     setLiveEval(null);
   }, [state?.fen]);
+
+  // Issue #17 — reset the game-over dismissal whenever the game is
+  // active again (new game started, position reset, etc.). Without
+  // this, the overlay would stay hidden after a follow-up game
+  // because the user dismissed the previous game-over.
+  useEffect(() => {
+    const active = !!state && !state.isGameOver && !forcedResult;
+    if (active && gameOverDismissed) setGameOverDismissed(false);
+  }, [state, forcedResult, gameOverDismissed]);
 
   // Record a finished game into rating + per-level stats. Only counts
   // vs-CPU games (play-white / play-black) — self-play and manual
@@ -1339,6 +1355,14 @@ export default function App() {
       log('user.move.reject', { reason: 'gameOver', from, to });
       return;
     }
+    // Forced results (resign / accepted draw / time-out) end the
+    // game without flipping state.isGameOver. Issue #18: when the
+    // dismissable overlay (#17) is closed the board accepts input
+    // unless we also gate on forcedResult here.
+    if (forcedResult !== null) {
+      log('user.move.reject', { reason: 'forcedResult', forcedResult, from, to });
+      return;
+    }
     if (thinking) {
       log('user.move.reject', { reason: 'thinking', from, to });
       return;
@@ -1732,6 +1756,14 @@ export default function App() {
     inspectedView !== null ||
     thinking ||
     state.isGameOver ||
+    // Issue #17 / #18 — forced results (resign / draw-accept / time-out)
+    // end the game outside of ffish's normal state machine. Until #17
+    // shipped the dismiss button, the centered overlay covered the
+    // board, so a click never reached chessground anyway. Now that the
+    // overlay can be closed, the board sits there waiting for input
+    // and the user could still drag a piece. Including forcedResult
+    // here matches the move-rejection guard in handleMove() below.
+    forcedResult !== null ||
     (userSide !== 'both' && userSide !== state.turn);
   const reviewCurrent = reviewActive && reviewPly > 0 ? reviewMoves[reviewPly - 1] : null;
 
@@ -2213,7 +2245,7 @@ export default function App() {
             showLegalDots={settings.showLegalDots}
             animationMs={settings.animationMs}
           />
-          {(state.isGameOver || forcedResult) && !reviewActive && (() => {
+          {(state.isGameOver || forcedResult) && !reviewActive && !gameOverDismissed && (() => {
             // Outcome class drives the result-specific accent +
             // celebration animation (gold-glow on win, neutral on
             // draw, soft red on loss).
@@ -2229,8 +2261,17 @@ export default function App() {
               : userLostCard ? 'is-loss'
               : drawCard ? 'is-draw' : '';
             return (
-            <div className="game-over-overlay" role="dialog" aria-live="polite">
+            <div className="game-over-overlay" role="dialog" aria-live="polite" aria-label="ผลเกม">
               <div className={`game-over-card ${outcomeClass}`}>
+                <button
+                  type="button"
+                  className="game-over-close"
+                  aria-label="ปิดผลเกม"
+                  title="ปิด — ดูตำแหน่งสุดท้ายบนกระดาน"
+                  onClick={() => setGameOverDismissed(true)}
+                >
+                  ✕
+                </button>
                 <div className="game-over-icon">
                   {gameOverIcon(forcedResult ?? state.result, mode)}
                 </div>
@@ -2460,6 +2501,21 @@ export default function App() {
               onExplorePrev={handleExplorePrev}
               onExploreExit={handleExitExploration}
             />
+          )}
+          {/* Issue #17 — when the player closed the result card,
+              expose a quieter pill to bring it back. Sits where the
+              celebration was; clicking it re-shows the centered
+              overlay. Same condition as the overlay (game over +
+              not in review), gated on dismissed = true. */}
+          {!reviewActive && (state.isGameOver || forcedResult) && gameOverDismissed && (
+            <button
+              type="button"
+              className="game-over-reopen"
+              onClick={() => setGameOverDismissed(false)}
+              title="เปิดการ์ดผลเกมอีกครั้ง"
+            >
+              📋 ดูผลเกมอีกครั้ง
+            </button>
           )}
           {!reviewActive && (state.isGameOver || forcedResult) && history.length > 0 && (
             <button
