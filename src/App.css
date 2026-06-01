@@ -778,6 +778,59 @@ main:has(.board-layout) {
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
   max-width: 88%;
   animation: card-pop 320ms cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  /* Issue #17 — position: relative anchors the absolute close
+   * button to the card's top-right corner. */
+  position: relative;
+}
+/* Issue #17 — close button at top-right of the game-over card.
+ * Restores access to the board / move list underneath without
+ * forcing the user to pick replay / step difficulty / share.
+ * The reopen affordance (.game-over-reopen) lives in the sidebar
+ * so a dismissed card can be brought back. */
+.game-over-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+}
+.game-over-close:hover,
+.game-over-close:focus-visible {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.18);
+  color: var(--fg);
+}
+/* Issue #17 — sidebar pill that reopens the dismissed card. Quiet
+ * by default; lives alongside the review-launch button so the
+ * player's eyes know to look in one place for post-game actions. */
+.game-over-reopen {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  color: var(--fg);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.game-over-reopen:hover,
+.game-over-reopen:focus-visible {
+  background: rgba(212,162,60,0.10);
+  border-color: rgba(212,162,60,0.40);
 }
 /* Win-only celebratory glow — gold pulse around the card's border so
    victory feels distinct from a quiet loss / draw screen. Driven by
@@ -6407,6 +6460,15 @@ footer a:hover {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+.study-view .board-layout-right .study-view-stepper {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.study-view .board-layout-right .study-view-stepper .label-aside {
+  flex: 0 0 100%;
+  text-align: center;
 }
 .study-view-stepper button {
   padding: 0.35rem 0.85rem;
