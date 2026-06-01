@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { loadFfish, MAKRUK_START_FEN, parseLegalMoves } from '../lib/makruk';
 import { loadOpenings } from '../lib/content';
 import type { Opening } from '../lib/extraContentSchema';
@@ -50,9 +51,7 @@ function TrainerIndex() {
 
   return (
     <main className="trainer-page">
-      <button className="trainer-back" onClick={() => navigate({ tab: 'study' })}>
-        ← กลับ ทฤษฎี
-      </button>
+      <BackButton to="study">ทฤษฎี</BackButton>
       <header className="trainer-header">
         <h2>📖 Move Trainer</h2>
         <p className="label-aside">
@@ -202,9 +201,7 @@ function TrainerRunner({ openingId }: { openingId: string }) {
 
   return (
     <main className="trainer-page trainer-runner">
-      <button className="trainer-back" onClick={() => navigate({ tab: 'movetrainer' })}>
-        ← รายการ
-      </button>
+      <BackButton to="movetrainer">รายการ Move Trainer</BackButton>
       {!opening && status !== 'loading' && (
         <p className="trainer-error">⚠ ไม่พบ opening id นี้</p>
       )}

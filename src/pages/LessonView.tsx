@@ -21,6 +21,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import {
   biaSquaresSplit,
   legalSquaresForPiece,
@@ -125,9 +126,7 @@ export function LessonView({
 
   return (
     <div className="lesson-view">
-      <button className="lesson-back" onClick={onBack}>
-        ← กลับไปรายการบทเรียน
-      </button>
+      <BackButton onClick={onBack}>รายการบทเรียน</BackButton>
       <header className="lesson-header">
         <h2>{lesson.title}</h2>
         <p className="lesson-desc">{lesson.description}</p>

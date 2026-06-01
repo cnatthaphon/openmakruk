@@ -121,15 +121,13 @@ export function TodayStrip() {
       const stats = loadStats();
       const localHistory = stats.history;
       const userRating = stats.rating;
-      const botGames = localHistory.filter((g) =>
-        typeof g.opponent === 'string' && g.opponent.startsWith('bot:'),
-      );
+      const botGames = localHistory.filter((g) => g.opponentId.startsWith('bot:'));
 
       // Tally per bot id from the user's POV — feeds the rivalry pick.
       type Tally = { wins: number; losses: number; total: number };
       const tally = new Map<string, Tally>();
       for (const g of botGames) {
-        const id = String(g.opponent);
+        const id = g.opponentId;
         const cur = tally.get(id) ?? { wins: 0, losses: 0, total: 0 };
         cur.total++;
         if (g.outcome === 'win') cur.wins++;
@@ -138,9 +136,7 @@ export function TodayStrip() {
       }
 
       // Last-3-opponents set — used to keep the suggestion fresh.
-      const recentOpponents = new Set(
-        botGames.slice(-3).map((g) => String(g.opponent)),
-      );
+      const recentOpponents = new Set(botGames.slice(-3).map((g) => g.opponentId));
 
       backend
         .fetchBots()

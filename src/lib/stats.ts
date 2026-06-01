@@ -22,7 +22,7 @@
 import type { Difficulty } from './engine';
 import { defineStore } from './stores';
 
-const STATS_VERSION = 2;
+const STATS_VERSION = 4;
 const K_FACTOR = 32;
 
 export const CPU_RATINGS: Record<Difficulty, number> = {
@@ -35,10 +35,42 @@ export const CPU_RATINGS: Record<Difficulty, number> = {
 export type GameOutcome = 'win' | 'loss' | 'draw';
 
 export type GameRecord = {
-  /** Stable id for joining with analysis/PGN store. */
+  /**
+   * Canonical game identity. Generated client-side (newLocalGameId)
+   * BEFORE the game is recorded, then passed to BOTH the local
+   * stats path AND the cloud `recordGame` call as `clientGameId`.
+   * The worker uses this exact id as the row's primary key — so
+   * local and server agree on identity for the lifetime of the
+   * record. DELETE/sync/replay all key off it.
+   */
   id: string;
   outcome: GameOutcome;
-  opponent: Difficulty;
+  /**
+   * Canonical opponent id. Examples:
+   *   'easy' / 'medium' / 'hard' / 'master'   (Stockfish-as-difficulty)
+   *   'bot:attacker-master'                   (Bot Hall of Fame entry)
+   *   'personality:hunter'                    (personality engine)
+   *
+   * Stored verbatim — the rated/leaderboard math reads
+   * `ratingBucket` for the Elo bracket; the display layer reads
+   * `opponentLabel` for the human-readable string. Old records
+   * (pre-v4) only carried `opponent: Difficulty`; the migrate path
+   * lifts that into opponentId + ratingBucket so this field is
+   * always present from v4 onward.
+   */
+  opponentId: string;
+  /**
+   * Difficulty bucket used for the byLevel rollup AND for local
+   * Elo math (CPU_RATINGS[ratingBucket]). For a bot challenge this
+   * is the user-selected difficulty at the time, NOT the bot's
+   * actual rating tier — local stats stays approximate; the cloud
+   * leaderboard has the precise per-bot rating.
+   */
+  ratingBucket: Difficulty;
+  /** Optional human-readable display label (e.g. 'ผู้พิชิต Master').
+   *  Absent for plain Difficulty rows — the UI falls back to
+   *  DIFFICULTY_LABELS[ratingBucket] in that case. */
+  opponentLabel?: string;
   userSide: 'white' | 'black';
   date: number;
   plyCount: number;
@@ -71,9 +103,126 @@ export type UserStats = {
   totalGames: number;
   byLevel: Record<Difficulty, LevelRecord>;
   history: GameRecord[]; // most recent first, capped at 50
+  /**
+   * Tombstones — ids the user deleted locally. The merge-from-server
+   * sync filters these out AND retries the server-side DELETE, so a
+   * failed cloud DELETE cannot resurrect the row on the next pull.
+   *
+   * Bounded growth: once syncHistoryFromServer successfully deletes
+   * the row server-side, the tombstone is dropped. Offline-forever
+   * users accumulate at most one tombstone per deleted game; cheap
+   * compared to the history they already store.
+   */
+  deletedIds: string[];
 };
 
+/**
+ * Caller-supplied context for `recordGame`. We pass an options bag
+ * (not positional args) because the list of things a finished game
+ * needs to persist has grown — moves, final FEN, time control, rated
+ * vs casual — and a positional signature would silently drop any
+ * field a caller forgot. The options form makes the contract
+ * inspectable in one place and the missing fields obvious at the
+ * call site.
+ *
+ * Why each field is here:
+ *   - moves        — required for in-app replay (issue #21). Without
+ *                    them, the per-row ▶ button is disabled.
+ *   - finalFen     — game-resume + sanity-check that the recorded
+ *                    move sequence matches what the engine ended on.
+ *   - timeControlId — the rated-vs-casual decision is independent of
+ *                    time control, so we store both.
+ *   - mode         — 'rated' applies Elo + counts toward `byLevel`;
+ *                    'casual' adds the record to history with zero
+ *                    rating delta. Casual was previously skipped
+ *                    entirely; that left casual games invisible in
+ *                    the local replay surface even though the cloud
+ *                    backend persisted them.
+ */
+export type RecordGameOptions = {
+  /**
+   * Pre-generated id. Caller MUST supply this (typically via
+   * `newLocalGameId()`) so the same id flows into both the local
+   * stats row AND the worker `recordGame` call. Recovers the
+   * "duplicated row after sync" + "delete targets wrong id" cases
+   * Codex flagged on PR #22.
+   *
+   * Optional only to keep older callers compiling; if absent we
+   * fall back to a fresh `newLocalGameId()` but the cloud path
+   * can't reconcile in that case — pass it explicitly.
+   */
+  id?: string;
+  opponentId: string;
+  ratingBucket: Difficulty;
+  opponentLabel?: string;
+  userSide: 'white' | 'black';
+  /** ffish raw result string: '1-0' / '0-1' / '1/2-1/2'. */
+  result: string;
+  plyCount: number;
+  moves?: string[];
+  finalFen?: string;
+  timeControlId?: string | null;
+  mode?: 'rated' | 'casual';
+};
+
+/**
+ * Generate a canonical local game id. Must be passed to BOTH the
+ * local `recordGame` AND the cloud `backend.recordGame` (as
+ * `clientGameId`) so the two paths share identity. Format is
+ * `game_<base36>_<base36>` — narrow enough to stay within any
+ * future server-side validation (`^[a-z0-9_-]{1,64}$`).
+ */
+export function newLocalGameId(): string {
+  return `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 const EMPTY_LEVEL: LevelRecord = { wins: 0, losses: 0, draws: 0 };
+const DIFFICULTIES: ReadonlySet<Difficulty> = new Set(['easy', 'medium', 'hard', 'master']);
+
+/**
+ * v3 → v4 record migration. Old rows carried `opponent: Difficulty`;
+ * v4 splits that into `opponentId` + `ratingBucket`. We lift each
+ * legacy field into the new shape without losing information.
+ *
+ * Defensive: an imported record from a hand-edited JSON might have
+ * neither field, or might already have the v4 shape. Both branches
+ * produce a well-formed v4 record.
+ */
+function migrateGameRecord(
+  raw: Partial<GameRecord> & { opponent?: Difficulty },
+): GameRecord {
+  // v4 already? Take as-is, just guarantee the required fields exist.
+  if (raw.opponentId && raw.ratingBucket) {
+    return {
+      ...(raw as GameRecord),
+    };
+  }
+  // v3 / earlier: opponent IS the difficulty bucket.
+  const bucket: Difficulty =
+    raw.ratingBucket && DIFFICULTIES.has(raw.ratingBucket)
+      ? raw.ratingBucket
+      : raw.opponent && DIFFICULTIES.has(raw.opponent)
+        ? raw.opponent
+        : 'medium';
+  const opponentId = raw.opponentId ?? raw.opponent ?? bucket;
+  return {
+    id: raw.id ?? newLocalGameId(),
+    outcome: (raw.outcome ?? 'draw') as GameOutcome,
+    opponentId,
+    ratingBucket: bucket,
+    opponentLabel: raw.opponentLabel,
+    userSide: (raw.userSide ?? 'white') as 'white' | 'black',
+    date: raw.date ?? 0,
+    plyCount: raw.plyCount ?? 0,
+    ratingBefore: raw.ratingBefore ?? 1000,
+    ratingAfter: raw.ratingAfter ?? 1000,
+    ratingDelta: raw.ratingDelta ?? 0,
+    moves: raw.moves,
+    mode: raw.mode,
+    timeControlId: raw.timeControlId,
+    finalFen: raw.finalFen,
+  };
+}
 
 function initialStats(): UserStats {
   return {
@@ -89,6 +238,7 @@ function initialStats(): UserStats {
       master: { ...EMPTY_LEVEL },
     },
     history: [],
+    deletedIds: [],
   };
 }
 
@@ -104,17 +254,26 @@ const store = defineStore<UserStats>({
   default: initialStats,
   migrate: (raw) => {
     // v0 legacy: unwrapped object with its own embedded `version`
-    // field. v1+: wrapped by stores.ts. Either way we merge with the
-    // initial shape so newly-added fields (e.g. future stats) get
-    // sane defaults without needing a per-version branch.
+    // field. v1+: wrapped by stores.ts. v3 added `deletedIds` (issue
+    // #21 — cloud delete tombstones). v4 split `opponent: Difficulty`
+    // into `opponentId: string` + `ratingBucket: Difficulty` so bot /
+    // personality games carry their identity through history. We lift
+    // each old record into the new shape here; new fields land via
+    // base + partial merge.
     const base = initialStats();
-    const partial = (raw && typeof raw === 'object' ? raw : {}) as Partial<UserStats>;
+    const partial = (raw && typeof raw === 'object' ? raw : {}) as Partial<UserStats> & {
+      history?: Array<Partial<GameRecord> & { opponent?: Difficulty }>;
+    };
+    const history: GameRecord[] = Array.isArray(partial.history)
+      ? partial.history.map(migrateGameRecord)
+      : [];
     return {
       ...base,
       ...partial,
       version: STATS_VERSION,
       byLevel: { ...base.byLevel, ...(partial.byLevel ?? {}) },
-      history: Array.isArray(partial.history) ? partial.history : [],
+      history,
+      deletedIds: Array.isArray(partial.deletedIds) ? partial.deletedIds : [],
       displayName: partial.displayName ?? base.displayName,
       createdAt: partial.createdAt ?? base.createdAt,
     };
@@ -131,15 +290,28 @@ export function exportStatsJSON(stats: UserStats): string {
 
 export function importStatsJSON(json: string): UserStats | null {
   try {
-    const parsed = JSON.parse(json) as Partial<UserStats>;
+    const parsed = JSON.parse(json) as Partial<UserStats> & {
+      history?: Array<Partial<GameRecord> & { opponent?: Difficulty }>;
+    };
     if (typeof parsed.rating !== 'number') return null;
     const base = initialStats();
+    // Lift every imported history row through the same v3→v4
+    // migration the store uses. Without this, an exported profile
+    // from a pre-v4 build (history rows shaped as `{ opponent: 'medium' }`)
+    // would be SAVED at version: 4 but its history would still carry
+    // the old shape — every downstream surface (ProfilePage row, PGN
+    // export, insights, replay header) reads `record.ratingBucket` and
+    // would see `undefined` for every row in the imported profile.
+    const history: GameRecord[] = Array.isArray(parsed.history)
+      ? parsed.history.map(migrateGameRecord)
+      : [];
     return {
       ...base,
       ...parsed,
       version: STATS_VERSION,
       byLevel: { ...base.byLevel, ...(parsed.byLevel ?? {}) },
-      history: parsed.history ?? [],
+      history,
+      deletedIds: Array.isArray(parsed.deletedIds) ? parsed.deletedIds : [],
       displayName: parsed.displayName ?? base.displayName,
       createdAt: parsed.createdAt ?? base.createdAt,
     };
@@ -157,54 +329,74 @@ export function clearStats(): void {
 }
 
 /**
- * Apply a finished game to the stats record. Mutates nothing; returns a
- * fresh UserStats with the rating + per-level counters updated.
+ * Apply a finished game to the stats record. Mutates nothing; returns
+ * a fresh UserStats with the rating + per-level counters updated AND
+ * a full GameRecord (including moves + finalFen + timeControlId)
+ * inserted at the head of `history`.
  *
- * `result` is the ffish raw result string ("1-0" / "0-1" / "1/2-1/2").
+ * Rating math runs ONLY when `mode === 'rated'` (the default). Casual
+ * games still produce a history row so the user can replay them; the
+ * row carries `ratingDelta: 0` and the by-level counters stay put.
+ *
+ * Returns the input stats unchanged if the result string doesn't
+ * decode to an outcome (e.g. game-in-progress called by accident).
  */
-export function recordGame(
-  stats: UserStats,
-  opponent: Difficulty,
-  userSide: 'white' | 'black',
-  result: string,
-  plyCount: number,
-): UserStats {
-  const outcome = outcomeFromResult(result, userSide);
+export function recordGame(stats: UserStats, opts: RecordGameOptions): UserStats {
+  const outcome = outcomeFromResult(opts.result, opts.userSide);
   if (outcome === null) return stats; // unknown / not a finished game
 
-  const opponentRating = CPU_RATINGS[opponent];
-  const expected =
-    1 / (1 + Math.pow(10, (opponentRating - stats.rating) / 400));
-  const actual = outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0;
-  const delta = Math.round(K_FACTOR * (actual - expected));
-  const newRating = stats.rating + delta;
+  const mode = opts.mode ?? 'rated';
+
+  // Rating math is rated-only. Casual writes 0 delta and leaves the
+  // by-level counters untouched. Bucket is always the user-selected
+  // difficulty — bot-rated math lives server-side (worker pulls the
+  // bot's live rating from the users table at write time).
+  let delta = 0;
+  let newRating = stats.rating;
+  if (mode === 'rated') {
+    const opponentRating = CPU_RATINGS[opts.ratingBucket];
+    const expected =
+      1 / (1 + Math.pow(10, (opponentRating - stats.rating) / 400));
+    const actual = outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0;
+    delta = Math.round(K_FACTOR * (actual - expected));
+    newRating = stats.rating + delta;
+  }
 
   const record: GameRecord = {
-    id: `game_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+    id: opts.id ?? newLocalGameId(),
     outcome,
-    opponent,
-    userSide,
+    opponentId: opts.opponentId,
+    ratingBucket: opts.ratingBucket,
+    opponentLabel: opts.opponentLabel,
+    userSide: opts.userSide,
     date: Date.now(),
-    plyCount,
+    plyCount: opts.plyCount,
     ratingBefore: stats.rating,
     ratingAfter: newRating,
     ratingDelta: delta,
+    moves: opts.moves,
+    mode,
+    timeControlId: opts.timeControlId ?? undefined,
+    finalFen: opts.finalFen,
   };
 
-  const oldLevel = stats.byLevel[opponent] ?? EMPTY_LEVEL;
-  const byLevel: Record<Difficulty, LevelRecord> = {
-    ...stats.byLevel,
-    [opponent]: {
-      wins: oldLevel.wins + (outcome === 'win' ? 1 : 0),
-      losses: oldLevel.losses + (outcome === 'loss' ? 1 : 0),
-      draws: oldLevel.draws + (outcome === 'draw' ? 1 : 0),
-    },
-  };
+  // By-level counters move only for rated games; casual stays unrated.
+  const oldLevel = stats.byLevel[opts.ratingBucket] ?? EMPTY_LEVEL;
+  const byLevel: Record<Difficulty, LevelRecord> =
+    mode === 'rated'
+      ? {
+          ...stats.byLevel,
+          [opts.ratingBucket]: {
+            wins: oldLevel.wins + (outcome === 'win' ? 1 : 0),
+            losses: oldLevel.losses + (outcome === 'loss' ? 1 : 0),
+            draws: oldLevel.draws + (outcome === 'draw' ? 1 : 0),
+          },
+        }
+      : stats.byLevel;
 
   return {
+    ...stats,
     version: STATS_VERSION,
-    displayName: stats.displayName,
-    createdAt: stats.createdAt,
     rating: newRating,
     totalGames: stats.totalGames + 1,
     byLevel,
@@ -213,6 +405,78 @@ export function recordGame(
     // UI is responsible for its own pagination (Profile shows the last
     // 50, but the data behind it is the full record).
     history: [record, ...stats.history],
+  };
+}
+
+/**
+ * Remove one game from the user's history by id. Returns a fresh
+ * UserStats with the row stripped, the per-level + total counters
+ * decremented, AND the id appended to `deletedIds`.
+ *
+ * The tombstone is the durable bit: even if the local row is gone, a
+ * later `syncHistoryFromServer` would naïvely re-introduce the row
+ * from the server. `deletedIds` lets the sync filter it out AND
+ * retry the server-side DELETE until it succeeds.
+ *
+ * Rating is NOT recalculated — historical Elo math is monotonic in
+ * event-order and we can't "un-apply" a single match without
+ * re-running every game that came after it.
+ *
+ * Idempotent: deleting an id that's no longer in history returns the
+ * input stats unchanged (but does NOT add another tombstone — the id
+ * is either already in `deletedIds` from a previous call, or was
+ * never there to begin with).
+ */
+export function removeGameRecord(stats: UserStats, id: string): UserStats {
+  const idx = stats.history.findIndex((g) => g.id === id);
+  if (idx < 0) return stats;
+  const removed = stats.history[idx];
+  const history = [
+    ...stats.history.slice(0, idx),
+    ...stats.history.slice(idx + 1),
+  ];
+
+  // Decrement the matching by-level bucket. Guard against unknown
+  // opponents (e.g. a hand-edited import with a stale enum value) by
+  // treating a missing bucket as zero — never let counters go negative.
+  // Casual games (mode === 'casual') never incremented the bucket on
+  // the way in, so they don't decrement on the way out either.
+  const isRated = removed.mode !== 'casual';
+  const bucket = stats.byLevel[removed.ratingBucket] ?? EMPTY_LEVEL;
+  const byLevel: Record<Difficulty, LevelRecord> = isRated
+    ? {
+        ...stats.byLevel,
+        [removed.ratingBucket]: {
+          wins: Math.max(0, bucket.wins - (removed.outcome === 'win' ? 1 : 0)),
+          losses: Math.max(0, bucket.losses - (removed.outcome === 'loss' ? 1 : 0)),
+          draws: Math.max(0, bucket.draws - (removed.outcome === 'draw' ? 1 : 0)),
+        },
+      }
+    : stats.byLevel;
+
+  const deletedIds = stats.deletedIds.includes(id)
+    ? stats.deletedIds
+    : [...stats.deletedIds, id];
+
+  return {
+    ...stats,
+    totalGames: Math.max(0, stats.totalGames - 1),
+    byLevel,
+    history,
+    deletedIds,
+  };
+}
+
+/**
+ * Drop a tombstone — call this AFTER the server-side DELETE has
+ * succeeded so the next sync doesn't keep retrying. Returns the input
+ * unchanged if the id isn't in `deletedIds`.
+ */
+export function forgetDeletedId(stats: UserStats, id: string): UserStats {
+  if (!stats.deletedIds.includes(id)) return stats;
+  return {
+    ...stats,
+    deletedIds: stats.deletedIds.filter((x) => x !== id),
   };
 }
 
