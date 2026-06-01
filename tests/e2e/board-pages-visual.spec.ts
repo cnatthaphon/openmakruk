@@ -150,7 +150,6 @@ for (const vp of VIEWPORTS) {
     // `.study-view-board` wrapper).
     for (const subTab of ['endgames', 'master-games'] as const) {
       test(`study → ${subTab} detail mounts a BoardLayout board`, async ({ page }) => {
-        await page.setViewportSize({ width: 390, height: 844 });
         const pageErrors: string[] = [];
         page.on('pageerror', (e) => pageErrors.push(e.message));
 
@@ -173,8 +172,12 @@ for (const vp of VIEWPORTS) {
           timeout: 15_000,
         });
         const back = page.locator('.study-view .study-back').first();
+        const rightPanel = page.locator('.study-view .board-layout-right').first();
+        const stepper = page.locator('.study-view .study-view-stepper').first();
         const board = page.locator('.study-view .cg-wrap').first();
         await expect(back).toBeVisible({ timeout: 15_000 });
+        await expect(rightPanel).toBeVisible({ timeout: 15_000 });
+        await expect(stepper).toBeVisible({ timeout: 15_000 });
         await expect(board).toBeVisible({ timeout: 15_000 });
         const backBox = await back.boundingBox();
         const boardBox = await board.boundingBox();
@@ -183,9 +186,13 @@ for (const vp of VIEWPORTS) {
         if (backBox && boardBox) {
           expect(
             backBox.y,
-            'mobile study detail back control should render above the board',
+            'study detail back control should render above the board',
           ).toBeLessThan(boardBox.y);
         }
+        const stepperFitsPanel = await rightPanel.evaluate((el) => el.scrollWidth <= el.clientWidth);
+        const stepperWrapsWithinOwnBox = await stepper.evaluate((el) => el.scrollWidth <= el.clientWidth);
+        expect(stepperFitsPanel, `${subTab}: stepper must not overflow the BoardLayout right panel`).toBe(true);
+        expect(stepperWrapsWithinOwnBox, `${subTab}: stepper controls must wrap inside their own box`).toBe(true);
         expect(pageErrors, 'study detail should not throw').toEqual([]);
       });
     }

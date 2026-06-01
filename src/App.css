@@ -6461,6 +6461,15 @@ footer a:hover {
   gap: 0.5rem;
   align-items: center;
 }
+.study-view .board-layout-right .study-view-stepper {
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.study-view .board-layout-right .study-view-stepper .label-aside {
+  flex: 0 0 100%;
+  text-align: center;
+}
 .study-view-stepper button {
   padding: 0.35rem 0.85rem;
   background: var(--surface, #1c1f24);
