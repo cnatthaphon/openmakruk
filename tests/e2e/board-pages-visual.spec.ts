@@ -150,6 +150,7 @@ for (const vp of VIEWPORTS) {
     // `.study-view-board` wrapper).
     for (const subTab of ['endgames', 'master-games'] as const) {
       test(`study → ${subTab} detail mounts a BoardLayout board`, async ({ page }) => {
+        await page.setViewportSize({ width: 390, height: 844 });
         const pageErrors: string[] = [];
         page.on('pageerror', (e) => pageErrors.push(e.message));
 
@@ -171,8 +172,20 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator('.study-view .board-layout')).toBeVisible({
           timeout: 15_000,
         });
+        const back = page.locator('.study-view .study-back').first();
         const board = page.locator('.study-view .cg-wrap').first();
+        await expect(back).toBeVisible({ timeout: 15_000 });
         await expect(board).toBeVisible({ timeout: 15_000 });
+        const backBox = await back.boundingBox();
+        const boardBox = await board.boundingBox();
+        expect(backBox, 'study detail back control should have a bounding box').not.toBeNull();
+        expect(boardBox, 'study detail board should have a bounding box').not.toBeNull();
+        if (backBox && boardBox) {
+          expect(
+            backBox.y,
+            'mobile study detail back control should render above the board',
+          ).toBeLessThan(boardBox.y);
+        }
         expect(pageErrors, 'study detail should not throw').toEqual([]);
       });
     }

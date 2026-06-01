@@ -318,13 +318,11 @@ function EndgameView({ endgame, onClose }: { endgame: EndgameStudy; onClose: () 
   // surface.
   return (
     <div className="study-view">
+      <header className="study-view-header">
+        <button className="study-back" onClick={onClose}>← กลับ</button>
+        <h3>{endgame.title}</h3>
+      </header>
       <BoardLayout
-        left={
-          <header className="study-view-header">
-            <button className="study-back" onClick={onClose}>← กลับ</button>
-            <h3>{endgame.title}</h3>
-          </header>
-        }
         board={
           <Board
             fen={currentFen}
@@ -484,16 +482,14 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
   // above — shared shell, audit coverage, no per-page geometry.
   return (
     <div className="study-view">
+      <header className="study-view-header">
+        <button className="study-back" onClick={onClose}>← กลับ</button>
+        <h3>{game.title}</h3>
+        <p className="study-view-desc">
+          {game.whiteName} vs {game.blackName} · ผลลัพธ์ <strong>{game.result}</strong>
+        </p>
+      </header>
       <BoardLayout
-        left={
-          <header className="study-view-header">
-            <button className="study-back" onClick={onClose}>← กลับ</button>
-            <h3>{game.title}</h3>
-            <p className="study-view-desc">
-              {game.whiteName} vs {game.blackName} · ผลลัพธ์ <strong>{game.result}</strong>
-            </p>
-          </header>
-        }
         board={
           <Board
             fen={currentFen}
