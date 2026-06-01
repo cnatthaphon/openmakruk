@@ -39,6 +39,7 @@ JourneyState = {
     completedChallenges?:     ChallengeCode[]
     gamesPlayedRated?:        number
     gamesPlayedCasual?:       number
+    recordedGameIds?:         string[]      //   dedupe ledger
     rating?:                  number
   }
   updatedAt: number                            // ms epoch
@@ -50,9 +51,11 @@ ProgressInput =
   | { kind: 'drill-passed',        drillId,  at, stars, concepts? }
   | { kind: 'review-summary',      gameId,   at, motifTotals }
   | { kind: 'challenge-completed', code,     at, outcome }
-  | { kind: 'game-recorded',                 at, mode, outcome }
+  | { kind: 'game-recorded',       gameId,   at, mode, outcome }
   | { kind: 'rating-changed',                at, rating }
 ```
+
+Every kind that mutates an evidence counter carries a stable id (`lessonId`, `puzzleId`, `drillId`, `gameId`, `code`). The reducer treats a re-emitted event whose id is already counted as a no-op — required for safe cloud-sync replay and startup backfill of `stats.history` (PR #14 review: Codex flagged that `game-recorded` was the only mutating event lacking an id, so duplicate emissions could unlock `games-played` checkpoints on games the user never actually played twice).
 
 Each existing store emits ONE of these `ProgressInput` kinds — the rest is the reducer's job. The reducer signature is `(state, input) → state` and must be pure.
 

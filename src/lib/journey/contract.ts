@@ -163,6 +163,20 @@ export type JourneyEvidence = {
    *  on older journeys. */
   gamesPlayedRated?: number;
   gamesPlayedCasual?: number;
+  /** Ids of game-recorded events the reducer has already counted.
+   *  Required so a re-emission of the same game (cloud sync replay,
+   *  startup backfill from stats.history) does NOT double-increment
+   *  gamesPlayedRated/Casual. Without this ledger, games-played
+   *  checkpoints would unlock on duplicate events rather than real
+   *  games (PR #14 review: Codex flagged the missing stable id).
+   *
+   *  Growth: one entry per game-recorded event. The same id appears
+   *  at most once. Implementations MAY clamp to a sliding window
+   *  (e.g. most recent 1000 ids) IF they also stop incrementing
+   *  counters for evicted ids — never lose the counter-id pairing.
+   *  In practice 99th-percentile users finish < 5000 games, so a
+   *  flat array stays small. */
+  recordedGameIds?: string[];
   /** Latest known rating. The rating-changed input simply overwrites
    *  this; the reducer does no smoothing. */
   rating?: number;
@@ -244,6 +258,23 @@ export type ProgressInput =
     }
   | {
       kind: 'game-recorded';
+      /**
+       * Stable game id (matches GameRecord.id from src/lib/stats.ts,
+       * which is the canonical clientGameId shared with the cloud
+       * backend — see PR #22 for the identity contract).
+       *
+       * Required so the reducer can DEDUPE: this event is the only
+       * source for `evidence.gamesPlayedRated` + `gamesPlayedCasual`,
+       * and the future feed will re-emit history on startup and on
+       * each cloud sync. Without an id, a duplicate emission would
+       * inflate the counters and unlock games-played checkpoints on
+       * games the user never actually played twice.
+       *
+       * Reducer implementations MUST treat a `game-recorded` event
+       * whose id is already counted (see `evidence.recordedGameIds`)
+       * as a no-op.
+       */
+      gameId: string;
       at: number;
       mode: 'rated' | 'casual';
       outcome: 'win' | 'draw' | 'loss';
