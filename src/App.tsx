@@ -154,6 +154,7 @@ import { titleForRating } from './lib/titles';
 import { activeCosmetic } from './lib/cosmetics';
 import { VERSION, BUILD_SHA, buildTimeLabel, isBeta } from './lib/release';
 import { recordReviewSummary } from './lib/reviewMastery';
+import { pickReviewSourceGameId } from './lib/reviewPipeline/sourceGameId';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -296,6 +297,10 @@ export default function App() {
   const [reviewMoves, setReviewMoves] = useState<AnnotatedMove[]>([]);
   const [reviewPly, setReviewPly] = useState(0); // 0 = initial position
   const [reviewActive, setReviewActive] = useState(false);
+  // Canonical source-game id for the game being reviewed — threaded to
+  // the review→puzzle pipeline so promoted puzzles carry real
+  // provenance instead of a constant placeholder (PR #23 review).
+  const [reviewSourceGameId, setReviewSourceGameId] = useState<string>('');
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewProgress, setReviewProgress] = useState<{ current: number; total: number } | null>(
     null,
@@ -1689,14 +1694,22 @@ export default function App() {
         setReviewActive(true);
         log('review.ready', { moves: annotated.length, summary: summarize(annotated) });
         // Persist a compact summary for the Profile mastery dashboard.
-        // gameId — derive from the latest history entry on the local
-        // stats (or "live-{now}" if the game wasn't recorded as rated).
         const userColorForMastery: 'white' | 'black' =
           mode === 'play-white' ? 'white' :
           mode === 'play-black' ? 'black' : 'white';
-        const latestGame = stats.history[0];
-        const masteryGameId = latestGame?.id ?? `live-${Date.now()}`;
-        recordReviewSummary(masteryGameId, userColorForMastery, annotated);
+        // Canonical source-game id for BOTH mastery + the review→puzzle
+        // pipeline. Trusts the recorded GameRecord.id only when the most
+        // recent recorded game is demonstrably THIS game; otherwise a
+        // stable per-current-game `live-<startedAt>` id. See
+        // pickReviewSourceGameId (PR #23 review).
+        const sourceGameId = pickReviewSourceGameId({
+          latestRecorded: stats.history[0],
+          moves: history,
+          finalFen: state.fen,
+          gameStartedAt: gameStartedAtRef.current,
+        });
+        recordReviewSummary(sourceGameId, userColorForMastery, annotated);
+        setReviewSourceGameId(sourceGameId);
       } finally {
         reviewBoard.delete();
       }
@@ -2488,6 +2501,7 @@ export default function App() {
               moves={reviewMoves}
               currentPly={reviewPly}
               currentMove={reviewCurrent}
+              sourceGameId={reviewSourceGameId}
               userSide={
                 mode === 'play-white' ? 'white' :
                 mode === 'play-black' ? 'black' : null
@@ -3117,6 +3131,7 @@ function ReviewTabbedPanel({
   moves,
   currentPly,
   currentMove,
+  sourceGameId,
   userSide,
   result,
   onPlySelect,
@@ -3130,6 +3145,7 @@ function ReviewTabbedPanel({
   moves: AnnotatedMove[];
   currentPly: number;
   currentMove: AnnotatedMove | null;
+  sourceGameId: string;
   userSide: 'white' | 'black' | null;
   result: string;
   onPlySelect: (ply: number) => void;
@@ -3168,6 +3184,7 @@ function ReviewTabbedPanel({
           moves={moves}
           userSide={userSide}
           result={result}
+          sourceGameId={sourceGameId}
           onJumpToPly={(ply) => {
             onPlySelect(ply);
             setTab('details');

@@ -261,6 +261,92 @@ test.describe('cloud sync — frontend ↔ worker', () => {
     expect(stored).toBeNull();
   });
 
+  // PR #23 review (issue #19): a promoted DRAFT must not auto-publish to
+  // the shared server pool even with cloud sync on — only an explicitly
+  // public puzzle publishes. Cloud is enabled here so the ONLY thing
+  // gating the POST is the visibility decision.
+  test('draft promotion does not publish; public promotion does (issue #19)', async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.goto('/#/settings');
+    await openAccountTab(page);
+    await page.getByRole('button', { name: /เปิด cloud sync/ }).click();
+    await expect(page.getByText(/เชื่อมต่อแล้ว/)).toBeVisible({ timeout: 10_000 });
+
+    // Observe every POST to /api/puzzles.
+    const puzzlePosts: string[] = [];
+    page.on('request', (req) => {
+      if (req.method() === 'POST' && req.url().includes('/api/puzzles')) {
+        puzzlePosts.push(req.url());
+      }
+    });
+
+    // 1. Promote a DRAFT via the facade (extractor always sets draft).
+    const draftRes = await page.evaluate(async () => {
+      // @ts-expect-error dynamic
+      const makruk = await import('/src/lib/makruk.ts');
+      // @ts-expect-error dynamic
+      const pipeline = await import('/src/lib/reviewPipeline/index.ts');
+      const startFen = makruk.MAKRUK_START_FEN as string;
+      return pipeline.promoteReviewedPosition(
+        {
+          ply: 3,
+          uci: 'd3d4',
+          side: 'white',
+          fenBefore: startFen,
+          fenAfter: startFen,
+          evalBefore: { scoreCp: 120, depth: 12 },
+          evalAfter: { scoreCp: -200, depth: 12 },
+          bestMove: 'e3e4',
+          delta: 320,
+          classification: 'blunder',
+          isBest: false,
+        },
+        { authorName: 'E2E', sourceGameId: 'game_draft' },
+      );
+    });
+    expect(draftRes.ok).toBe(true);
+    // Give any (incorrect) fire-and-forget publish time to land.
+    await page.waitForTimeout(1500);
+    expect(puzzlePosts.length, 'draft must NOT publish to server').toBe(0);
+
+    // 2. Promote a PUBLIC candidate via the repository directly — this
+    //    SHOULD publish. Wait for the POST to confirm.
+    const [, publicRes] = await Promise.all([
+      page.waitForRequest(
+        (req) => req.method() === 'POST' && req.url().includes('/api/puzzles'),
+        { timeout: 15_000 },
+      ),
+      page.evaluate(async () => {
+        // @ts-expect-error dynamic
+        const makruk = await import('/src/lib/makruk.ts');
+        // @ts-expect-error dynamic
+        const pipeline = await import('/src/lib/reviewPipeline/index.ts');
+        const startFen = makruk.MAKRUK_START_FEN as string;
+        const candidate = {
+          schemaVersion: 1,
+          sourceGameId: 'game_public',
+          sourcePly: 3,
+          fenBefore: startFen,
+          sideToMove: 'white' as const,
+          category: 'tactic' as const,
+          solution: ['e3e4'],
+          motifs: [],
+          severity: 'blunder' as const,
+          ratingEstimate: 700,
+          qualityScore: 0.8,
+          runtime: { runtimeId: 'client', engineId: 'fairy-stockfish', rulesVersion: 'makruk-1' },
+          visibility: 'public' as const,
+        };
+        return pipeline.localPuzzleRepository.promote(candidate, {
+          authorName: 'E2E',
+          visibility: 'public',
+        });
+      }),
+    ]);
+    expect(publicRes.ok).toBe(true);
+    expect(puzzlePosts.length, 'public must publish to server').toBeGreaterThanOrEqual(1);
+  });
+
   // PR #22 follow-up: local + server must agree on game identity. The
   // local recordGame mints a `game_*` id and passes it as clientGameId
   // on the cloud POST; the server uses it verbatim as the row pk. This
