@@ -154,6 +154,7 @@ import { titleForRating } from './lib/titles';
 import { activeCosmetic } from './lib/cosmetics';
 import { VERSION, BUILD_SHA, buildTimeLabel, isBeta } from './lib/release';
 import { recordReviewSummary } from './lib/reviewMastery';
+import { pickReviewSourceGameId } from './lib/reviewPipeline/sourceGameId';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -1693,18 +1694,22 @@ export default function App() {
         setReviewActive(true);
         log('review.ready', { moves: annotated.length, summary: summarize(annotated) });
         // Persist a compact summary for the Profile mastery dashboard.
-        // gameId — derive from the latest history entry on the local
-        // stats (or "live-{now}" if the game wasn't recorded as rated).
         const userColorForMastery: 'white' | 'black' =
           mode === 'play-white' ? 'white' :
           mode === 'play-black' ? 'black' : 'white';
-        const latestGame = stats.history[0];
-        const masteryGameId = latestGame?.id ?? `live-${Date.now()}`;
-        recordReviewSummary(masteryGameId, userColorForMastery, annotated);
-        // Same canonical id feeds the review→puzzle pipeline. Falls
-        // back to a per-game `live-<ts>` id (never a constant) when the
-        // game wasn't recorded (e.g. self-play / manual modes).
-        setReviewSourceGameId(masteryGameId);
+        // Canonical source-game id for BOTH mastery + the review→puzzle
+        // pipeline. Trusts the recorded GameRecord.id only when the most
+        // recent recorded game is demonstrably THIS game; otherwise a
+        // stable per-current-game `live-<startedAt>` id. See
+        // pickReviewSourceGameId (PR #23 review).
+        const sourceGameId = pickReviewSourceGameId({
+          latestRecorded: stats.history[0],
+          moves: history,
+          finalFen: state.fen,
+          gameStartedAt: gameStartedAtRef.current,
+        });
+        recordReviewSummary(sourceGameId, userColorForMastery, annotated);
+        setReviewSourceGameId(sourceGameId);
       } finally {
         reviewBoard.delete();
       }
