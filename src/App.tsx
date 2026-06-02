@@ -296,6 +296,10 @@ export default function App() {
   const [reviewMoves, setReviewMoves] = useState<AnnotatedMove[]>([]);
   const [reviewPly, setReviewPly] = useState(0); // 0 = initial position
   const [reviewActive, setReviewActive] = useState(false);
+  // Canonical source-game id for the game being reviewed — threaded to
+  // the review→puzzle pipeline so promoted puzzles carry real
+  // provenance instead of a constant placeholder (PR #23 review).
+  const [reviewSourceGameId, setReviewSourceGameId] = useState<string>('');
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewProgress, setReviewProgress] = useState<{ current: number; total: number } | null>(
     null,
@@ -1697,6 +1701,10 @@ export default function App() {
         const latestGame = stats.history[0];
         const masteryGameId = latestGame?.id ?? `live-${Date.now()}`;
         recordReviewSummary(masteryGameId, userColorForMastery, annotated);
+        // Same canonical id feeds the review→puzzle pipeline. Falls
+        // back to a per-game `live-<ts>` id (never a constant) when the
+        // game wasn't recorded (e.g. self-play / manual modes).
+        setReviewSourceGameId(masteryGameId);
       } finally {
         reviewBoard.delete();
       }
@@ -2488,6 +2496,7 @@ export default function App() {
               moves={reviewMoves}
               currentPly={reviewPly}
               currentMove={reviewCurrent}
+              sourceGameId={reviewSourceGameId}
               userSide={
                 mode === 'play-white' ? 'white' :
                 mode === 'play-black' ? 'black' : null
@@ -3117,6 +3126,7 @@ function ReviewTabbedPanel({
   moves,
   currentPly,
   currentMove,
+  sourceGameId,
   userSide,
   result,
   onPlySelect,
@@ -3130,6 +3140,7 @@ function ReviewTabbedPanel({
   moves: AnnotatedMove[];
   currentPly: number;
   currentMove: AnnotatedMove | null;
+  sourceGameId: string;
   userSide: 'white' | 'black' | null;
   result: string;
   onPlySelect: (ply: number) => void;
@@ -3168,6 +3179,7 @@ function ReviewTabbedPanel({
           moves={moves}
           userSide={userSide}
           result={result}
+          sourceGameId={sourceGameId}
           onJumpToPly={(ply) => {
             onPlySelect(ply);
             setTab('details');

@@ -44,7 +44,16 @@ export function loadUserPuzzles(): UserPuzzle[] {
   return store.load().puzzles;
 }
 
-export function saveUserPuzzle(p: UserPuzzle): void {
+/**
+ * Save a user puzzle to the local store.
+ *
+ * `opts.publish` (default true) controls the server mirror. The
+ * review→puzzle pipeline (issue #19) passes `publish: false` for
+ * draft/private candidates so a promoted draft does NOT auto-enter the
+ * shared server pool — only an explicitly public puzzle publishes.
+ * Hand-authored Custom-tab puzzles keep the historical default (true).
+ */
+export function saveUserPuzzle(p: UserPuzzle, opts: { publish?: boolean } = {}): void {
   const current = loadUserPuzzles();
   // Update in place if id already exists; otherwise prepend (newest
   // first). Cap to MAX_ENTRIES.
@@ -54,10 +63,12 @@ export function saveUserPuzzle(p: UserPuzzle): void {
     : [p, ...current];
   store.save({ puzzles: next.slice(0, MAX_ENTRIES) });
 
-  // Mirror to server (fire-and-forget) when cloud sync is on, so
-  // user-mined puzzles enter the shared pool. Local save stays
-  // source of truth for the author's own copy.
-  void publishToServer(p);
+  // Mirror to server (fire-and-forget) when cloud sync is on AND the
+  // caller allows publishing. Local save stays source of truth for the
+  // author's own copy regardless.
+  if (opts.publish ?? true) {
+    void publishToServer(p);
+  }
 }
 
 async function publishToServer(p: UserPuzzle): Promise<void> {

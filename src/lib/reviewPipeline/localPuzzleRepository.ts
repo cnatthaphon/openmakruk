@@ -17,7 +17,7 @@ import { loadFfish } from '../makruk';
 import { verifyAndAnnotate } from '../puzzleVerifier';
 import { newUserPuzzleId, saveUserPuzzle } from '../userPuzzles';
 import { log } from '../log';
-import type { PuzzleCategory } from '../puzzleSchema';
+import type { PuzzleCategory, UserPuzzle } from '../puzzleSchema';
 import type { PromoteResult, PuzzleCandidate, PuzzleRepository } from './contracts';
 
 const DEEPEN_DEPTH = 14;
@@ -117,15 +117,38 @@ export class LocalPuzzleRepository implements PuzzleRepository {
       return { ok: false, reason: verified.reason };
     }
 
-    saveUserPuzzle(verified.puzzle);
     const visibility = opts.visibility ?? candidate.visibility;
+
+    // Stamp full review provenance onto the saved puzzle (additive —
+    // hand-authored puzzles omit it). Lets the puzzle UI / a future
+    // server promotion know exactly where + how it was generated.
+    const puzzle: UserPuzzle = {
+      ...verified.puzzle,
+      reviewProvenance: {
+        sourceGameId: candidate.sourceGameId,
+        sourcePly: candidate.sourcePly,
+        runtime: candidate.runtime,
+        schemaVersion: candidate.schemaVersion,
+        visibility,
+        qualityScore: candidate.qualityScore,
+        ratingEstimate: candidate.ratingEstimate,
+        severity: candidate.severity,
+        motifs: candidate.motifs,
+      },
+    };
+
+    // Publish to the shared server pool ONLY for public puzzles.
+    // draft/private stay local — a promoted draft must not auto-enter
+    // the global pool (PR #23 review).
+    saveUserPuzzle(puzzle, { publish: visibility === 'public' });
     log('reviewPipeline.promote.saved', {
-      id: verified.puzzle.id,
+      id: puzzle.id,
       category: candidate.category,
       plies: solution.length,
       visibility,
+      published: visibility === 'public',
     });
-    return { ok: true, id: verified.puzzle.id, visibility };
+    return { ok: true, id: puzzle.id, visibility };
   }
 }
 

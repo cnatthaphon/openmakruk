@@ -40,6 +40,10 @@ type Props = {
   /** Game result string from ffish: "1-0" | "0-1" | "1/2-1/2" | "*"
    * (* = ongoing). Drives the win/loss/draw verdict. */
   result: string;
+  /** Canonical id of the game being reviewed — threaded onto promoted
+   *  puzzles as provenance. Defaults handled by the caller; a per-game
+   *  `live-<ts>` id is passed when the game wasn't recorded. */
+  sourceGameId?: string;
   onJumpToPly: (ply: number) => void;
   /** Which slice of the report to render:
    *   'summary'  → header + accuracy + counts + verdict (stats card)
@@ -49,7 +53,7 @@ type Props = {
   subView?: 'summary' | 'moments' | 'all';
 };
 
-export function GameReport({ moves, userSide, result, onJumpToPly, subView = 'all' }: Props) {
+export function GameReport({ moves, userSide, result, sourceGameId, onJumpToPly, subView = 'all' }: Props) {
   if (moves.length === 0) return null;
 
   // For self-play / manual modes we fall back to white as the
@@ -136,6 +140,7 @@ export function GameReport({ moves, userSide, result, onJumpToPly, subView = 'al
                   move={m}
                   userSide={userSide}
                   result={result}
+                  sourceGameId={sourceGameId}
                   onJump={() => onJumpToPly(m.ply)}
                 />
               ))}
@@ -176,11 +181,13 @@ function KeyMomentCard({
   move,
   userSide,
   result,
+  sourceGameId,
   onJump,
 }: {
   move: AnnotatedMove;
   userSide: 'white' | 'black' | null;
   result: string;
+  sourceGameId?: string;
   onJump: () => void;
 }) {
   const [mining, setMining] = useState(false);
@@ -196,6 +203,7 @@ function KeyMomentCard({
       authorName: loadStats().displayName,
       userSide,
       result,
+      sourceGameId,
     });
     setMining(false);
     if (promoted.ok) {

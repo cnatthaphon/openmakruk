@@ -81,6 +81,17 @@ test.describe('review → puzzle pipeline (issue #19)', () => {
         solution: string[];
         themes: string[];
         verifiedBy: string;
+        reviewProvenance?: {
+          sourceGameId: string;
+          sourcePly: number;
+          runtime: { runtimeId: string; engineId: string; rulesVersion: string };
+          schemaVersion: number;
+          visibility: string;
+          qualityScore: number;
+          ratingEstimate: number;
+          severity: string;
+          motifs: string[];
+        };
       }>;
       return list[0] ?? null;
     });
@@ -92,6 +103,22 @@ test.describe('review → puzzle pipeline (issue #19)', () => {
     expect(saved.themes).toContain('blunder');
     // Repository verifies through the real engine before saving.
     expect(saved.verifiedBy).toBe('engine');
+
+    // Full review provenance is stamped additively on the saved puzzle.
+    const prov = saved.reviewProvenance;
+    expect(prov, 'reviewProvenance must be present').toBeTruthy();
+    // sourceGameId threaded all the way from the caller to the saved row.
+    expect(prov!.sourceGameId).toBe('game_e2e_review');
+    expect(prov!.sourcePly).toBe(3);
+    expect(prov!.runtime.runtimeId).toBe('client');
+    expect(prov!.runtime.engineId).toBe('fairy-stockfish');
+    expect(prov!.runtime.rulesVersion).toBe('makruk-1');
+    expect(prov!.schemaVersion).toBe(1);
+    expect(prov!.visibility).toBe('draft');
+    expect(prov!.severity).toBe('blunder');
+    expect(typeof prov!.qualityScore).toBe('number');
+    expect(typeof prov!.ratingEstimate).toBe('number');
+    expect(Array.isArray(prov!.motifs)).toBe(true);
 
     // And it surfaces in ปริศนา → ของฉัน.
     await page.goto('/#/puzzles');

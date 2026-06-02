@@ -8,6 +8,7 @@
 // contracts, so the analysis runtime + storage target stay swappable.
 
 import type { AnnotatedMove } from '../review';
+import { newLocalGameId } from '../stats';
 import type { PromoteResult, PuzzleQualitySpec } from './contracts';
 import { clientReviewRuntime } from './clientReviewRuntime';
 import { localPuzzleRepository } from './localPuzzleRepository';
@@ -22,8 +23,9 @@ export { clientReviewRuntime, ClientReviewRuntime } from './clientReviewRuntime'
 export { localPuzzleRepository, LocalPuzzleRepository } from './localPuzzleRepository';
 
 export type PromoteReviewedOptions = {
-  /** Canonical id of the source game (GameRecord.id) when known.
-   *  Defaults to a stable placeholder for live, not-yet-recorded games. */
+  /** Canonical id of the source game (GameRecord.id) when known. When
+   *  omitted, a per-call id is generated — never a shared constant, so
+   *  provenance always points at one game. */
   sourceGameId?: string;
   authorName?: string;
   userSide?: 'white' | 'black' | null;
@@ -52,7 +54,9 @@ export async function promoteReviewedPosition(
   }
 
   const game = await clientReviewRuntime.fromAnnotatedMoves([move], {
-    sourceGameId: opts.sourceGameId ?? 'local-review',
+    // A missing id falls back to a per-call id, NOT a shared constant,
+    // so a promoted puzzle's provenance always identifies one game.
+    sourceGameId: opts.sourceGameId || newLocalGameId(),
     userSide: opts.userSide,
     result: opts.result,
   });

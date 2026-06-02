@@ -97,6 +97,36 @@ export const PUZZLE_CATEGORY_ORDER: PuzzleCategory[] = [
 // have hand-edited localStorage. Treat user puzzles as best-effort,
 // not as authoritative ground truth.
 
+/** Provenance stamped on a puzzle promoted through the review→puzzle
+ *  pipeline (issue #19). Additive + optional — hand-authored puzzles
+ *  from the Custom tab simply omit it. Kept structural (no import from
+ *  reviewPipeline) so this low-level schema stays dependency-free and
+ *  there's no module cycle. */
+export type ReviewPuzzleProvenance = {
+  /** Canonical source game id (GameRecord.id) the position came from. */
+  sourceGameId: string;
+  /** Ply within that game. */
+  sourcePly: number;
+  /** Which runtime + engine produced the analysis. */
+  runtime: {
+    runtimeId: string;
+    engineId: string;
+    engineVersion?: string;
+    depth?: number;
+    nodes?: number;
+    rulesVersion: string;
+  };
+  /** Pipeline schema version the candidate was built under. */
+  schemaVersion: number;
+  visibility: 'draft' | 'private' | 'public';
+  qualityScore: number;
+  ratingEstimate: number;
+  /** Move classification that made the position a candidate. */
+  severity: string;
+  /** Coach motif kinds detected on the best move. */
+  motifs: string[];
+};
+
 export type UserPuzzle = Puzzle & {
   /** Always 'user-created' for puzzles in the user store. */
   source: 'user-created';
@@ -113,6 +143,9 @@ export type UserPuzzle = Puzzle & {
   verifiedAtDepth?: number;
   /** Timestamp of last verification pass. */
   verifiedAt?: number;
+  /** Set when the puzzle was promoted from a reviewed game. Absent for
+   *  hand-authored Custom-tab puzzles. */
+  reviewProvenance?: ReviewPuzzleProvenance;
 };
 
 export type UserPuzzleStore = {
