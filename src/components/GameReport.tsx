@@ -28,7 +28,7 @@ import { fenToPieceMap } from '../lib/makruk';
 import { letterToPiece } from '../lib/chessAttacks';
 import { thaiUci } from '../lib/thaiUci';
 import { useState } from 'react';
-import { mineMoveIntoPuzzle } from '../lib/puzzleMiner';
+import { promoteReviewedPosition } from '../lib/reviewPipeline';
 import { loadStats } from '../lib/stats';
 import { toast } from './Toast';
 
@@ -131,7 +131,13 @@ export function GameReport({ moves, userSide, result, onJumpToPly, subView = 'al
             </h4>
             <div className="report-key-moments">
               {moments.map((m) => (
-                <KeyMomentCard key={m.ply} move={m} onJump={() => onJumpToPly(m.ply)} />
+                <KeyMomentCard
+                  key={m.ply}
+                  move={m}
+                  userSide={userSide}
+                  result={result}
+                  onJump={() => onJumpToPly(m.ply)}
+                />
               ))}
             </div>
           </>
@@ -166,20 +172,37 @@ function AccuracyCard({
   );
 }
 
-function KeyMomentCard({ move, onJump }: { move: AnnotatedMove; onJump: () => void }) {
+function KeyMomentCard({
+  move,
+  userSide,
+  result,
+  onJump,
+}: {
+  move: AnnotatedMove;
+  userSide: 'white' | 'black' | null;
+  result: string;
+  onJump: () => void;
+}) {
   const [mining, setMining] = useState(false);
   const [mined, setMined] = useState(false);
   const handleMine = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (mining || mined) return;
     setMining(true);
-    const result = await mineMoveIntoPuzzle(move, loadStats().displayName);
+    // Goes through the contract pipeline (lift → extract(spec) →
+    // repository.promote) — this component imports neither the engine,
+    // the verifier, nor the puzzle store. See src/lib/reviewPipeline.
+    const promoted = await promoteReviewedPosition(move, {
+      authorName: loadStats().displayName,
+      userSide,
+      result,
+    });
     setMining(false);
-    if (result.ok) {
+    if (promoted.ok) {
       setMined(true);
       toast.success('📌 บันทึกเป็น puzzle แล้ว · ดูที่ tab ปริศนา → ของฉัน');
     } else {
-      toast.error(`บันทึก puzzle ไม่สำเร็จ: ${result.reason}`);
+      toast.error(`บันทึก puzzle ไม่สำเร็จ: ${promoted.reason}`);
     }
   };
   return (
