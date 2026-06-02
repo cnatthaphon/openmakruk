@@ -155,6 +155,7 @@ import { activeCosmetic } from './lib/cosmetics';
 import { VERSION, BUILD_SHA, buildTimeLabel, isBeta } from './lib/release';
 import { recordReviewSummary } from './lib/reviewMastery';
 import { pickReviewSourceGameId } from './lib/reviewPipeline/sourceGameId';
+import { submitProgress, seedJourneyFromStores } from './lib/journey';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
 import { ClockDisplay } from './components/Clock';
@@ -462,6 +463,17 @@ export default function App() {
         // because boot-time errors should be quiet; the user can
         // re-enable explicitly from Settings.
       });
+  }, []);
+
+  // Journey backfill (issue #7) — one-time seed from the legacy
+  // per-surface stores so a returning player's prior progress shows up
+  // in the journey without a reset. Idempotent (the reducer dedups);
+  // gated behind its own flag so the content fetch + replay runs once.
+  useEffect(() => {
+    void seedJourneyFromStores().catch(() => {
+      // Best-effort: a failed seed just means the journey backfills
+      // lazily as the player re-engages. Don't surface at boot.
+    });
   }, []);
 
   // Daily streak — pulse on every app boot. recordActivity is
@@ -801,6 +813,24 @@ export default function App() {
         ratingAfter: next.rating,
         delta: next.rating - prev.rating,
       });
+      // Feed the journey (issue #7). game-recorded is deduped by id;
+      // rating-changed only matters when the rating actually moved.
+      const journeyOutcome: 'win' | 'loss' | 'draw' =
+        recordResult === '1-0'
+          ? userColor === 'white' ? 'win' : 'loss'
+          : recordResult === '0-1'
+            ? userColor === 'black' ? 'win' : 'loss'
+            : 'draw';
+      submitProgress({
+        kind: 'game-recorded',
+        gameId: clientGameId,
+        at: Date.now(),
+        mode: rated ? 'rated' : 'casual',
+        outcome: journeyOutcome,
+      });
+      if (next.rating !== prev.rating) {
+        submitProgress({ kind: 'rating-changed', at: Date.now(), rating: next.rating });
+      }
       return next;
     });
     // Apply outcome to active gauntlet (if any). Runs alongside rating
@@ -1708,8 +1738,20 @@ export default function App() {
           finalFen: state.fen,
           gameStartedAt: gameStartedAtRef.current,
         });
-        recordReviewSummary(sourceGameId, userColorForMastery, annotated);
+        const masteryState = recordReviewSummary(sourceGameId, userColorForMastery, annotated);
         setReviewSourceGameId(sourceGameId);
+        // Feed the journey (issue #7): translate this game's motif
+        // totals into concept mastery. Idempotent — re-reviewing the
+        // same game replaces its contribution rather than adding it.
+        const summary = masteryState.summaries.find((s) => s.gameId === sourceGameId);
+        if (summary) {
+          submitProgress({
+            kind: 'review-summary',
+            gameId: sourceGameId,
+            at: Date.now(),
+            motifTotals: summary.motifs,
+          });
+        }
       } finally {
         reviewBoard.delete();
       }

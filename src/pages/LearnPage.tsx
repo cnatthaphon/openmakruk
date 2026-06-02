@@ -31,6 +31,7 @@ import {
   type LessonGroup,
 } from '../lib/lessonSchema';
 import { LessonView } from './LessonView';
+import { submitProgress, conceptsForLessonGroup } from '../lib/journey';
 import { navigate } from '../lib/router';
 import { SkeletonGrid } from '../components/Skeleton';
 
@@ -114,6 +115,15 @@ export function LearnPage({ initialLessonId = null }: Props = {}) {
 
   const handleMarkComplete = (lessonId: string) => {
     setProgress((p) => markLessonCompleted(p, lessonId));
+    // Feed the journey (issue #7). Concepts derived from the lesson's
+    // group; idempotent if the lesson was already completed.
+    const group = lessons?.find((l) => l.id === lessonId)?.group ?? '';
+    submitProgress({
+      kind: 'lesson-completed',
+      lessonId,
+      at: Date.now(),
+      concepts: conceptsForLessonGroup(group),
+    });
   };
 
   const handleBackToList = () => setActiveLessonId(null);

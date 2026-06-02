@@ -1,12 +1,17 @@
 # Journey / Learning Path Contract
 
-Issue #7 defines one progress model that every training surface (lessons, puzzles, drills, review, challenges, ratings) contributes to. This directory holds the **contract** — the types + helpers + reducer signature future code depends on. It deliberately ships before the reducer, the persistence layer, and the UI so those parts can be reviewed independently.
+Issue #7 defines one progress model that every training surface (lessons, puzzles, drills, review, challenges, ratings) contributes to. This directory holds the contract, the pure reducer, the checkpoint ladder, durable persistence, and the one-time migration from the legacy per-surface stores.
 
 ## Files
 
 | File | Purpose |
 |---|---|
 | `contract.ts` | All exported types + helpers + version constant. |
+| `concepts.ts` | Content (lesson group / puzzle category / drill) → Concept mapping. |
+| `reducer.ts` | Pure `(state, input) => state'`, idempotent. |
+| `checkpoints.ts` | Shipped checkpoint ladder (data). |
+| `store.ts` | Durable persistence + `submitProgress()` entry point. |
+| `migrate.ts` | One-time `seedJourneyFromStores()` backfill. |
 | `index.ts` | Public barrel — only import from here. |
 | `README.md` | This file. |
 
@@ -113,30 +118,80 @@ A new training surface should:
 
 No new surface should fork its own progress store. The whole point of the contract is one source of truth.
 
-## What this PR does NOT include
+## The reducer (`reducer.ts`)
 
-- `feed.ts` — the wiring layer that subscribes to existing stores.
-- `reducer.ts` — the actual state transition logic.
-- `store.ts` — versioned localStorage + cloud-sync persistence.
-- Migration code that backfills `JourneyState` from existing per-surface stores on first run.
-- UI consumers (a Journey tab, checkpoint cards, mastery chart).
+`createJourneyReducer(checkpoints)` returns the pure `JourneyReducer`
+the contract specifies. `store.ts` binds it to the shipped checkpoint
+ladder; tests bind fixtures.
 
-Each is tracked as a follow-up to issue #7. Building them on the contract this PR establishes lets each land separately under review.
+Guarantees the reducer holds:
 
-## Existing stores that the feed will subscribe to
+- **Pure** — `(state, input) => state'`, no I/O, no `Date.now` (the
+  caller stamps `at`). Runs under `node --test`.
+- **Idempotent** — every mutating path is gated on an evidence id-set
+  (`completedLessons`, `solvedPuzzles`, `recordedGameIds`,
+  `completedChallenges`), a best-so-far comparison (`drillBestStars`),
+  or a per-game delta-replacement (`reviewContributionsByGameId`). So
+  re-emitting an event — cloud-sync replay, startup backfill — never
+  double-counts. This is what makes the migration safe to re-run.
+- **Order-independent** — folding the same inputs in any order yields
+  the same evidence (covered by a test).
+- **Monotonic clearing** — a checkpoint, once cleared, stays cleared.
 
-| Store | Owns | What it emits |
+### Mastery is derived, never mutated
+
+```
+mastery[c] = clamp01( practiceScore[c] + Σ reviewContributions[*][c] )
+```
+
+`practiceScore` (lessons/puzzles/drills) grows monotonically, gated by
+the id-sets so re-doing content doesn't compound. `reviewContributions`
+are stored per `gameId` and replaced on re-review. Deriving `mastery`
+fresh after each input — rather than mutating it in place — is what
+lets review replay be idempotent without a subtract-after-clamp hazard.
+
+## Checkpoints (`checkpoints.ts`)
+
+`JOURNEY_CHECKPOINTS` is a beginner→intermediate ladder expressed
+purely as content ids + category counts + concept thresholds + activity
+counters. Adding or retuning a checkpoint is a **data edit** — no
+reducer or UI change. Never rename a shipped checkpoint id (cleared ids
+persist in player state).
+
+## Contributing progress (`store.ts`)
+
+Every surface contributes by calling **`submitProgress(input)`**
+(load → reduce → save). Wired emitters today:
+
+| Surface | Call site | Emits |
 |---|---|---|
-| `src/lib/learnProgress.ts` | Completed lessons | `lesson-completed` |
-| `src/lib/puzzleProgress.ts` | Solved puzzles | `puzzle-solved` |
-| `src/lib/reviewMastery.ts` | Per-game review summary | `review-summary` |
-| `src/lib/conceptMastery.ts` | Motif totals derived from games | (read-only consumer of review-summary) |
-| `src/lib/asyncChallenge.ts` | Async challenge history | `challenge-completed` |
-| `src/lib/stats.ts` | Rating + game history | `rating-changed` + `game-recorded` |
-| `src/lib/countingDrill.ts` | Drill scores | `drill-passed` |
+| Lessons | `LearnPage.handleMarkComplete` | `lesson-completed` |
+| Puzzles | `PuzzleView` solve | `puzzle-solved` |
+| Drills | `CountingDrillPage` clear | `drill-passed` |
+| Review | `App.handleStartReview` | `review-summary` |
+| Games | `App` game-record effect | `game-recorded` + `rating-changed` |
 
-The wiring layer will be a thin adapter file per store — no store needs to change its public API. Backwards compatibility for existing localStorage payloads is preserved.
+The legacy per-surface stores keep working unchanged — the journey
+reads **alongside** them. Storage is `'durable'` (IndexedDB) like
+`stats.ts`, since the evidence grows with play.
 
-## Migration safety
+## Migration (`migrate.ts`)
 
-`JOURNEY_SCHEMA_VERSION = 1` is the initial release. There is no prior version on disk for any user, so no migration code is needed yet. The future `store.ts` will install a migration registry pattern so version bumps can be added without touching existing read paths.
+`seedJourneyFromStores()` runs once on boot (gated by a flag, but
+idempotent regardless thanks to the reducer). It reads the legacy
+stores — `learnProgress`, `puzzleProgress`, `countingDrill`,
+`reviewMastery`, `stats.history` — loads the lesson/puzzle content maps
+to attach category + concepts, and replays the equivalent
+`ProgressInput` batch via `submitProgressBatch`. A returning player's
+prior progress shows up in the journey **without a reset**.
+
+`JOURNEY_SCHEMA_VERSION = 1` is the initial release; `store.ts`'s
+`migrate` merges unknown/old payloads into the current shape additively.
+
+## Not in this slice
+
+- UI consumers (a dedicated Journey tab / checkpoint cards / mastery
+  chart). `ProfilePage`'s existing JourneySection still reads the
+  server `fetchJourney` view; surfacing the LOCAL journey state is a
+  follow-up. The contract + reducer + migration + emitters here are
+  what those consumers will read.
