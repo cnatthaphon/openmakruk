@@ -23,11 +23,20 @@ const PRIMARY: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'profile', label: 'โปรไฟล์',  icon: '👤' },
 ];
 
+// Everything navigable that isn't a PRIMARY tab. Must stay in sync
+// with the desktop NavBar's set (play/puzzles/learn/study/profile are
+// reachable as primaries; the rest live here) — otherwise a surface
+// the desktop nav exposes becomes unreachable on mobile. Issue #9
+// audit: stats / challenge / exhibition were missing here, so mobile
+// users had no way to reach them at all.
 const OVERFLOW: Array<{ id: Tab; label: string; icon: string }> = [
-  { id: 'custom',   label: 'ออกแบบ',  icon: '🎨' },
-  { id: 'library',  label: 'คลัง',    icon: '📚' },
-  { id: 'settings', label: 'ตั้งค่า',  icon: '⚙️' },
-  { id: 'about',    label: 'เกี่ยวกับ', icon: 'ℹ️' },
+  { id: 'custom',     label: 'ออกแบบ',   icon: '🎨' },
+  { id: 'library',    label: 'คลัง',     icon: '📚' },
+  { id: 'stats',      label: 'สถิติรวม', icon: '📊' },
+  { id: 'challenge',  label: 'ท้าดวล',   icon: '⚔️' },
+  { id: 'exhibition', label: 'โชว์บอท',  icon: '🎬' },
+  { id: 'settings',   label: 'ตั้งค่า',   icon: '⚙️' },
+  { id: 'about',      label: 'เกี่ยวกับ', icon: 'ℹ️' },
 ];
 
 export function BottomNav({ currentTab }: Props) {
