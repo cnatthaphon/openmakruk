@@ -130,3 +130,43 @@ for (const vp of VIEWPORTS) {
     }
   });
 }
+
+// Issue #9 audit: the mobile bottom-nav "เพิ่มเติม" sheet must expose
+// every navigable surface the desktop NavBar does. stats / challenge /
+// exhibition were missing — unreachable on mobile. Pin them so the two
+// navs can't silently drift apart again.
+test.describe('navigation coverage · mobile bottom-nav reachability', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test.beforeEach(async ({ page }) => {
+    await pinTestApiBase(page);
+  });
+
+  const SHEET_TARGETS: Array<{ label: string; hash: string }> = [
+    { label: 'สถิติรวม', hash: '#/stats' },
+    { label: 'ท้าดวล', hash: '#/challenge' },
+    { label: 'โชว์บอท', hash: '#/exhibition' },
+  ];
+
+  for (const { label, hash } of SHEET_TARGETS) {
+    test(`bottom-nav sheet reaches ${hash} (${label})`, async ({ page }) => {
+      await page.goto('/');
+      await clearAppState(page);
+      await page.goto('/#/play');
+      await waitForContentReady(page);
+
+      // Bottom nav is mobile-only; the overflow trigger opens the sheet.
+      const overflow = page.locator('.bottom-nav button', { hasText: 'เพิ่มเติม' });
+      await expect(overflow).toBeVisible({ timeout: 10_000 });
+      await overflow.click();
+
+      const item = page.locator('.bottom-nav-sheet-item', { hasText: label });
+      await expect(item).toBeVisible({ timeout: 5_000 });
+      await item.click();
+
+      await expect
+        .poll(() => new URL(page.url()).hash, { timeout: 5_000 })
+        .toBe(hash);
+    });
+  }
+});

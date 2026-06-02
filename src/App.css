@@ -4579,7 +4579,9 @@ footer a:hover {
   border-radius: 4px;
 }
 
-.setting-row-control select { min-width: 180px; }
+/* Cap the min-width to the available space so the select can't force
+   horizontal overflow on narrow phones (issue #9 responsive audit). */
+.setting-row-control select { min-width: min(180px, 100%); max-width: 100%; }
 
 .settings-toggle {
   width: 44px;
@@ -6808,9 +6810,19 @@ footer a:hover {
 .bot-detail-share:hover {
   background: rgba(255,255,255,0.1);
 }
-.bot-detail-error {
+.bot-detail-error,
+.stats-error,
+.challenge-error {
   color: #c75555;
   margin-bottom: 12px;
+}
+
+/* Issue #9 — bot-list load failure on the Challenge builder. Renders
+   in place of the bot <select> so the disabled Create button is never
+   left unexplained. */
+.challenge-bots-error {
+  color: #c75555;
+  font-size: 13px;
 }
 
 @media (max-width: 540px) {

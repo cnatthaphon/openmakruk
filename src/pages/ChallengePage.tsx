@@ -24,6 +24,7 @@ import { useEffect, useState } from 'react';
 import { Page } from '../components/Page';
 import { getBackend } from '../lib/backend';
 import { navigate } from '../lib/router';
+import { BackButton } from '../components/BackButton';
 import { setChallengeTarget } from '../lib/challenge';
 import { loadSettings, saveSettings } from '../lib/settings';
 import { loadStats } from '../lib/stats';
@@ -56,6 +57,7 @@ function CreateView() {
   const backend = getBackend();
   const supports = backend.fetchBots !== undefined;
   const [bots, setBots] = useState<BotCharacter[]>([]);
+  const [botsError, setBotsError] = useState<string | null>(null);
   const [selectedBot, setSelectedBot] = useState<string>('');
   const [criterion, setCriterion] = useState<ChallengeCriterion>('outcome');
   const [tc, setTc] = useState<ChallengePayload['tc']>('blitz5');
@@ -68,9 +70,13 @@ function CreateView() {
     backend.fetchBots()
       .then((b) => {
         setBots(b);
+        setBotsError(null);
         if (b.length > 0 && !selectedBot) setSelectedBot(b[0].id);
       })
-      .catch(() => undefined);
+      // Surface the failure instead of leaving an empty select + a
+      // permanently-disabled Create button with no explanation
+      // (issue #9 audit — silent network fail).
+      .catch((e: unknown) => setBotsError(String(e)));
     // selectedBot intentionally excluded — only seed once on load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supports, backend]);
@@ -113,13 +119,7 @@ function CreateView() {
 
   return (
     <Page variant="medium" className="challenge-page">
-      <button
-        className="bot-detail-back"
-        onClick={() => navigate({ tab: 'profile' })}
-        aria-label="กลับโปรไฟล์"
-      >
-        ← กลับ
-      </button>
+      <BackButton to="profile">โปรไฟล์</BackButton>
 
       <header className="challenge-hero">
         <h2>⚔️ Async Challenge</h2>
@@ -134,16 +134,25 @@ function CreateView() {
         <div className="challenge-form">
           <label className="challenge-field">
             <span>🤖 เลือก bot</span>
-            <select
-              value={selectedBot}
-              onChange={(e) => setSelectedBot(e.target.value)}
-            >
-              {bots.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.avatar} {b.displayName} · {b.tier} · ⭐ {b.rating}
-                </option>
-              ))}
-            </select>
+            {botsError ? (
+              <p className="challenge-bots-error">
+                ⚠ โหลดรายชื่อ bot ไม่สำเร็จ — ลองเปิด/รีเฟรช cloud sync ที่{' '}
+                <a href="#/settings">⚙️ ตั้งค่า</a> แล้วกลับมาใหม่
+              </p>
+            ) : bots.length === 0 ? (
+              <p className="label-aside">กำลังโหลดรายชื่อ bot…</p>
+            ) : (
+              <select
+                value={selectedBot}
+                onChange={(e) => setSelectedBot(e.target.value)}
+              >
+                {bots.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.avatar} {b.displayName} · {b.tier} · ⭐ {b.rating}
+                  </option>
+                ))}
+              </select>
+            )}
           </label>
 
           <fieldset className="challenge-field">
@@ -261,10 +270,8 @@ function AcceptView({ code }: { code: string }) {
   if (!payload) {
     return (
       <Page variant="medium" className="challenge-page">
-        <p className="bot-detail-error">⚠ ลิงก์ challenge ไม่ถูกต้องหรือชำรุด</p>
-        <button className="bot-detail-back" onClick={() => navigate({ tab: 'challenge' })}>
-          ← สร้าง challenge ใหม่
-        </button>
+        <p className="challenge-error">⚠ ลิงก์ challenge ไม่ถูกต้องหรือชำรุด</p>
+        <BackButton to="challenge">สร้าง challenge ใหม่</BackButton>
       </Page>
     );
   }
@@ -272,10 +279,8 @@ function AcceptView({ code }: { code: string }) {
   if (err) {
     return (
       <Page variant="medium" className="challenge-page">
-        <p className="bot-detail-error">⚠ {err}</p>
-        <button className="bot-detail-back" onClick={() => navigate({ tab: 'challenge' })}>
-          ← กลับ
-        </button>
+        <p className="challenge-error">⚠ {err}</p>
+        <BackButton to="challenge">Challenge index</BackButton>
       </Page>
     );
   }
@@ -306,13 +311,7 @@ function AcceptView({ code }: { code: string }) {
 
   return (
     <Page variant="medium" className="challenge-page">
-      <button
-        className="bot-detail-back"
-        onClick={() => navigate({ tab: 'challenge' })}
-        aria-label="กลับ challenge index"
-      >
-        ← Challenge index
-      </button>
+      <BackButton to="challenge">Challenge index</BackButton>
 
       <article className="challenge-accept-card">
         <header className="challenge-accept-header">

@@ -28,6 +28,7 @@ import { getBackend } from '../lib/backend';
 import type { PopulationStats } from '../lib/backend/types';
 import { navigate } from '../lib/router';
 import { SkeletonScreen } from '../components/Skeleton';
+import { BackButton } from '../components/BackButton';
 
 export function StatsPage() {
   const backend = getBackend();
@@ -62,10 +63,8 @@ export function StatsPage() {
   if (err) {
     return (
       <Page variant="medium" className="stats-page">
-        <p className="bot-detail-error">⚠ {err}</p>
-        <button className="bot-detail-back" onClick={() => navigate({ tab: 'profile' })}>
-          ← กลับโปรไฟล์
-        </button>
+        <p className="stats-error">⚠ {err}</p>
+        <BackButton to="profile">โปรไฟล์</BackButton>
       </Page>
     );
   }
@@ -80,13 +79,7 @@ export function StatsPage() {
 
   return (
     <Page variant="medium" className="stats-page">
-      <button
-        className="bot-detail-back"
-        onClick={() => navigate({ tab: 'profile' })}
-        aria-label="กลับโปรไฟล์"
-      >
-        ← กลับ
-      </button>
+      <BackButton to="profile">โปรไฟล์</BackButton>
 
       <header className="stats-hero">
         <h2 className="stats-title">📊 สถิติแพลตฟอร์ม OpenMakruk</h2>
