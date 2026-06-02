@@ -52,7 +52,11 @@ function candidateForPly(
   // floor (a forced mate IS the lesson regardless of cp delta); a
   // non-mate position must clear minEvalSwingCp.
   let category: PuzzleCategory;
+  let mateDepth: number | undefined;
   if (isMate && absMate >= spec.mateDepthBand.min && absMate <= spec.mateDepthBand.max) {
+    const requiredSolutionPlies = absMate * 2 - 1;
+    if (requiredSolutionPlies > spec.maxSolutionPlies) return null;
+    mateDepth = absMate;
     category = absMate === 1 ? 'mate-1' : 'mate-2';
   } else if (isMate && absMate > spec.mateDepthBand.max) {
     // Mate exists but is deeper than we curate — skip rather than
@@ -80,6 +84,7 @@ function candidateForPly(
     fenBefore: ply.fenBefore,
     sideToMove: ply.side,
     category,
+    ...(mateDepth !== undefined ? { mateIn: mateDepth } : {}),
     solution,
     motifs,
     severity: ply.classification,

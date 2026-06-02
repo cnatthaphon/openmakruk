@@ -119,6 +119,8 @@ export type ReviewPuzzleProvenance = {
   /** Pipeline schema version the candidate was built under. */
   schemaVersion: number;
   visibility: 'draft' | 'private' | 'public';
+  /** Absolute mate depth for mate-derived review puzzles. */
+  mateIn?: number;
   qualityScore: number;
   ratingEstimate: number;
   /** Move classification that made the position a candidate. */

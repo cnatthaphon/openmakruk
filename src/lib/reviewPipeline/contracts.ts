@@ -115,6 +115,9 @@ export type PuzzleCandidate = {
   fenBefore: string;
   sideToMove: 'white' | 'black';
   category: PuzzleCategory;
+  /** Absolute mate depth from evalBefore for mate-derived candidates.
+   *  Used by the repository to deepen mate-in-N to 2N-1 plies. */
+  mateIn?: number;
   solution: string[];
   motifs: MotifKind[];
   /** Classification that made this a candidate (mistake / blunder / …). */

@@ -91,22 +91,39 @@ describe('extractPuzzleCandidates', () => {
     );
     assert.equal(cands.length, 1);
     assert.equal(cands[0].category, 'mate-1');
+    assert.equal(cands[0].mateIn, 1);
     assert.equal(cands[0].ratingEstimate, 800);
     assert.equal(cands[0].qualityScore, 1);
   });
 
-  it('classifies a mate-in-2 and skips mate deeper than the band', () => {
+  it('classifies mate-in-2/3 and skips mate deeper than the band', () => {
     const m2 = extractPuzzleCandidates(
       game([ply({ evalBefore: { mateIn: 2, depth: 12 }, bestLine: ['a1a7'] })]),
       DEFAULT_PUZZLE_QUALITY_SPEC,
     );
     assert.equal(m2[0].category, 'mate-2');
+    assert.equal(m2[0].mateIn, 2);
+
+    const m3 = extractPuzzleCandidates(
+      game([ply({ evalBefore: { mateIn: 3, depth: 12 }, bestLine: ['a1a7'] })]),
+      DEFAULT_PUZZLE_QUALITY_SPEC,
+    );
+    assert.equal(m3[0].category, 'mate-2');
+    assert.equal(m3[0].mateIn, 3);
 
     const deep = extractPuzzleCandidates(
       game([ply({ evalBefore: { mateIn: 6, depth: 12 } })]),
       DEFAULT_PUZZLE_QUALITY_SPEC,
     );
     assert.equal(deep.length, 0, 'mate deeper than band is skipped, not mislabeled');
+  });
+
+  it('skips mate candidates whose required line exceeds the solution cap', () => {
+    const cands = extractPuzzleCandidates(
+      game([ply({ evalBefore: { mateIn: 3, depth: 12 }, bestLine: ['a1a7'] })]),
+      { ...DEFAULT_PUZZLE_QUALITY_SPEC, maxSolutionPlies: 3 },
+    );
+    assert.equal(cands.length, 0, 'mate-in-3 needs 5 plies, so a 3-ply cap rejects it');
   });
 
   it('adds a motif rating bonus and surfaces motif kinds', () => {

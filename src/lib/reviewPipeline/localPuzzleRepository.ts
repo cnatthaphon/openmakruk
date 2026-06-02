@@ -17,14 +17,20 @@ import { loadFfish } from '../makruk';
 import { verifyAndAnnotate } from '../puzzleVerifier';
 import { newUserPuzzleId, saveUserPuzzle } from '../userPuzzles';
 import { log } from '../log';
-import type { PuzzleCategory, UserPuzzle } from '../puzzleSchema';
+import type { UserPuzzle } from '../puzzleSchema';
 import type { PromoteResult, PuzzleCandidate, PuzzleRepository } from './contracts';
 
 const DEEPEN_DEPTH = 14;
 
-/** How many plies a category's stored solution should hold. */
-function solutionPlyTarget(category: PuzzleCategory): number {
-  if (category === 'mate-2') return 3; // user, opp, user
+/** How many plies a candidate's stored solution should hold. */
+function solutionPlyTarget(candidate: PuzzleCandidate): number {
+  if (
+    (candidate.category === 'mate-1' || candidate.category === 'mate-2') &&
+    typeof candidate.mateIn === 'number'
+  ) {
+    return Math.max(1, candidate.mateIn * 2 - 1);
+  }
+  if (candidate.category === 'mate-2') return 3; // legacy fallback: user, opp, user
   return 1; // mate-1 + tactic = single best move
 }
 
@@ -81,7 +87,7 @@ export class LocalPuzzleRepository implements PuzzleRepository {
     candidate: PuzzleCandidate,
     opts: { authorName?: string; visibility?: PuzzleCandidate['visibility'] } = {},
   ): Promise<PromoteResult> {
-    const target = solutionPlyTarget(candidate.category);
+    const target = solutionPlyTarget(candidate);
     let solution: string[];
     try {
       solution = await deepenSolution(candidate.fenBefore, candidate.solution, target);
@@ -130,6 +136,7 @@ export class LocalPuzzleRepository implements PuzzleRepository {
         runtime: candidate.runtime,
         schemaVersion: candidate.schemaVersion,
         visibility,
+        ...(candidate.mateIn !== undefined ? { mateIn: candidate.mateIn } : {}),
         qualityScore: candidate.qualityScore,
         ratingEstimate: candidate.ratingEstimate,
         severity: candidate.severity,
