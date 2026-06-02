@@ -87,6 +87,7 @@ test.describe('async challenge · v2 result-baked link', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto(`/#/challenge/${code}`);
-    await expect(page.locator('.bot-detail-error')).toBeVisible({ timeout: 5_000 });
+    // Page-owned error class (issue #9 — was the leaked .bot-detail-error).
+    await expect(page.locator('.challenge-error')).toBeVisible({ timeout: 5_000 });
   });
 });

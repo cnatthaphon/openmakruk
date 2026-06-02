@@ -136,7 +136,8 @@ test.describe('launch-readiness · async challenge round-trip', () => {
     await page.goto('/');
     await clearAppState(page);
     await page.goto('/#/challenge/not-base64url-at-all!!');
-    await expect(page.locator('.bot-detail-error')).toBeVisible({ timeout: 5_000 });
+    // Page-owned error class (issue #9 — was the leaked .bot-detail-error).
+    await expect(page.locator('.challenge-error')).toBeVisible({ timeout: 5_000 });
   });
 });
 
