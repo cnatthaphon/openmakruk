@@ -3,11 +3,16 @@
 //
 // Issue #3 — convergence target is `src/core/`. That module already
 // owns the FEN parser, counting helpers, and type contracts. This
-// file still carries its own legal-move generation + check/mate
-// detection because the worker can't reach `src/core/` through the
-// module path yet (separate package boundary). The two
-// implementations are parity-tested via worker/tests/scenarios.test.ts;
-// if behaviour diverges, `src/core/` is the source of truth.
+// file still carries its own FEN parser + legal-move generation +
+// check/mate detection because the worker can't import `src/core/`
+// across the package boundary yet. The overlapping parts (start FEN,
+// piece-letter table, FEN placement/turn parsing) are explicitly
+// parity-tested against core in
+// `src/core/__tests__/worker-parity.test.ts` — both modules are
+// dependency-free pure TS, so that test imports both and compares. If
+// behaviour diverges, `src/core/` is the source of truth and the
+// worker must conform. Legal-move generation + classification have no
+// core equivalent and are worker-only by design.
 //
 // Design rule: scope = exactly what's needed to validate a move log.
 // We're not trying to play makruk here; ffish/Fairy-Stockfish does
