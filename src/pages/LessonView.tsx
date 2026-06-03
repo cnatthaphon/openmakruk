@@ -31,6 +31,7 @@ import {
   type Color,
   type Role,
 } from '../lib/lessonRules';
+import { parseFen } from '../core';
 import {
   fenToPieceMap,
   loadFfish,
@@ -529,7 +530,10 @@ function TryMoveDemoView({
     return <p className="puzzle-loading">กำลังโหลด ffish ...</p>;
   }
 
-  const userSide = state.fen.split(' ')[1] === 'w' ? 'white' : 'black';
+  // Side to move via the shared core parser (issue #3 — don't hand-roll
+  // FEN field extraction). Falls back to white if the FEN is mid-load
+  // or somehow unparseable.
+  const userSide = parseFen(state.fen)?.turn ?? 'white';
 
   return (
     <BoardLayout

@@ -21,7 +21,7 @@ Tracked under issue #3 but deferred to follow-up PRs to keep this PR reviewable:
 - Terminal classification (checkmate / stalemate / counting-expired).
 - Counting state-transitions (when the count starts, what happens when material changes mid-count).
 
-The worker has its own pure-TS implementation in `worker/src/rules.ts` for the move-verification it already needs. The medium-term plan is to delete that and have the worker import this barrel directly. Until that path is set up, the two implementations are kept in lockstep through parity tests (see `worker/tests/scenarios.test.ts`).
+The worker has its own pure-TS implementation in `worker/src/rules.ts` for the move-verification it already needs. The medium-term plan is to delete that and have the worker import this barrel directly. Until that path is set up, the overlapping parts are kept in lockstep through an explicit parity test — `src/core/__tests__/worker-parity.test.ts` imports BOTH `src/core` and `worker/src/rules.ts` (both dependency-free) and asserts they agree on the start FEN, the piece-letter table, and FEN placement/turn/counter parsing. It also pins the one intentional asymmetry: core is the strict authority for client-side parsing and rejects malformed META fields (castling ≠ `-`, bad counting slot), while the worker — which only ever sees ffish-produced FENs — tolerates them since it only reads placement + turn + counters to replay. If the implementations drift, that test fails and `src/core/` is the source of truth.
 
 ## The contract
 
