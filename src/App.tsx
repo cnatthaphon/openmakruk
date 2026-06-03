@@ -754,7 +754,7 @@ export default function App() {
     // user re-runs analyze for the new position.
     setAnalysisLines([]);
     setLiveEval(null);
-  }, [state?.fen]);
+  }, [state?.fen, setLiveEval]);
 
   // Issue #17 — reset the game-over dismissal whenever the game is
   // active again (new game started, position reset, etc.). Without
