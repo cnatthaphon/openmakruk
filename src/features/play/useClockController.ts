@@ -90,6 +90,10 @@ export function useClockController(opts: ClockControllerOpts): {
       setClock((c) => (c ? tickClock(c, Date.now()) : c));
     }, 100);
     return () => window.clearInterval(interval);
+    // `clock` is read only for the guard; the tick uses the functional
+    // setClock, so we key the interval on running/flagged — including
+    // the whole `clock` object would recreate the interval every tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clock?.running, clock?.flagged, isGameOver, forcedResult]);
 
   // Flag-fall handler — when a clock hits 0, the side that flagged
