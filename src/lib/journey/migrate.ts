@@ -18,6 +18,7 @@ import { loadPuzzleProgress } from '../puzzleProgress';
 import { loadDrillProgress, drillScore, findDrillLevel } from '../countingDrill';
 import { loadReviewMastery } from '../reviewMastery';
 import { loadStats } from '../stats';
+import { loadChallengeHistory } from '../asyncChallenge';
 import {
   conceptsForLessonGroup,
   conceptsForPuzzleCategory,
@@ -42,48 +43,57 @@ export async function seedJourneyFromStores(force = false): Promise<boolean> {
   if (!force && flag.load().done) return false;
 
   const inputs: ProgressInput[] = [];
+  let complete = true;
   // A single timestamp for all backfilled events — they're historical;
   // we don't have per-event times for every store, and the reducer
   // only uses `at` for updatedAt ordering.
   const at = 0;
 
   // ── lessons ──────────────────────────────────────────────────────
-  try {
-    const lessons = await loadLessons();
-    const groupById = new Map(lessons.map((l) => [l.id, l.group]));
-    const completed = loadLessonProgress().completed;
-    for (const lessonId of completed) {
-      inputs.push({
-        kind: 'lesson-completed',
-        lessonId,
-        at,
-        concepts: conceptsForLessonGroup(groupById.get(lessonId) ?? ''),
-      });
+  const completedLessons = loadLessonProgress().completed;
+  if (completedLessons.size > 0) {
+    try {
+      const lessons = await loadLessons();
+      const groupById = new Map(lessons.map((l) => [l.id, l.group]));
+      for (const lessonId of completedLessons) {
+        inputs.push({
+          kind: 'lesson-completed',
+          lessonId,
+          at,
+          concepts: conceptsForLessonGroup(groupById.get(lessonId) ?? ''),
+        });
+      }
+    } catch {
+      // Keep the seed pending. If we marked the flag done here, a
+      // first offline boot could permanently skip old lesson progress.
+      complete = false;
     }
-  } catch {
-    // Content load failed (offline first boot) — skip lessons; the
-    // live emitter will populate them going forward.
   }
 
   // ── puzzles ──────────────────────────────────────────────────────
-  try {
-    const puzzles = await loadPuzzles();
-    const catById = new Map(puzzles.map((p) => [p.id, p.category]));
-    const solved = loadPuzzleProgress().solved;
-    for (const [puzzleId, attempt] of Object.entries(solved)) {
-      const category = catById.get(puzzleId);
-      if (!category) continue; // unknown puzzle id — skip
-      inputs.push({
-        kind: 'puzzle-solved',
-        puzzleId,
-        category,
-        at,
-        optimal: attempt.attempts <= 1 && !attempt.usedHint,
-        concepts: conceptsForPuzzleCategory(category),
-      });
+  const solvedPuzzles = loadPuzzleProgress().solved;
+  const solvedEntries = Object.entries(solvedPuzzles);
+  if (solvedEntries.length > 0) {
+    try {
+      const puzzles = await loadPuzzles();
+      const catById = new Map(puzzles.map((p) => [p.id, p.category]));
+      for (const [puzzleId, attempt] of solvedEntries) {
+        const category = catById.get(puzzleId);
+        if (!category) continue; // unknown puzzle id — skip
+        inputs.push({
+          kind: 'puzzle-solved',
+          puzzleId,
+          category,
+          at,
+          optimal: attempt.attempts <= 1 && !attempt.usedHint,
+          concepts: conceptsForPuzzleCategory(category),
+        });
+      }
+    } catch {
+      // Keep the seed pending for the same reason as lessons: puzzle
+      // concepts/category require content metadata.
+      complete = false;
     }
-  } catch {
-    // skip puzzles
   }
 
   // ── drills ───────────────────────────────────────────────────────
@@ -126,7 +136,18 @@ export async function seedJourneyFromStores(force = false): Promise<boolean> {
     inputs.push({ kind: 'rating-changed', at, rating: stats.rating });
   }
 
+  // ── completed async challenges ───────────────────────────────────
+  for (const rec of loadChallengeHistory()) {
+    if (!rec.result) continue;
+    inputs.push({
+      kind: 'challenge-completed',
+      code: rec.code,
+      at: rec.result.finishedAt ?? rec.seenAt ?? at,
+      outcome: rec.result.outcome,
+    });
+  }
+
   if (inputs.length > 0) submitProgressBatch(inputs);
-  flag.save({ done: true });
+  if (complete) flag.save({ done: true });
   return true;
 }

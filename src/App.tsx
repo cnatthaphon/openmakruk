@@ -1006,6 +1006,7 @@ export default function App() {
         const idx = hist.findIndex((r) => r.payload.b === botSlug && !r.result);
         if (idx >= 0) {
           const rec = hist[idx];
+          const finishedAt = Date.now();
           recordChallenge({
             code: rec.code,
             payload: rec.payload,
@@ -1013,8 +1014,17 @@ export default function App() {
             result: {
               outcome,
               moves: history.length,
-              finishedAt: Date.now(),
+              finishedAt,
             },
+          });
+          // Feed the journey's challenge checkpoint. Without this,
+          // cp-challenger exists in the data ladder but can never clear
+          // from real play.
+          submitProgress({
+            kind: 'challenge-completed',
+            code: rec.code,
+            at: finishedAt,
+            outcome,
           });
           // v2 comparison — fire only when this was an accepted link
           // that included the sender's result. Outcome comparison is
@@ -3619,4 +3629,3 @@ function userSideForMode(mode: Mode): 'white' | 'black' | 'both' | null {
     case 'manual':     return 'both';
   }
 }
-

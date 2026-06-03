@@ -123,4 +123,45 @@ test.describe('journey progress feed (issue #7)', () => {
     // Two seeds, one game → counted exactly once (dedup by gameId).
     expect(result).toBe(1);
   });
+
+  test('migration backfills completed async challenges', async ({ page }) => {
+    await page.goto('/#/play');
+    await waitForContentReady(page);
+    await page.waitForSelector('.screen.loading', { state: 'detached', timeout: 30_000 });
+
+    const result = await page.evaluate(async () => {
+      // @ts-expect-error dynamic
+      const asyncChallenge = await import('/src/lib/asyncChallenge.ts');
+      // @ts-expect-error dynamic
+      const journey = await import('/src/lib/journey/index.ts');
+
+      journey.clearJourney();
+      asyncChallenge.recordChallenge({
+        code: 'journey_challenge_done',
+        payload: {
+          v: 1,
+          b: 'attacker-rookie',
+          c: 'all',
+          tc: 'untimed',
+          by: 'Tester',
+        },
+        role: 'accepted',
+        result: {
+          outcome: 'win',
+          moves: 24,
+          finishedAt: 1234,
+        },
+      });
+
+      await journey.seedJourneyFromStores(true);
+      const j = journey.loadJourney();
+      return {
+        completed: j.evidence.completedChallenges ?? [],
+        cleared: j.cleared,
+      };
+    });
+
+    expect(result.completed).toContain('journey_challenge_done');
+    expect(result.cleared).toContain('cp-challenger');
+  });
 });

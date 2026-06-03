@@ -170,6 +170,7 @@ Every surface contributes by calling **`submitProgress(input)`**
 | Drills | `CountingDrillPage` clear | `drill-passed` |
 | Review | `App.handleStartReview` | `review-summary` |
 | Games | `App` game-record effect | `game-recorded` + `rating-changed` |
+| Challenges | `App` challenge result effect | `challenge-completed` |
 
 The legacy per-surface stores keep working unchanged — the journey
 reads **alongside** them. Storage is `'durable'` (IndexedDB) like
@@ -180,10 +181,13 @@ reads **alongside** them. Storage is `'durable'` (IndexedDB) like
 `seedJourneyFromStores()` runs once on boot (gated by a flag, but
 idempotent regardless thanks to the reducer). It reads the legacy
 stores — `learnProgress`, `puzzleProgress`, `countingDrill`,
-`reviewMastery`, `stats.history` — loads the lesson/puzzle content maps
-to attach category + concepts, and replays the equivalent
-`ProgressInput` batch via `submitProgressBatch`. A returning player's
-prior progress shows up in the journey **without a reset**.
+`reviewMastery`, `stats.history`, `asyncChallenge` history — loads the
+lesson/puzzle content maps to attach category + concepts, and replays
+the equivalent `ProgressInput` batch via `submitProgressBatch`. A
+returning player's prior progress shows up in the journey **without a
+reset**. If a first boot cannot load content metadata while there is
+legacy lesson/puzzle progress to migrate, the seed flag stays pending
+so a later online boot can finish the backfill.
 
 `JOURNEY_SCHEMA_VERSION = 1` is the initial release; `store.ts`'s
 `migrate` merges unknown/old payloads into the current shape additively.
