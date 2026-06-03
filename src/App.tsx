@@ -162,12 +162,9 @@ import { ClockDisplay } from './components/Clock';
 import {
   TIME_CONTROLS,
   clockFromControl,
-  tickClock,
-  applyMove as clockApplyMove,
-  startClock,
-  type ClockState,
   type TimeControl,
 } from './lib/clock';
+import { useClockController } from './features/play/useClockController';
 import { MultiPV } from './components/MultiPV';
 import type { EvalInfo, EvalScore } from './lib/evalParser';
 import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
@@ -277,7 +274,9 @@ export default function App() {
   const [thinking, setThinking] = useState(false);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [timeControlId, setTimeControlId] = useState<string>('unlimited');
-  const [clock, setClock] = useState<ClockState | null>(null);
+  // `clock` state + its orchestration effects live in useClockController
+  // (wired below, after currentTab is available). setClock is returned
+  // for the reset / resume / picker paths App still drives directly.
   const [hint, setHint] = useState<{ from: Square; to: Square } | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [hintInfo, setHintInfo] = useState<string | null>(null);
@@ -408,6 +407,19 @@ export default function App() {
   const setCurrentTab = (t: Tab) => navigate({ tab: t });
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
+
+  // Chess clock — state + tick/start/flag-fall/increment effects live in
+  // the controller hook (issue #5). App keeps setClock for the reset /
+  // resume / time-control-picker paths the effects don't own.
+  const { clock, setClock } = useClockController({
+    timeControlId,
+    historyLength: history.length,
+    turn: state?.turn,
+    isGameOver: state?.isGameOver ?? false,
+    forcedResult,
+    currentTab,
+    onFlagFall: setForcedResult,
+  });
 
   // Onboarding gate: show on first ever visit, UNLESS the user arrived
   // via a deep link with explicit content (e.g. /#/puzzles/mate-001 or
@@ -1219,78 +1231,8 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history.length, currentTab]);
 
-  // ── Clock: initialise + tick + flag-fall ─────────────────────────
-  // When user picks a non-unlimited time control AND a game starts
-  // (first move played), spin up a ClockState. Tick at 10 Hz while
-  // running. On flag-fall, force-end the game so the player who lost
-  // on time records a loss.
-  useEffect(() => {
-    if (timeControlId === 'unlimited') {
-      if (clock !== null) setClock(null);
-      return;
-    }
-    // Re-init clock at the start of a fresh game (no history yet).
-    if (history.length === 0 && clock === null) {
-      const tc = TIME_CONTROLS.find((t) => t.id === timeControlId);
-      if (!tc) return;
-      const fresh = clockFromControl(tc, Date.now());
-      setClock(fresh);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeControlId, history.length]);
-
-  // Start the clock running on the side-to-move once the first move
-  // happens (or game already in progress).
-  useEffect(() => {
-    if (!clock || clock.flagged) return;
-    if (state?.isGameOver || forcedResult) return;
-    if (currentTab !== 'play') return;
-    if (history.length === 0) return;
-    const sideToMove: 'white' | 'black' = state?.turn ?? 'white';
-    if (clock.running === sideToMove) return; // already running on right side
-    setClock((c) => (c ? startClock(c, sideToMove, Date.now()) : c));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.length, state?.turn, state?.isGameOver, forcedResult, currentTab]);
-
-  // 10 Hz tick. Cheap — only runs while a clock is active + game live.
-  useEffect(() => {
-    if (!clock || clock.flagged) return;
-    if (clock.running === null) return;
-    if (state?.isGameOver || forcedResult) return;
-    const interval = window.setInterval(() => {
-      setClock((c) => (c ? tickClock(c, Date.now()) : c));
-    }, 100);
-    return () => window.clearInterval(interval);
-  }, [clock?.running, clock?.flagged, state?.isGameOver, forcedResult]);
-
-  // Flag-fall handler — when a clock hits 0, the side that flagged
-  // loses on time. Translate to a forced result so the existing
-  // game-over UI + auto-recorder picks it up.
-  useEffect(() => {
-    if (!clock?.flagged) return;
-    if (forcedResult) return;
-    // The side that flagged loses. White flagged → black wins (0-1).
-    const result = clock.flagged === 'white' ? '0-1' : '1-0';
-    setForcedResult(result);
-    log('clock.flagFall', { side: clock.flagged });
-  }, [clock?.flagged, forcedResult]);
-
-  // Apply increment + swap clock side after every move (user or CPU).
-  // We use history length as the trigger; whichever side just moved
-  // gets the increment.
-  const prevHistoryLenForClockRef = useRef(0);
-  useEffect(() => {
-    const prev = prevHistoryLenForClockRef.current;
-    const newLen = history.length;
-    prevHistoryLenForClockRef.current = newLen;
-    if (!clock || clock.flagged) return;
-    if (newLen <= prev) return; // not an advance (history reset / undo)
-    // The side that JUST moved is opposite to current state.turn.
-    // history.length odd = white just moved (1, 3, 5…); even = black.
-    const mover: 'white' | 'black' = newLen % 2 === 1 ? 'white' : 'black';
-    setClock((c) => (c ? clockApplyMove(c, mover, Date.now()) : c));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.length]);
+  // (Clock orchestration moved to useClockController — see the hook
+  // call near the top of this component.)
 
   // ── Live evaluation bar ───────────────────────────────────────────
   // When Settings.showEvalBar is on, run a low-depth background
