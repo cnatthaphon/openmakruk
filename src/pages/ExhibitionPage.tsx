@@ -30,6 +30,8 @@ function normalizeTier(tier: string | null): 'rookie' | 'veteran' | 'master' | '
 }
 
 type TierFilter = 'all' | 'rookie' | 'veteran' | 'master' | 'boss';
+const EXHIBITION_CRON_PERIOD_MS = 30 * 60_000;
+
 const TIER_LABELS: Record<TierFilter, string> = {
   all: 'ทุก tier',
   rookie: '🥉 Rookie',
@@ -104,14 +106,8 @@ function ExhibitionFeed() {
   // min (wrangler.toml). Showing "next match in ~12 min" answers the
   // reviewer's "feels stale" feedback when the last game is hours old.
   const nextCronEta = useMemo(() => {
-    if (!games || games.length === 0) return null;
-    const last = games[0].createdAt;
-    const period = 30 * 60_000;
-    const next = last + period;
-    const diff = next - Date.now();
-    if (diff < 0) return 'เร็วๆ นี้';
-    const mins = Math.ceil(diff / 60_000);
-    return mins < 1 ? 'น้อยกว่า 1 นาที' : `~${mins} นาที`;
+    if (!games) return null;
+    return estimateNextCronEta(games);
   }, [games]);
 
   return (
@@ -151,7 +147,7 @@ function ExhibitionFeed() {
       {!games && supports && !err && <p className="label-aside">กำลังโหลด…</p>}
       {games && games.length === 0 && (
         <p className="label-aside">
-          ยังไม่มีเกม — cron จะสร้างเกมแรกในอีกไม่กี่นาที
+          ยังไม่มีเกม — {nextCronEta ? `match ถัดไป ${nextCronEta}` : 'cron จะสร้างเกมแรกในอีกไม่กี่นาที'}
         </p>
       )}
       {filtered && filtered.length === 0 && games && games.length > 0 && (
@@ -215,6 +211,26 @@ function formatOutcome(o: string): string {
   if (o === 'truncated') return '⏱️ ครบจำนวนตา · ไม่มีฝ่ายชนะ';
   return o;
 }
+
+function estimateNextCronEta(games: ExhibitionSummary[], now = Date.now()): string {
+  const last = games[0]?.createdAt ?? null;
+  if (last !== null) {
+    const diffFromLastGame = last + EXHIBITION_CRON_PERIOD_MS - now;
+    if (diffFromLastGame > 0) return formatEta(diffFromLastGame);
+  }
+
+  const nextCronSlot =
+    Math.floor(now / EXHIBITION_CRON_PERIOD_MS) * EXHIBITION_CRON_PERIOD_MS
+    + EXHIBITION_CRON_PERIOD_MS;
+  return formatEta(nextCronSlot - now);
+}
+
+function formatEta(diffMs: number): string {
+  if (diffMs <= 0) return 'เร็วๆ นี้';
+  const mins = Math.ceil(diffMs / 60_000);
+  return mins < 1 ? 'น้อยกว่า 1 นาที' : `~${mins} นาที`;
+}
+
 function outcomeClass(o: string): string {
   if (o === 'white-wins') return 'is-white';
   if (o === 'black-wins') return 'is-black';

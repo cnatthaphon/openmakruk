@@ -98,7 +98,7 @@ export function LibraryPage({ onLoad, initialPositionId }: Props) {
           <div className="library-empty-icon" aria-hidden="true">📚</div>
           <h3>คลังของคุณยังว่าง</h3>
           <p className="label-aside">
-            สะสมตำแหน่งที่น่าจดจำไว้กลับมาฝึกซ้ำ · ใช้ได้ทั้งจากเกมจริง · ปริศนา · หรือออกแบบเอง
+            สะสมตำแหน่งที่น่าจดจำไว้กลับมาฝึกซ้ำ · ใช้ได้ทั้งจากเกมจริง · ปริศนา · หรือออกแบบเอง · เก็บไว้ใน browser บนอุปกรณ์นี้เท่านั้น
           </p>
           <button
             className="library-empty-cta"
