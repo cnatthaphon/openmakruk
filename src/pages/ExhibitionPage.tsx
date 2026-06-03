@@ -16,6 +16,7 @@ import type {
 } from '../lib/backend/types';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { loadFfish, MAKRUK_START_FEN } from '../lib/makruk';
 import { navigate } from '../lib/router';
 
@@ -115,9 +116,7 @@ function ExhibitionFeed() {
 
   return (
     <main className="exhibition-page exhibition-feed">
-      <button className="exhibition-back" onClick={() => navigate({ tab: 'profile' })}>
-        ← กลับโปรไฟล์
-      </button>
+      <BackButton to="profile">โปรไฟล์</BackButton>
       <header className="exhibition-header">
         <h2>🎬 Bot Exhibition · live</h2>
         <p className="label-aside">
@@ -295,9 +294,7 @@ function ExhibitionReplay({ gameId }: { gameId: string }) {
   if (err) {
     return (
       <main className="exhibition-page">
-        <button className="exhibition-back" onClick={() => navigate({ tab: 'exhibition' })}>
-          ← กลับรายการ
-        </button>
+        <BackButton to="exhibition">รายการ</BackButton>
         <p className="exhibition-error">⚠ {err}</p>
       </main>
     );
@@ -313,9 +310,7 @@ function ExhibitionReplay({ gameId }: { gameId: string }) {
 
   return (
     <main className="exhibition-page exhibition-replay">
-      <button className="exhibition-back" onClick={() => navigate({ tab: 'exhibition' })}>
-        ← กลับรายการ
-      </button>
+      <BackButton to="exhibition">รายการ</BackButton>
       <BoardLayout
         left={
           <header className="exhibition-replay-header">

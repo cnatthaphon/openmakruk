@@ -83,6 +83,9 @@ for (const vp of VIEWPORTS) {
         '/#/pattern',
         '/#/survive',
         '/#/rush',
+        // #24 — unified onto the shared <BackButton>; pin uniqueness so
+        // the inline-button regression can't return.
+        '/#/exhibition',
       ];
       for (const route of ROUTES_WITH_BACK) {
         await page.goto('/');
@@ -107,6 +110,7 @@ for (const vp of VIEWPORTS) {
       { from: '/#/pattern',               expectedHash: '#/study' },
       { from: '/#/survive',               expectedHash: '#/puzzles' },
       { from: '/#/rush',                  expectedHash: '#/puzzles' },
+      { from: '/#/exhibition',            expectedHash: '#/profile' },
     ];
     for (const { from, expectedHash } of BACK_TARGETS) {
       test(`back button on ${from} navigates to ${expectedHash}`, async ({ page }) => {

@@ -26,6 +26,7 @@ import type { BotCharacter } from '../lib/backend/types';
 import { findPersonality } from '../lib/personalities/personalities';
 import { findNarrative } from '../lib/personalities/narrative';
 import { navigate } from '../lib/router';
+import { BackButton } from '../components/BackButton';
 import { SkeletonScreen } from '../components/Skeleton';
 import { setChallengeTarget } from '../lib/challenge';
 import { loadSettings, saveSettings } from '../lib/settings';
@@ -69,9 +70,7 @@ export function BotDetailPage({ botId }: Props) {
     return (
       <Page variant="medium" className="bot-detail-page">
         <p className="label-aside">ไม่มี bot id ใน URL · กรุณาเลือกจาก Bot Hall of Fame</p>
-        <button className="bot-detail-back" onClick={() => navigate({ tab: 'profile' })}>
-          ← กลับ Hall of Fame
-        </button>
+        <BackButton to="profile">โปรไฟล์</BackButton>
       </Page>
     );
   }
@@ -88,9 +87,7 @@ export function BotDetailPage({ botId }: Props) {
     return (
       <Page variant="medium" className="bot-detail-page">
         <p className="bot-detail-error">⚠ {err}</p>
-        <button className="bot-detail-back" onClick={() => navigate({ tab: 'profile' })}>
-          ← กลับ Hall of Fame
-        </button>
+        <BackButton to="profile">โปรไฟล์</BackButton>
       </Page>
     );
   }
@@ -113,13 +110,7 @@ export function BotDetailPage({ botId }: Props) {
 
   return (
     <Page variant="medium" className="bot-detail-page">
-      <button
-        className="bot-detail-back"
-        onClick={() => navigate({ tab: 'profile' })}
-        aria-label="กลับ Bot Hall of Fame"
-      >
-        ← Bot Hall of Fame
-      </button>
+      <BackButton to="profile">โปรไฟล์</BackButton>
 
       <header className="bot-detail-hero">
         <div className="bot-detail-avatar" aria-hidden="true">
