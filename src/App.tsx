@@ -165,8 +165,9 @@ import {
   type TimeControl,
 } from './lib/clock';
 import { useClockController } from './features/play/useClockController';
+import { useLiveEval } from './features/play/useLiveEval';
 import { MultiPV } from './components/MultiPV';
-import type { EvalInfo, EvalScore } from './lib/evalParser';
+import type { EvalInfo } from './lib/evalParser';
 import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
 import { GameReport } from './components/GameReport';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -367,7 +368,8 @@ export default function App() {
   // single-number eval for the EvalBar.
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisLines, setAnalysisLines] = useState<EvalInfo[]>([]);
-  const [liveEval, setLiveEval] = useState<EvalScore | null>(null);
+  // `liveEval` state + its background-search effect live in useLiveEval
+  // (wired below, after the dependent state is available).
 
   /** Sub-tab for the Play-page sidebar so the whole UI fits in one
    * viewport without scrolling. Three orthogonal slices of the
@@ -419,6 +421,21 @@ export default function App() {
     forcedResult,
     currentTab,
     onFlagFall: setForcedResult,
+  });
+
+  // Eval-bar background search — state + effect live in useLiveEval
+  // (issue #5). setLiveEval is returned so App keeps clearing it on the
+  // position-change reset below.
+  const { liveEval, setLiveEval } = useLiveEval({
+    fen: state?.fen,
+    ready: Boolean(board && state),
+    showEvalBar: settings.showEvalBar,
+    currentTab,
+    analyzing,
+    reviewActive,
+    inspectPly,
+    isGameOver: state?.isGameOver ?? false,
+    forcedResult,
   });
 
   // Onboarding gate: show on first ever visit, UNLESS the user arrived
@@ -1234,55 +1251,8 @@ export default function App() {
   // (Clock orchestration moved to useClockController — see the hook
   // call near the top of this component.)
 
-  // ── Live evaluation bar ───────────────────────────────────────────
-  // When Settings.showEvalBar is on, run a low-depth background
-  // search on every position change so the EvalBar reflects the
-  // current evaluation without the user having to press Analyze.
-  // Light-weight (depth 10 ~ 100-300 ms); cancel-safe via a token
-  // ref so out-of-order completions don't overwrite a newer eval.
-  const liveEvalTokenRef = useRef(0);
-  useEffect(() => {
-    if (!settings.showEvalBar) return;
-    if (!board || !state) return;
-    if (currentTab !== 'play') return;
-    if (state.isGameOver || forcedResult) return;
-    // Skip during the user's main Analyze run — that one uses higher
-    // depth + multi-PV; we'd just thrash the engine.
-    if (analyzing) return;
-    // Skip in review mode (eval bar is driven by the analysis archive).
-    if (reviewActive) return;
-    // Skip in inspect mode (viewer state, not real game state).
-    if (inspectPly !== null) return;
-
-    const token = ++liveEvalTokenRef.current;
-    let cancelled = false;
-    searchBestMove(state.fen, { depth: 10 })
-      .then((result) => {
-        if (cancelled) return;
-        if (token !== liveEvalTokenRef.current) return; // newer search already started
-        if (typeof result.mateIn === 'number') {
-          setLiveEval({ type: 'mate', mate: result.mateIn });
-        } else if (typeof result.scoreCp === 'number') {
-          setLiveEval({ type: 'cp', cp: result.scoreCp });
-        }
-      })
-      .catch(() => {
-        // Engine error — leave liveEval as last known good
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    state?.fen,
-    settings.showEvalBar,
-    currentTab,
-    analyzing,
-    reviewActive,
-    inspectPly,
-    state?.isGameOver,
-    forcedResult,
-  ]);
+  // (Live eval-bar search moved to useLiveEval — see the hook call
+  // near the top of this component.)
 
   // Cancel any active exploration when the user steps to a different
   // ply in review (or exits review entirely) — the exploration was
