@@ -23,10 +23,14 @@ describe('worker ↔ core parity', () => {
     assert.equal(worker.MAKRUK_START_FEN, MAKRUK_START_FEN);
   });
 
-  it('agrees on piece-letter → {role,color} for every letter', () => {
-    // Standard letters + the Fairy-Stockfish 'Q'/'q' alias for the Met
-    // (both implementations accept it) — must map identically.
-    const letters = ['K', 'M', 'Q', 'S', 'N', 'R', 'P', 'k', 'm', 'q', 's', 'n', 'r', 'p'];
+  it('agrees on piece-letter → {role,color} for every supported letter', () => {
+    // Standard letters + Fairy-Stockfish/chessground aliases:
+    // Q/q for Met and B/b for Khon. Both implementations must map
+    // those aliases identically.
+    const letters = [
+      'K', 'M', 'Q', 'S', 'B', 'N', 'R', 'P',
+      'k', 'm', 'q', 's', 'b', 'n', 'r', 'p',
+    ];
     for (const ch of letters) {
       assert.deepEqual(
         worker.letterToPiece(ch),
