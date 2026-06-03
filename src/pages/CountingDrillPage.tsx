@@ -42,7 +42,7 @@ export function CountingDrillPage({ levelId }: Props) {
     return (
       <main className="drill-page">
         <p className="drill-error">⚠ ไม่พบ level id นี้</p>
-        <button onClick={() => navigate({ tab: 'counting' })}>← กลับรายการ</button>
+        <BackButton to="counting">รายการ drill</BackButton>
       </main>
     );
   }

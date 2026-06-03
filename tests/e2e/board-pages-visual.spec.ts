@@ -171,7 +171,9 @@ for (const vp of VIEWPORTS) {
         await expect(page.locator('.study-view .board-layout')).toBeVisible({
           timeout: 15_000,
         });
-        const back = page.locator('.study-view .study-back').first();
+        // #24 — StudyPage detail back affordance unified onto the
+        // shared <BackButton> (was the page-local .study-back).
+        const back = page.locator('.study-view .back-button').first();
         const rightPanel = page.locator('.study-view .board-layout-right').first();
         const stepper = page.locator('.study-view .study-view-stepper').first();
         const board = page.locator('.study-view .cg-wrap').first();

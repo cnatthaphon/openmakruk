@@ -25,6 +25,7 @@ import type {
 } from '../lib/extraContentSchema';
 import { Board } from '../components/Board';
 import { BoardLayout } from '../components/BoardLayout';
+import { BackButton } from '../components/BackButton';
 import { navigate } from '../lib/router';
 import { MAKRUK_START_FEN, loadFfish } from '../lib/makruk';
 import { thaiUci } from '../lib/thaiUci';
@@ -181,9 +182,7 @@ function OpeningView({ opening, onClose }: { opening: Opening; onClose: () => vo
   const lastMoveUci = safePly > 0 ? opening.moves[safePly - 1] : null;
   return (
     <div className="study-view">
-      <button className="study-back" onClick={onClose}>
-        ← กลับ
-      </button>
+      <BackButton onClick={onClose}>รายการ</BackButton>
       <BoardLayout
         left={
           <>
@@ -319,7 +318,7 @@ function EndgameView({ endgame, onClose }: { endgame: EndgameStudy; onClose: () 
   return (
     <div className="study-view">
       <header className="study-view-header">
-        <button className="study-back" onClick={onClose}>← กลับ</button>
+        <BackButton onClick={onClose}>รายการ</BackButton>
         <h3>{endgame.title}</h3>
       </header>
       <BoardLayout
@@ -483,7 +482,7 @@ function MasterGameView({ game, onClose }: { game: MasterGame; onClose: () => vo
   return (
     <div className="study-view">
       <header className="study-view-header">
-        <button className="study-back" onClick={onClose}>← กลับ</button>
+        <BackButton onClick={onClose}>รายการ</BackButton>
         <h3>{game.title}</h3>
         <p className="study-view-desc">
           {game.whiteName} vs {game.blackName} · ผลลัพธ์ <strong>{game.result}</strong>
