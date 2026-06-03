@@ -28,6 +28,7 @@ import {
   recordDrillClear,
   type DrillLevel,
 } from '../lib/countingDrill';
+import { submitProgress, conceptsForDrill } from '../lib/journey';
 import { navigate } from '../lib/router';
 
 type Props = {
@@ -172,6 +173,15 @@ function DrillRunner({ level }: { level: DrillLevel }) {
         if (userWon) {
           setStatus('won');
           recordDrillClear(level.id, usedAfter);
+          // Feed the journey (issue #7). Stars from the same scoring the
+          // trainer shows; reducer keeps the best across attempts.
+          submitProgress({
+            kind: 'drill-passed',
+            drillId: level.id,
+            at: Date.now(),
+            stars: drillScore(usedAfter, level.countLimit).stars,
+            concepts: conceptsForDrill(level.id),
+          });
         } else {
           setStatus('failed');
         }

@@ -19,5 +19,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/core/__tests__", "src/lib/reviewPipeline/__tests__"]
+  "exclude": ["src/core/__tests__", "src/lib/reviewPipeline/__tests__", "src/lib/journey/__tests__"]
 }

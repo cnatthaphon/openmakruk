@@ -191,6 +191,18 @@ export type JourneyEvidence = {
    *  is extended later.
    */
   reviewContributionsByGameId?: Record<string, Partial<Record<Concept, MasteryScore>>>;
+  /** Monotonic per-concept score from lessons / puzzles / drills (the
+   *  "practice" component of mastery, as opposed to the replaceable
+   *  review component). Each first-time completion bumps the relevant
+   *  concepts; re-doing the same content does NOT compound (the reducer
+   *  gates bumps on the evidence id-sets). Kept separate from
+   *  `reviewContributionsByGameId` so the reducer can derive
+   *  `state.mastery` as a pure projection
+   *    mastery[c] = clamp01(practiceScore[c] + Σ reviewContributions[*][c])
+   *  rather than mutating mastery in place — which makes review replay
+   *  idempotent without a subtract-after-clamp hazard. Additive +
+   *  optional; no schema bump. */
+  practiceScore?: Partial<Record<Concept, MasteryScore>>;
   /** Latest known rating. The rating-changed input simply overwrites
    *  this; the reducer does no smoothing. */
   rating?: number;

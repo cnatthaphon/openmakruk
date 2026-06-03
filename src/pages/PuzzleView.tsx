@@ -30,6 +30,7 @@ import {
   recordPuzzleSolve,
   savePuzzleProgress,
 } from '../lib/puzzleProgress';
+import { submitProgress, conceptsForPuzzleCategory } from '../lib/journey';
 import {
   loadPuzzleRating,
   recordAttempt,
@@ -284,6 +285,16 @@ export function PuzzleView({ puzzle, onClose, onNext }: Props) {
         const usedHint = state.wrongStreak > 0 || showHint;
         const timeToSolveMs = Date.now() - startedAtRef.current;
         recordSolve(puzzle.id, totalAttempts, usedHint, timeToSolveMs, wrongMovesRef.current);
+        // Feed the journey (issue #7). optimal = first try, no hint;
+        // idempotent if this puzzle was already solved before.
+        submitProgress({
+          kind: 'puzzle-solved',
+          puzzleId: puzzle.id,
+          category: puzzle.category,
+          at: Date.now(),
+          optimal: totalAttempts === 1 && !usedHint,
+          concepts: conceptsForPuzzleCategory(puzzle.category),
+        });
         // Personal rating: first-try solve without hint = full credit;
         // anything else = half credit. Failure path goes through the
         // reveal-solution handler so we never double-count.
