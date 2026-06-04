@@ -28,9 +28,14 @@ export function registerEngine(d: EngineDescriptor): void {
   log('engineRegistry.register', { id: d.id, name: d.name });
 }
 
-/** List all registered engines for UI dropdowns. */
-export function listEngines(): Array<{ id: string; name: string }> {
-  return Array.from(descriptors.values()).map((d) => ({ id: d.id, name: d.name }));
+/** List all registered engines for UI dropdowns. `research` marks AI
+ *  Lab baselines so the selector can group them separately. */
+export function listEngines(): Array<{ id: string; name: string; research: boolean }> {
+  return Array.from(descriptors.values()).map((d) => ({
+    id: d.id,
+    name: d.name,
+    research: d.research ?? false,
+  }));
 }
 
 /** Id of the currently active engine, or null before any registration. */

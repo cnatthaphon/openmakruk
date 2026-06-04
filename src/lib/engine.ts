@@ -24,13 +24,17 @@ import {
 // Side-effect import: registers Fairy-Stockfish as the default engine.
 // Importing the module is what calls registerEngine() at its bottom.
 import './engines/fairyStockfish';
-// Random-bot and Greedy-bot baselines REMOVED — they masked real bugs
-// (e.g. review.ts grading a game with Random Bot returned "no
-// blunders" because random can't see threats; users defaulted to
-// random-bot after onboarding and never realised every game was a
-// nonsense shuffle). All "fallback" engines now go through
-// Fairy-Stockfish or the 7 personality bots — if something can't load
-// a real engine, surface the error instead of producing garbage.
+// Random-bot and Greedy-bot baselines were once removed from the main
+// dropdown because a garbage mover masked real bugs (e.g. review.ts
+// grading a Random Bot game as "no blunders", users unknowingly playing
+// nonsense shuffles after onboarding). They return — but ONLY as AI Lab
+// research baselines (issue #34): registered with `research: true` so
+// the selector files them under a labeled "🧪 AI Lab" group (never a
+// default, never the silent fallback), and analysis still force-routes
+// through Fairy-Stockfish so a baseline can't poison a review. They're
+// imported AFTER Fairy-Stockfish so the registry default stays correct.
+import './engines/randomBot';
+import './engines/minimaxBot';
 import './personalities/scoredBot';
 
 // ---- Re-exports (backward compat) -------------------------------------
