@@ -227,11 +227,23 @@ export function SettingsPage({ onSettingsChange }: Props) {
             value={settings.engineId}
             onChange={(e) => set('engineId', e.target.value)}
           >
-            {listEngines().map((e) => (
+            {/* Real play engines first; AI Lab research baselines are
+                grouped + labeled so a deliberately-weak engine never
+                looks like a serious option (issue #34). */}
+            {listEngines().filter((e) => !e.research).map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
               </option>
             ))}
+            {listEngines().some((e) => e.research) && (
+              <optgroup label="🧪 AI Lab · baseline ทดลอง (อ่อน)">
+                {listEngines().filter((e) => e.research).map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </SettingRow>
       </section>

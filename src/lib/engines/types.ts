@@ -161,4 +161,11 @@ export type EngineDescriptor = {
   id: string;
   name: string;
   factory: () => MakrukEngine;
+  /**
+   * AI Lab baseline (random / minimax / future MCTS / AlphaZero). The
+   * engine selector groups these under a labeled "🧪 AI Lab" section
+   * so a deliberately-weak research baseline never masquerades as a
+   * serious play engine. Omitted = a normal play engine.
+   */
+  research?: boolean;
 };
