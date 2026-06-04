@@ -71,6 +71,11 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
 
       const minimax = await reg.getEngineById('lab-minimax');
       const m = await minimax.search(startFen, { depth: 2 });
+      const blackDownMaterialFen = '1nsmksnr/8/pppppppp/8/8/PPPPPPPP/8/RNSKMSNR b - - 0 1';
+      const blackDown = await minimax.search(blackDownMaterialFen, {
+        depth: 1,
+        seed: 'eval-contract',
+      });
 
       return {
         legal,
@@ -80,6 +85,7 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
         otherSeedMove: c.bestMove,
         minimaxMove: m.bestMove,
         minimaxScoreIsNumber: typeof m.scoreCp === 'number',
+        blackDownScore: blackDown.scoreCp,
       };
     });
 
@@ -89,6 +95,9 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
     // Minimax played a legal move + reports an eval.
     expect(r.legal).toContain(r.minimaxMove);
     expect(r.minimaxScoreIsNumber).toBe(true);
+    // scoreCp contract: eval is from the side-to-move's POV. In this FEN
+    // black is missing a rook, so black-to-move should see a bad score.
+    expect(r.blackDownScore).toBeLessThan(0);
   });
 
   test('selector groups baselines under the 🧪 AI Lab optgroup only', async ({ page }) => {

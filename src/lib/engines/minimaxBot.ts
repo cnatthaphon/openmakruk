@@ -144,9 +144,10 @@ export class MinimaxEngine implements MakrukEngine {
           bestMove = mv;
         }
       }
-      const whiteToMove = fen.split(' ')[1] === 'w';
-      // Report eval from the side-to-move POV as white-POV centipawns.
-      const scoreCp = Math.round(whiteToMove ? bestVal : -bestVal);
+      // SearchResult.scoreCp is contractually from the side-to-move's POV.
+      // `bestVal` already has that perspective because root child scores are
+      // negated out of the opponent's POV.
+      const scoreCp = Math.round(bestVal);
       return { bestMove, scoreCp, depth };
     } finally {
       board.delete();
