@@ -11,7 +11,6 @@ import {
   type Square,
 } from './lib/makruk';
 import {
-  analyzeGame,
   CLASSIFICATION_COLORS,
   CLASSIFICATION_GLYPHS,
   CLASSIFICATION_LABELS,
@@ -153,8 +152,6 @@ import { letterToPiece, PIECE_VALUE } from './lib/chessAttacks';
 import { titleForRating } from './lib/titles';
 import { activeCosmetic } from './lib/cosmetics';
 import { VERSION, BUILD_SHA, buildTimeLabel, isBeta } from './lib/release';
-import { recordReviewSummary } from './lib/reviewMastery';
-import { pickReviewSourceGameId } from './lib/reviewPipeline/sourceGameId';
 import { submitProgress, seedJourneyFromStores } from './lib/journey';
 import { searchTopMoves } from './lib/engine';
 import { EvalBar } from './components/EvalBar';
@@ -166,6 +163,7 @@ import {
 } from './lib/clock';
 import { useClockController } from './features/play/useClockController';
 import { useLiveEval } from './features/play/useLiveEval';
+import { useReviewController } from './features/play/useReviewController';
 import { MultiPV } from './components/MultiPV';
 import type { EvalInfo } from './lib/evalParser';
 import { explain as coachExplain, type CoachOutput } from './lib/chessCoach';
@@ -295,35 +293,8 @@ export default function App() {
   // result is still reachable via a quieter "ดูผลเกม" pill in the
   // sidebar.
   const [gameOverDismissed, setGameOverDismissed] = useState(false);
-  const [reviewMoves, setReviewMoves] = useState<AnnotatedMove[]>([]);
-  const [reviewPly, setReviewPly] = useState(0); // 0 = initial position
-  const [reviewActive, setReviewActive] = useState(false);
-  // Canonical source-game id for the game being reviewed — threaded to
-  // the review→puzzle pipeline so promoted puzzles carry real
-  // provenance instead of a constant placeholder (PR #23 review).
-  const [reviewSourceGameId, setReviewSourceGameId] = useState<string>('');
-  const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewProgress, setReviewProgress] = useState<{ current: number; total: number } | null>(
-    null,
-  );
-
-  // Variation explorer (lichess-style "what if I had played differently?").
-  // When non-null, overrides the review-mode board FEN with a "what if"
-  // position derived from playing the engine's best move (or a chosen
-  // alternative). The exploration is a linear line — stepping forward
-  // appends moves, going back pops. UI exits via "กลับ" button.
-  const [exploreVariation, setExploreVariation] = useState<{
-    /** Ply being reviewed when exploration started — used to return cleanly. */
-    fromPly: number;
-    /** Starting FEN of the variation (= fenBefore of the move we're alt'ing). */
-    fenStart: string;
-    /** UCI moves played from fenStart in this exploration. */
-    line: string[];
-    /** Per-ply FENs (length = line.length + 1, fens[0] === fenStart). */
-    fens: string[];
-    /** Which step in the line is shown on the board (0 = fenStart). */
-    cursor: number;
-  } | null>(null);
+  // Review-mode + variation-explorer state, effects, and handlers live
+  // in useReviewController (wired below, after its inputs are ready).
 
   // Self-play pause / auto-stop. Engines at < skill 20 introduce small
   // randomness so 3-fold repetition doesn't reliably trigger; we add our
@@ -421,6 +392,35 @@ export default function App() {
     forcedResult,
     currentTab,
     onFlagFall: setForcedResult,
+  });
+
+  // Post-game review + variation explorer — state, effects, handlers
+  // live in useReviewController (issue #5). App keeps the view
+  // derivation (viewFen/viewLastMove/viewLegalMoves) reading the
+  // returned reviewActive / reviewPly / reviewMoves / exploreVariation.
+  const {
+    reviewMoves,
+    reviewPly,
+    setReviewPly,
+    reviewActive,
+    reviewSourceGameId,
+    reviewLoading,
+    reviewProgress,
+    exploreVariation,
+    reviewCurrent,
+    handleStartReview,
+    handleExitReview,
+    handleStartExploration,
+    handleExploreNext,
+    handleExplorePrev,
+    handleExitExploration,
+  } = useReviewController({
+    board,
+    history,
+    mode,
+    stats,
+    stateFen: state?.fen,
+    gameStartedAt: gameStartedAtRef.current,
   });
 
   // Eval-bar background search — state + effect live in useLiveEval
@@ -1254,35 +1254,7 @@ export default function App() {
   // (Live eval-bar search moved to useLiveEval — see the hook call
   // near the top of this component.)
 
-  // Cancel any active exploration when the user steps to a different
-  // ply in review (or exits review entirely) — the exploration was
-  // scoped to a specific ply's fenBefore and would be confusing if it
-  // persisted after the user moved on. Must live above the early
-  // returns to satisfy React's Rules of Hooks (always same order).
-  useEffect(() => {
-    if (!exploreVariation) return;
-    if (!reviewActive) { setExploreVariation(null); return; }
-    if (exploreVariation.fromPly !== reviewPly) setExploreVariation(null);
-  }, [reviewPly, reviewActive, exploreVariation]);
-
-  // Guard against losing in-flight analysis. The review walks every
-  // ply through Stockfish in the browser — depending on game length
-  // + NNUE state it can take 30s-2min. Closing the tab mid-run loses
-  // every annotation (the aggregated mastery summary only persists
-  // when analyzeGame resolves). Surface a confirmation prompt so the
-  // user doesn't lose work to an accidental Cmd-W.
-  useEffect(() => {
-    if (!reviewLoading) return;
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      // Modern browsers ignore the custom message and show their own
-      // "Leave site?" prompt; setting returnValue is still required
-      // to trigger that prompt at all.
-      e.returnValue = 'การวิเคราะห์ยังไม่เสร็จ — ปิดตอนนี้จะเริ่มใหม่หมด';
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [reviewLoading]);
+  // (Review/explore effects moved to useReviewController.)
 
   if (loadError) {
     return (
@@ -1620,77 +1592,7 @@ export default function App() {
     }
   };
 
-  const handleStartReview = async () => {
-    if (reviewLoading || reviewActive) return;
-    if (history.length === 0 || !board) return;
-    setReviewLoading(true);
-    setReviewProgress({ current: 0, total: history.length });
-    // Time estimate so the user knows what they're waiting for. ~250ms
-    // per ply on a modern laptop with NNUE off; double if no NNUE. We
-    // tell them about persistence + the in-flight risk up front so
-    // there's no nasty surprise if a tab gets killed mid-analysis.
-    const estimateSec = Math.max(5, Math.round(history.length * 0.25));
-    toast.info(
-      `🔍 กำลังวิเคราะห์ ${history.length} ตา (~${estimateSec} วินาที) · อย่าปิด tab จนกว่าจะเสร็จ · สรุป mastery จะบันทึกอัตโนมัติเมื่อจบ`,
-    );
-    log('review.start', { moves: history.length });
-    try {
-      const ffish = await loadFfish();
-      const reviewBoard = new ffish.Board('makruk');
-      try {
-        const annotated = await analyzeGame(reviewBoard, history, (current, total) => {
-          setReviewProgress({ current, total });
-        });
-        setReviewMoves(annotated);
-        setReviewPly(annotated.length);
-        setReviewActive(true);
-        log('review.ready', { moves: annotated.length, summary: summarize(annotated) });
-        // Persist a compact summary for the Profile mastery dashboard.
-        const userColorForMastery: 'white' | 'black' =
-          mode === 'play-white' ? 'white' :
-          mode === 'play-black' ? 'black' : 'white';
-        // Canonical source-game id for BOTH mastery + the review→puzzle
-        // pipeline. Trusts the recorded GameRecord.id only when the most
-        // recent recorded game is demonstrably THIS game; otherwise a
-        // stable per-current-game `live-<startedAt>` id. See
-        // pickReviewSourceGameId (PR #23 review).
-        const sourceGameId = pickReviewSourceGameId({
-          latestRecorded: stats.history[0],
-          moves: history,
-          finalFen: state.fen,
-          gameStartedAt: gameStartedAtRef.current,
-        });
-        const masteryState = recordReviewSummary(sourceGameId, userColorForMastery, annotated);
-        setReviewSourceGameId(sourceGameId);
-        // Feed the journey (issue #7): translate this game's motif
-        // totals into concept mastery. Idempotent — re-reviewing the
-        // same game replaces its contribution rather than adding it.
-        const summary = masteryState.summaries.find((s) => s.gameId === sourceGameId);
-        if (summary) {
-          submitProgress({
-            kind: 'review-summary',
-            gameId: sourceGameId,
-            at: Date.now(),
-            motifTotals: summary.motifs,
-          });
-        }
-      } finally {
-        reviewBoard.delete();
-      }
-    } catch (err) {
-      console.error('review failed:', err);
-      log('review.error', { error: String(err) });
-    } finally {
-      setReviewLoading(false);
-      setReviewProgress(null);
-    }
-  };
-
-  const handleExitReview = () => {
-    setReviewActive(false);
-    setReviewMoves([]);
-    setReviewPly(0);
-  };
+  // (handleStartReview / handleExitReview moved to useReviewController.)
 
   // Derived "view" state. When in review mode we override the board
   // FEN + lastMove with the snapshot at reviewPly; the real game state
@@ -1742,82 +1644,7 @@ export default function App() {
     // here matches the move-rejection guard in handleMove() below.
     forcedResult !== null ||
     (userSide !== 'both' && userSide !== state.turn);
-  const reviewCurrent = reviewActive && reviewPly > 0 ? reviewMoves[reviewPly - 1] : null;
-
-  /**
-   * Start exploring a variation from the currently-reviewed move. Plays
-   * the engine's recommended move on a throwaway ffish board to get the
-   * resulting FEN, then offers a stepper UI for following the engine's
-   * continuation (we fetch more PV moves as the user advances).
-   */
-  const handleStartExploration = async () => {
-    if (!reviewCurrent || exploreVariation) return;
-    try {
-      const ffish = await loadFfish();
-      const tmpBoard = new ffish.Board('makruk', reviewCurrent.fenBefore);
-      try {
-        const ok = tmpBoard.push(reviewCurrent.bestMove);
-        if (!ok) {
-          log('explore.startFailed', { reason: 'illegal-best-move', move: reviewCurrent.bestMove });
-          return;
-        }
-        const fenAfter = tmpBoard.fen();
-        setExploreVariation({
-          fromPly: reviewPly,
-          fenStart: reviewCurrent.fenBefore,
-          line: [reviewCurrent.bestMove],
-          fens: [reviewCurrent.fenBefore, fenAfter],
-          cursor: 1,
-        });
-        log('explore.start', { ply: reviewPly, line: reviewCurrent.bestMove });
-      } finally {
-        tmpBoard.delete();
-      }
-    } catch (err) {
-      log('explore.error', { error: String(err) });
-    }
-  };
-
-  /** Step the exploration cursor forward — if the line ends, ask the
-   *  engine for the next best move from the current position. */
-  const handleExploreNext = async () => {
-    if (!exploreVariation) return;
-    const ev = exploreVariation;
-    if (ev.cursor < ev.line.length) {
-      setExploreVariation({ ...ev, cursor: ev.cursor + 1 });
-      return;
-    }
-    // At the end of the known line — ask engine for next move.
-    try {
-      const result = await searchBestMove(ev.fens[ev.cursor], { depth: 12 });
-      if (!result.bestMove || result.bestMove === '(none)' || result.bestMove === '0000') return;
-      const ffish = await loadFfish();
-      const tmpBoard = new ffish.Board('makruk', ev.fens[ev.cursor]);
-      try {
-        tmpBoard.push(result.bestMove);
-        const nextFen = tmpBoard.fen();
-        setExploreVariation({
-          ...ev,
-          line: [...ev.line, result.bestMove],
-          fens: [...ev.fens, nextFen],
-          cursor: ev.cursor + 1,
-        });
-      } finally {
-        tmpBoard.delete();
-      }
-    } catch (err) {
-      log('explore.next.error', { error: String(err) });
-    }
-  };
-
-  const handleExplorePrev = () => {
-    if (!exploreVariation || exploreVariation.cursor === 0) return;
-    setExploreVariation({ ...exploreVariation, cursor: exploreVariation.cursor - 1 });
-  };
-
-  const handleExitExploration = () => {
-    setExploreVariation(null);
-  };
+  // (reviewCurrent + exploration handlers moved to useReviewController.)
 
   const handleModeChange = (newMode: Mode) => {
     if (pendingTimer.current !== null) {
