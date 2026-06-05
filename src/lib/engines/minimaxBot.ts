@@ -15,8 +15,7 @@
 
 import { loadFfish } from '../makruk';
 import { rngFromSeed } from '../seededRng';
-import { fenToPieceMap, letterToRole } from '../../core';
-import type { Role } from '../../core';
+import { staticEval } from './baselineEval';
 import { registerEngine } from './registry';
 import {
   DEFAULT_DIFFICULTY_PRESETS,
@@ -28,41 +27,6 @@ import {
 
 const DEFAULT_DEPTH = 2;
 const MATE = 100_000;
-
-/** Makruk piece values (centipawn-ish). Khon (bishop-like) is worth
- *  more than Met (the weak queen) in Makruk — mirrors scoredBot. */
-const VALUE: Record<Role, number> = {
-  king: 0,
-  met: 250,
-  khon: 350,
-  knight: 300,
-  rook: 500,
-  bia: 100,
-};
-
-const FILES = 'abcdefgh';
-/** Center-control nudge: closer to the central 4 squares = small bonus. */
-function centerBonus(square: string): number {
-  const f = FILES.indexOf(square[0]);
-  const r = Number(square[1]) - 1;
-  if (f < 0 || r < 0) return 0;
-  const df = Math.abs(f - 3.5);
-  const dr = Math.abs(r - 3.5);
-  return (7 - (df + dr)) * 3; // 0..~21
-}
-
-/** White-POV static evaluation of a FEN. */
-function staticEval(fen: string): number {
-  const pieces = fenToPieceMap(fen);
-  let score = 0;
-  for (const [sq, letter] of Object.entries(pieces)) {
-    const parsed = letterToRole(letter);
-    if (!parsed) continue;
-    const v = VALUE[parsed.role] + centerBonus(sq);
-    score += parsed.color === 'white' ? v : -v;
-  }
-  return score;
-}
 
 type FfishBoard = {
   legalMoves: () => string;

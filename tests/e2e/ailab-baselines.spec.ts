@@ -33,6 +33,7 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
       return {
         random: engines.find((e) => e.id === 'lab-random') ?? null,
         minimax: engines.find((e) => e.id === 'lab-minimax') ?? null,
+        mcts: engines.find((e) => e.id === 'lab-mcts') ?? null,
         fairy: engines.find((e) => e.id === 'fairy-stockfish') ?? null,
         defaultId: reg.getActiveEngineId?.() ?? null,
       };
@@ -40,6 +41,7 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
 
     expect(info.random).toMatchObject({ research: true });
     expect(info.minimax).toMatchObject({ research: true });
+    expect(info.mcts).toMatchObject({ research: true });
     expect(info.fairy).toMatchObject({ research: false });
     // Baselines must NOT have hijacked the default.
     expect(info.defaultId).toBe('fairy-stockfish');
@@ -77,6 +79,15 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
         seed: 'eval-contract',
       });
 
+      // MCTS: legal + seed/temp-0 reproducible + material sense. On a
+      // bare board white can take a hanging black rook for free
+      // (Ra1xa8); with a real budget the rollouts favour +rook.
+      const mcts = await reg.getEngineById('lab-mcts');
+      const mc1 = await mcts.search(startFen, { nodes: 200, seed: 'mcts-seed', temperature: 0 });
+      const mc2 = await mcts.search(startFen, { nodes: 200, seed: 'mcts-seed', temperature: 0 });
+      const freeRookFen = 'r6k/8/8/8/8/8/8/R6K w - - 0 1';
+      const grab = await mcts.search(freeRookFen, { nodes: 600, seed: 'grab', temperature: 0 });
+
       return {
         legal,
         randomMove: a.bestMove,
@@ -86,6 +97,9 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
         minimaxMove: m.bestMove,
         minimaxScoreIsNumber: typeof m.scoreCp === 'number',
         blackDownScore: blackDown.scoreCp,
+        mctsMove: mc1.bestMove,
+        mctsReproducible: mc1.bestMove === mc2.bestMove,
+        mctsGrab: grab.bestMove,
       };
     });
 
@@ -98,6 +112,11 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
     // scoreCp contract: eval is from the side-to-move's POV. In this FEN
     // black is missing a rook, so black-to-move should see a bad score.
     expect(r.blackDownScore).toBeLessThan(0);
+    // MCTS: legal move from the start, reproducible with a fixed seed +
+    // temperature 0, and it grabs the free rook (material sense > random).
+    expect(r.legal).toContain(r.mctsMove);
+    expect(r.mctsReproducible).toBe(true);
+    expect(r.mctsGrab).toBe('a1a8');
   });
 
   test('selector groups baselines under the 🧪 AI Lab optgroup only', async ({ page }) => {
@@ -109,7 +128,7 @@ test.describe('AI Lab baseline engines (issue #34)', () => {
     // / fairy-stockfish. Find the optgroup holding the Lab baselines.
     const labGroup = page.locator('optgroup[label*="AI Lab"]');
     await expect(labGroup).toHaveCount(1);
-    await expect(labGroup.locator('option')).toContainText(['Random', 'Minimax']);
+    await expect(labGroup.locator('option')).toContainText(['Random', 'Minimax', 'MCTS']);
 
     // The baselines must NOT appear as top-level (non-optgroup) options.
     const topLevelLabBaseline = page.locator(
