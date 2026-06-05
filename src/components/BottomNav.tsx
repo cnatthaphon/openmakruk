@@ -35,6 +35,7 @@ const OVERFLOW: Array<{ id: Tab; label: string; icon: string }> = [
   { id: 'stats',      label: 'สถิติรวม', icon: '📊' },
   { id: 'challenge',  label: 'ท้าดวล',   icon: '⚔️' },
   { id: 'exhibition', label: 'โชว์บอท',  icon: '🎬' },
+  { id: 'ailab',      label: 'AI Lab',   icon: '🧪' },
   { id: 'settings',   label: 'ตั้งค่า',   icon: '⚙️' },
   { id: 'about',      label: 'เกี่ยวกับ', icon: 'ℹ️' },
 ];

@@ -96,6 +96,9 @@ const PuzzleRushPage = lazy(lazyRetry(() =>
 const ExhibitionPage = lazy(lazyRetry(() =>
   import('./pages/ExhibitionPage').then((m) => ({ default: m.ExhibitionPage })),
 ));
+const AiLabPage = lazy(lazyRetry(() =>
+  import('./pages/AiLabPage').then((m) => ({ default: m.AiLabPage })),
+));
 const MoveTrainerPage = lazy(lazyRetry(() =>
   import('./pages/MoveTrainerPage').then((m) => ({ default: m.MoveTrainerPage })),
 ));
@@ -1960,6 +1963,9 @@ export default function App() {
       )}
       {currentTab === 'exhibition' && (
         <ErrorBoundary scope="exhibition"><ExhibitionPage gameId={route.id} /></ErrorBoundary>
+      )}
+      {currentTab === 'ailab' && (
+        <ErrorBoundary scope="ailab"><AiLabPage /></ErrorBoundary>
       )}
       {currentTab === 'movetrainer' && (
         <ErrorBoundary scope="movetrainer"><MoveTrainerPage openingId={route.id} /></ErrorBoundary>

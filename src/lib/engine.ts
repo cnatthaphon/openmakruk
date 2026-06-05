@@ -64,6 +64,7 @@ export {
   getActiveEngine,
   getActiveEngineSync,
   getActiveEngineId,
+  getEngineById,
   listEngines,
   setActiveEngine,
 } from './engines/registry';

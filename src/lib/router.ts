@@ -58,6 +58,8 @@ export const TAB_IDS = [
   'stats',
   // Async challenge — `/#/challenge` (create) or `/#/challenge/<code>` (accept).
   'challenge',
+  // 🧪 AI Lab — `/#/ailab`. Engine-vs-engine match arena.
+  'ailab',
 ] as const;
 
 export type Tab = (typeof TAB_IDS)[number];
@@ -82,6 +84,7 @@ export const CONTENT_TABS: ReadonlySet<Tab> = new Set<Tab>([
   'survive',
   'stats',
   'challenge',
+  'ailab',
 ]);
 
 export type Route = {
