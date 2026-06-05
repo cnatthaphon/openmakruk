@@ -35,6 +35,7 @@ import './engines/fairyStockfish';
 // imported AFTER Fairy-Stockfish so the registry default stays correct.
 import './engines/randomBot';
 import './engines/minimaxBot';
+import './engines/mctsBot';
 import './personalities/scoredBot';
 
 // ---- Re-exports (backward compat) -------------------------------------
