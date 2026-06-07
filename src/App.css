@@ -9477,3 +9477,56 @@ footer a:hover {
   .celebration-glyph { font-size: 3rem; }
   .celebration-title { font-size: 1.3rem; }
 }
+
+/* 🧪 AI Lab — engine-vs-engine arena (issue #38) */
+.ailab-header { margin-bottom: 16px; }
+.ailab-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.ailab-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.ailab-field select { min-width: min(180px, 100%); max-width: 100%; }
+.ailab-vs { align-self: center; opacity: 0.7; }
+.ailab-run {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+  font: inherit;
+}
+.ailab-run:disabled { opacity: 0.4; cursor: not-allowed; }
+.ailab-progress { font-size: 13px; opacity: 0.8; }
+.ailab-result { margin-top: 16px; }
+.ailab-scorebar {
+  position: relative;
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.ailab-scorebar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+  opacity: 0.55;
+}
+.ailab-scorebar-label {
+  position: relative;
+  display: block;
+  line-height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.ailab-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ailab-table th, .ailab-table td {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.ailab-table th:not(:first-child), .ailab-table td:not(:first-child) { text-align: center; }

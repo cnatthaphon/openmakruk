@@ -68,6 +68,7 @@ const NAV: NavEntry[] = [
       { tab: 'stats',     label: '📊 Stats สาธารณะ' },
       { tab: 'challenge', label: '⚔️ Async Challenge' },
       { tab: 'exhibition', label: '🎬 Bot Exhibition' },
+      { tab: 'ailab',     label: '🧪 AI Lab' },
       { tab: 'settings',  label: '⚙️ ตั้งค่า' },
       { tab: 'about',     label: 'ℹ️ เกี่ยวกับ' },
     ],
