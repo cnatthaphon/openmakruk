@@ -1,4 +1,3 @@
-import Module from 'ffish-es6';
 import type { FairyStockfish } from 'ffish-es6';
 
 // Issue #3 — pure rules / FEN / counting live in src/core/. This
@@ -20,13 +19,25 @@ let loading: Promise<FairyStockfish> | null = null;
 export function loadFfish(): Promise<FairyStockfish> {
   if (instance) return Promise.resolve(instance);
   if (loading) return loading;
-  loading = Module({
-    // Tell Emscripten to find ffish.wasm at the site root (we copy it to /public).
-    locateFile: (file) => (file.endsWith('.wasm') ? `/${file}` : file),
-  }).then((m) => {
-    instance = m;
-    return m;
-  });
+  // Dynamic import so the ~124KB Emscripten glue (ffish.js) is split
+  // into its own chunk fetched ONLY when a board/engine is first
+  // needed — not parsed on every page load. makruk.ts is imported
+  // app-wide (core re-exports), so a static `import Module` would drag
+  // ffish into the main bundle and slow first paint on non-board
+  // routes (about / profile / stats / lesson + puzzle indexes) that
+  // never touch the engine. The WASM binary was already lazy; this
+  // makes the JS glue lazy too.
+  loading = import('ffish-es6')
+    .then(({ default: Module }) =>
+      Module({
+        // Emscripten finds ffish.wasm at the site root (copied to /public).
+        locateFile: (file) => (file.endsWith('.wasm') ? `/${file}` : file),
+      }),
+    )
+    .then((m) => {
+      instance = m;
+      return m;
+    });
   return loading;
 }
 
