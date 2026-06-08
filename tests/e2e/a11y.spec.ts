@@ -102,6 +102,7 @@ test.describe('a11y · keyboard flow (issue #42)', () => {
     await skip.press('Enter');
     const focusedId = await page.evaluate(() => document.activeElement?.id ?? '');
     expect(focusedId).toBe('main-content');
+    expect(new URL(page.url()).hash).toBe('#/play');
   });
 
   test('bottom-nav sheet: Escape closes and focus returns to the trigger', async ({ page }) => {

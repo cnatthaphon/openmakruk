@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import type { Board as FfishBoard } from 'ffish-es6';
 import { Board } from './components/Board';
 import {
@@ -383,6 +383,11 @@ export default function App() {
   const setCurrentTab = (t: Tab) => navigate({ tab: t });
   const [loadError, setLoadError] = useState<string | null>(null);
   const pendingTimer = useRef<number | null>(null);
+
+  const handleSkipToContent = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    document.getElementById('main-content')?.focus();
+  };
 
   // Chess clock — state + tick/start/flag-fall/increment effects live in
   // the controller hook (issue #5). App keeps setClock for the reset /
@@ -1759,7 +1764,7 @@ export default function App() {
       {/* Skip-to-content (WCAG 2.4.1). Visually hidden until focused;
           jumps keyboard / screen-reader users past the header nav
           straight to the page content on every navigation. */}
-      <a className="skip-link" href="#main-content">ข้ามไปยังเนื้อหา</a>
+      <a className="skip-link" href="#main-content" onClick={handleSkipToContent}>ข้ามไปยังเนื้อหา</a>
       <header className="app-header">
         <div className="app-header-brand">
           <h1>OpenMakruk</h1>
