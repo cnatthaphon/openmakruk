@@ -367,3 +367,40 @@ test.describe('launch-readiness · about page completeness', () => {
     await expect(page.locator('body')).toContainText(/Strava|Wordle/);
   });
 });
+
+test.describe('launch-readiness · SEO structured data (issue #44)', () => {
+  test('JSON-LD @graph is present, valid, and describes the right entities', async ({ page }) => {
+    await page.goto('/');
+
+    // Exactly one JSON-LD block in the document head.
+    const block = page.locator('script[type="application/ld+json"]');
+    await expect(block).toHaveCount(1);
+
+    // It must parse as valid JSON.
+    const raw = await block.textContent();
+    expect(raw, 'JSON-LD block has content').toBeTruthy();
+    const data = JSON.parse(raw as string);
+
+    expect(data['@context']).toBe('https://schema.org');
+    expect(Array.isArray(data['@graph'])).toBe(true);
+
+    // Flatten every node's @type (some are multi-type arrays) so we can
+    // assert the entity graph crawlers will see.
+    const types = (data['@graph'] as Array<{ '@type': string | string[] }>).flatMap((n) =>
+      Array.isArray(n['@type']) ? n['@type'] : [n['@type']],
+    );
+    expect(types).toContain('WebSite');
+    expect(types).toContain('Organization');
+    expect(types).toContain('VideoGame');
+    expect(types).toContain('SoftwareApplication');
+
+    // The app node advertises a free offer — the key "is this free?"
+    // signal for a rich result.
+    const app = (data['@graph'] as Array<Record<string, unknown>>).find(
+      (n) => n['@id'] === 'https://openmakruk.com/#app',
+    );
+    expect(app, 'app node present').toBeTruthy();
+    expect(app?.isAccessibleForFree).toBe(true);
+    expect((app?.offers as { price?: string })?.price).toBe('0');
+  });
+});

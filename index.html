@@ -48,6 +48,63 @@
     <!-- Canonical so search engines collapse `/#/<anything>` variants. -->
     <link rel="canonical" href="https://openmakruk.com" />
 
+    <!-- Structured data (schema.org / JSON-LD). Gives crawlers a
+         machine-readable entity graph: OpenMakruk is a free, browser-
+         based Thai-chess (Makruk) game + training platform. Eligible
+         for rich results.
+
+         CSP note: `type="application/ld+json"` is a NON-executable data
+         block, so the strict `script-src 'self'` policy (no
+         'unsafe-inline') does not apply to it — unlike the executable
+         inline scripts deliberately moved to src/main.tsx. Values are
+         kept consistent with the OpenGraph tags + manifest above. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://openmakruk.com/#website",
+          "url": "https://openmakruk.com",
+          "name": "OpenMakruk",
+          "description": "แพลตฟอร์มหมากรุกไทย single-player — เล่นกับ bot ที่ฉลาด ฝึกจากทุกตาเดิน และท้าเพื่อนผ่าน challenge เดียวกัน",
+          "inLanguage": ["th", "en"],
+          "publisher": { "@id": "https://openmakruk.com/#org" }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://openmakruk.com/#org",
+          "name": "OpenMakruk",
+          "url": "https://openmakruk.com",
+          "logo": "https://openmakruk.com/icon.svg"
+        },
+        {
+          "@type": ["VideoGame", "SoftwareApplication"],
+          "@id": "https://openmakruk.com/#app",
+          "name": "OpenMakruk — Thai Chess (Makruk) training platform",
+          "url": "https://openmakruk.com",
+          "description": "เล่น ฝึก และวิเคราะห์หมากรุกไทยบน browser — bot 22 ตัว, counting, pattern, survive, ปริศนา และบทเรียน. เปิด source, ฟรี, ไม่ต้องสมัคร, เล่นออฟไลน์ได้.",
+          "image": "https://openmakruk.com/og.png",
+          "applicationCategory": "GameApplication",
+          "genre": ["Board game", "Strategy", "Chess variant"],
+          "gamePlatform": "Web browser",
+          "operatingSystem": "Web",
+          "browserRequirements": "Requires JavaScript and WebAssembly",
+          "inLanguage": ["th", "en"],
+          "isAccessibleForFree": true,
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "THB",
+            "availability": "https://schema.org/InStock"
+          },
+          "author": { "@id": "https://openmakruk.com/#org" },
+          "publisher": { "@id": "https://openmakruk.com/#org" }
+        }
+      ]
+    }
+    </script>
+
     <title>OpenMakruk · หมากรุกไทย</title>
   </head>
   <body>
