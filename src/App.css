@@ -93,6 +93,55 @@ body {
   gap: 16px;
 }
 
+/* Skip-to-content link (WCAG 2.4.1). Off-screen until it receives
+   keyboard focus, then it slides into the top-left as a visible
+   button. Mouse users never see it; keyboard / SR users get a
+   one-Tab bypass of the header nav on every page. */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--accent, #2b6cb0);
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-150%);
+  opacity: 0;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+  opacity: 1;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* The skip-link target should not show a focus ring when reached
+   programmatically (it's a layout anchor, not an interactive control). */
+.app-main:focus {
+  outline: none;
+}
+
+/* Respect the OS "reduce motion" setting (WCAG 2.3.3). Collapse all
+   non-essential animation/transition to near-instant so vestibular-
+   sensitive users aren't subjected to the celebration overlay, spinners,
+   and sliding panels. Kept app-wide so new animated components inherit
+   it for free. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 header {
   text-align: center;
 }
