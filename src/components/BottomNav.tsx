@@ -8,7 +8,7 @@
 // The desktop experience is unchanged — the bottom nav is hidden
 // via the same media query.
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { navigate, type Tab } from '../lib/router';
 
 type Props = {
@@ -42,6 +42,31 @@ const OVERFLOW: Array<{ id: Tab; label: string; icon: string }> = [
 
 export function BottomNav({ currentTab }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Keyboard a11y for the overflow menu: remember the trigger so focus
+  // returns there on close, and move focus into the sheet on open.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const firstItemRef = useRef<HTMLButtonElement | null>(null);
+
+  // Escape closes the sheet (standard menu behavior).
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSheetOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sheetOpen]);
+
+  // Move focus into the sheet when it opens; restore it to the trigger
+  // when it closes so keyboard users aren't dumped at the top of the
+  // page. The `wasOpen` guard skips the initial mount (sheetOpen=false)
+  // so we don't steal focus to the trigger on first paint.
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (sheetOpen) firstItemRef.current?.focus();
+    else if (wasOpen.current) triggerRef.current?.focus();
+    wasOpen.current = sheetOpen;
+  }, [sheetOpen]);
 
   const go = (id: Tab) => {
     navigate({ tab: id });
@@ -67,6 +92,7 @@ export function BottomNav({ currentTab }: Props) {
           </button>
         ))}
         <button
+          ref={triggerRef}
           className={`bottom-nav-tab ${overflowActive || sheetOpen ? 'is-active' : ''}`}
           onClick={() => setSheetOpen((o) => !o)}
           aria-expanded={sheetOpen}
@@ -84,12 +110,14 @@ export function BottomNav({ currentTab }: Props) {
             onClick={() => setSheetOpen(false)}
             aria-hidden="true"
           />
-          <div className="bottom-nav-sheet" role="menu">
-            {OVERFLOW.map((t) => (
+          <div className="bottom-nav-sheet" role="menu" aria-label="More navigation">
+            {OVERFLOW.map((t, i) => (
               <button
                 key={t.id}
+                ref={i === 0 ? firstItemRef : undefined}
                 role="menuitem"
                 className={`bottom-nav-sheet-item ${currentTab === t.id ? 'is-active' : ''}`}
+                aria-current={currentTab === t.id ? 'page' : undefined}
                 onClick={() => go(t.id)}
               >
                 <span className="bottom-nav-sheet-icon">{t.icon}</span>

@@ -1756,6 +1756,10 @@ export default function App() {
 
   return (
     <div className={`app ${state.isCheck && currentTab === 'play' ? 'is-check' : ''}`}>
+      {/* Skip-to-content (WCAG 2.4.1). Visually hidden until focused;
+          jumps keyboard / screen-reader users past the header nav
+          straight to the page content on every navigation. */}
+      <a className="skip-link" href="#main-content">ข้ามไปยังเนื้อหา</a>
       <header className="app-header">
         <div className="app-header-brand">
           <h1>OpenMakruk</h1>
@@ -1846,6 +1850,10 @@ export default function App() {
       </header>
       <ActivityTicker />
 
+      {/* Skip-link target + focus anchor. tabIndex=-1 lets the link
+          move focus here without making it a tab stop. Wraps every
+          tab's content (Suspense block + the play stack below). */}
+      <div id="main-content" tabIndex={-1} className="app-main">
       <Suspense
         fallback={
           <div className="page-loading" role="status" aria-live="polite">
@@ -2757,6 +2765,7 @@ export default function App() {
       </div>{/* end of .play-stack */}
       </ErrorBoundary>
       )}
+      </div>{/* end of #main-content */}
       {/* Footer kept minimal — version + a single source link. The
           old "v0.1 · Fairy-Stockfish · hint · review · NNUE-ready"
           jargon string was dev-signature spillage on every page;

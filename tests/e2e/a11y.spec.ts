@@ -23,6 +23,14 @@ const SURFACES = [
   { hash: 'about', label: 'About' },
   { hash: 'stats', label: 'Stats' },
   { hash: 'puzzles', label: 'Puzzles' },
+  // Issue #42 — surfaces that were missing from the scan, so a
+  // serious/critical regression on them now gets caught too.
+  { hash: 'ailab', label: 'AI Lab' },
+  { hash: 'learn', label: 'Learn' },
+  { hash: 'library', label: 'Library' },
+  { hash: 'custom', label: 'Custom' },
+  { hash: 'challenge', label: 'Challenge' },
+  { hash: 'exhibition', label: 'Exhibition' },
 ];
 
 test.describe('a11y · axe-core scan', () => {
@@ -70,4 +78,48 @@ test.describe('a11y · axe-core scan', () => {
       expect(serious, `serious/critical violations on ${s.label}`).toEqual([]);
     });
   }
+});
+
+test.describe('a11y · keyboard flow (issue #42)', () => {
+  test.beforeEach(async ({ page }) => {
+    await pinTestApiBase(page);
+    await page.goto('/');
+    await clearAppState(page);
+  });
+
+  test('skip-link is the first tab stop and moves focus to content', async ({ page }) => {
+    await page.goto('/#/play');
+    await page.waitForTimeout(800);
+
+    // The skip link is visually hidden until focused. One Tab from the
+    // top of the document should land on it.
+    await page.keyboard.press('Tab');
+    const skip = page.locator('.skip-link');
+    await expect(skip).toBeFocused();
+
+    // Activating it moves focus to the main-content anchor, bypassing
+    // the whole header nav.
+    await skip.press('Enter');
+    const focusedId = await page.evaluate(() => document.activeElement?.id ?? '');
+    expect(focusedId).toBe('main-content');
+  });
+
+  test('bottom-nav sheet: Escape closes and focus returns to the trigger', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/#/play');
+    await page.waitForTimeout(800);
+
+    const trigger = page.locator('.bottom-nav button', { hasText: 'เพิ่มเติม' });
+    await trigger.click();
+
+    const sheet = page.locator('.bottom-nav-sheet');
+    await expect(sheet).toBeVisible();
+    // Focus moved into the sheet (first item).
+    await expect(page.locator('.bottom-nav-sheet-item').first()).toBeFocused();
+
+    // Escape closes it and restores focus to the trigger.
+    await page.keyboard.press('Escape');
+    await expect(sheet).toHaveCount(0);
+    await expect(trigger).toBeFocused();
+  });
 });
