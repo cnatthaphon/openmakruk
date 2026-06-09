@@ -6,6 +6,7 @@ import { ToastProvider } from './components/Toast';
 import { hydrateDurableStores } from './lib/stores';
 import { setBackend } from './lib/backend';
 import { cloudflareBackend } from './lib/backend/cloudflareBackend';
+import { installGlobalErrorHandlers } from './lib/errorReporter';
 import './App.css';
 
 // Service worker registration. Previously lived as an inline <script>
@@ -40,6 +41,12 @@ registerServiceWorker();
 // NoOpBackend stays as the test default and as the fallback when the
 // adapter is explicitly disabled.
 setBackend(cloudflareBackend);
+
+// Install window-level crash handlers (uncaught errors + unhandled
+// rejections) once the backend is active so anonymous crash reports
+// have somewhere to go. Render crashes are reported separately by
+// ErrorBoundary. See src/lib/errorReporter.ts for the privacy model.
+installGlobalErrorHandlers();
 
 // Hydrate durable (IndexedDB-backed) stores BEFORE React mounts so
 // every component's first render sees real data, not the default()

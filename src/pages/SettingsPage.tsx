@@ -41,6 +41,7 @@ import {
   saveCosmeticSelection,
 } from '../lib/cosmetics';
 import { FeedbackForm } from '../components/FeedbackForm';
+import { errorReportingEnabled } from '../lib/flags';
 
 type Props = {
   onSettingsChange?: (s: Settings) => void;
@@ -65,6 +66,10 @@ const SUBTAB_LABELS: Record<SettingsSubTab, string> = {
 
 export function SettingsPage({ onSettingsChange }: Props) {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
+  // Crash reporting lives in flags.ts (localStorage), not the Settings
+  // store — mirrors how loggingEnabled is handled. Local mirror so the
+  // toggle re-renders on change.
+  const [crashReports, setCrashReports] = useState<boolean>(() => errorReportingEnabled.read());
   const [subTab, setSubTab] = useState<SettingsSubTab>(() => {
     // If the URL fragment lands on #feedback, open the tab that has
     // the form so the deep link works (AboutPage → Settings → feedback).
@@ -277,6 +282,19 @@ export function SettingsPage({ onSettingsChange }: Props) {
           <Toggle
             checked={settings.confirmActions}
             onChange={(v) => set('confirmActions', v)}
+          />
+        </SettingRow>
+
+        <SettingRow
+          label="ส่ง crash report"
+          hint="แบบไม่ระบุตัวตน · ช่วยให้เรารู้ว่ามีบั๊ก · ไม่มี IP / token / ข้อมูลส่วนตัว"
+        >
+          <Toggle
+            checked={crashReports}
+            onChange={(v) => {
+              errorReportingEnabled.set(v);
+              setCrashReports(v);
+            }}
           />
         </SettingRow>
       </section>
