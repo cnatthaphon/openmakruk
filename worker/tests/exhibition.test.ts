@@ -47,7 +47,12 @@ describe('POST /api/exhibition/submit idempotency (issue #48)', () => {
 
     const r1 = await submit(payload);
     expect(r1.status).toBe(200);
-    const b1 = (await r1.json()) as { ok: boolean; id: string; createdAt: number; deduped: boolean };
+    const b1 = (await r1.json()) as {
+      ok: boolean;
+      id: string;
+      createdAt: number;
+      deduped: boolean;
+    };
     expect(b1.ok).toBe(true);
     expect(b1.id).toBe(clientGameId);
     expect(b1.deduped).toBe(false);
@@ -69,19 +74,21 @@ describe('POST /api/exhibition/submit idempotency (issue #48)', () => {
 
   test('rejects a present-but-malformed clientGameId (no silent fallback)', async () => {
     const [white, black] = await twoBotIds();
-    const res = await submit({
-      clientGameId: 'not a valid id!!', // spaces + punctuation fail the regex
-      whiteBotId: white,
-      blackBotId: black,
-      outcome: 'draw',
-      plyCount: 2,
-      moves: ['c2c3', 'c7c6'],
-      finalFen: FEN,
-    });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string; reason: string };
-    expect(body.error).toBe('bad_request');
-    expect(body.reason).toBe('clientGameId_invalid');
+    for (const clientGameId of ['not a valid id!!', 123, false]) {
+      const res = await submit({
+        clientGameId,
+        whiteBotId: white,
+        blackBotId: black,
+        outcome: 'draw',
+        plyCount: 2,
+        moves: ['c2c3', 'c7c6'],
+        finalFen: FEN,
+      });
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as { error: string; reason: string };
+      expect(body.error).toBe('bad_request');
+      expect(body.reason).toBe('clientGameId_invalid');
+    }
   });
 
   test('works without clientGameId (back-compat)', async () => {

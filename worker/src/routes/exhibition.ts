@@ -97,9 +97,7 @@ exhibitionRoute.get('/:id', async (c) => {
     LEFT JOIN users bu ON bu.id = g.black_bot_id
     WHERE g.id = ?
   `;
-  const row = await c.env.DB.prepare(sql)
-    .bind(id)
-    .first<ExhibitionRow & { moves_json: string }>();
+  const row = await c.env.DB.prepare(sql).bind(id).first<ExhibitionRow & { moves_json: string }>();
   if (!row) return c.json({ error: 'not_found' }, 404);
   let moves: string[] = [];
   try {
@@ -171,7 +169,7 @@ exhibitionRoute.post('/submit', async (c) => {
      *  double-inserting — a re-submit with the same id is a no-op. */
     clientGameId?: string;
   };
-  const body = await c.req.json<SubmitBody>().catch(() => ({} as SubmitBody));
+  const body = await c.req.json<SubmitBody>().catch(() => ({}) as SubmitBody);
 
   if (typeof body.whiteBotId !== 'string' || typeof body.blackBotId !== 'string') {
     return c.json({ error: 'bad_request', reason: 'missing_bot_ids' }, 400);
@@ -196,17 +194,19 @@ exhibitionRoute.post('/submit', async (c) => {
   // Mirror the games route's idempotency-key contract: when present it
   // must be valid (a malformed key must NOT silently fall back to a fresh
   // id, or a retry with the same bad key would duplicate). Absent is fine.
-  if (body.clientGameId !== undefined && !CLIENT_GAME_ID_RE.test(body.clientGameId ?? '')) {
-    return c.json({ error: 'bad_request', reason: 'clientGameId_invalid' }, 400);
+  if (body.clientGameId !== undefined) {
+    if (typeof body.clientGameId !== 'string' || !CLIENT_GAME_ID_RE.test(body.clientGameId)) {
+      return c.json({ error: 'bad_request', reason: 'clientGameId_invalid' }, 400);
+    }
   }
 
   // Verify both bot ids exist + are bots. Cheap: 2 indexed lookups.
-  const whiteBot = await c.env.DB.prepare(
-    'SELECT id FROM users WHERE id = ? AND is_bot = 1',
-  ).bind(body.whiteBotId).first();
-  const blackBot = await c.env.DB.prepare(
-    'SELECT id FROM users WHERE id = ? AND is_bot = 1',
-  ).bind(body.blackBotId).first();
+  const whiteBot = await c.env.DB.prepare('SELECT id FROM users WHERE id = ? AND is_bot = 1')
+    .bind(body.whiteBotId)
+    .first();
+  const blackBot = await c.env.DB.prepare('SELECT id FROM users WHERE id = ? AND is_bot = 1')
+    .bind(body.blackBotId)
+    .first();
   if (!whiteBot || !blackBot) {
     return c.json({ error: 'bad_request', reason: 'unknown_bot' }, 400);
   }
@@ -237,9 +237,7 @@ exhibitionRoute.post('/submit', async (c) => {
 
   // changes === 0 → the row already existed (idempotent re-submit).
   const deduped = (insert.meta?.changes ?? 0) === 0;
-  const stored = await c.env.DB.prepare(
-    'SELECT created_at FROM bot_exhibition_games WHERE id = ?',
-  )
+  const stored = await c.env.DB.prepare('SELECT created_at FROM bot_exhibition_games WHERE id = ?')
     .bind(id)
     .first<{ created_at: number }>();
 
