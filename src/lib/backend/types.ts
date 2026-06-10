@@ -507,6 +507,19 @@ export type BackendAdapter = {
     token?: string,
   ): Promise<{ ok: boolean; id: string; receivedAt: number }>;
 
+  /** Report a client-side crash. Fire-and-forget; the caller never
+   *  awaits this on a hot path. Sent anonymously (no token) — crash
+   *  telemetry carries no identity. NoOpBackend omits it (no-op). */
+  reportError?(body: {
+    scope?: string;
+    message: string;
+    stack?: string;
+    componentStack?: string;
+    buildSha?: string;
+    locale?: string;
+    urlPath?: string;
+  }): Promise<void>;
+
   // ----- Puzzle catalog ---------------------------------------------
 
   /** Server puzzle list. When `source` omitted, defaults to 'curated'

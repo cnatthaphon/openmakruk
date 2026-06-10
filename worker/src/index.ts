@@ -36,6 +36,7 @@ import { exhibitionRoute } from './routes/exhibition';
 import { seasonsRoute } from './routes/seasons';
 import { statsRoute } from './routes/stats';
 import { feedbackRoute } from './routes/feedback';
+import { errorsRoute } from './routes/errors';
 import { runIdleCleanup } from './cleanup';
 import { runSeasonRolloverIfDue } from './seasons';
 
@@ -99,6 +100,7 @@ app.route('/api/exhibition', exhibitionRoute);
 app.route('/api/seasons', seasonsRoute);
 app.route('/api/stats', statsRoute);
 app.route('/api/feedback', feedbackRoute);
+app.route('/api/errors', errorsRoute);
 
 /** DB readiness — separate from /health because hitting D1 costs a
  *  read and we don't want every monitoring probe to drive that bill. */

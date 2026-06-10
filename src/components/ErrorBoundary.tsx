@@ -19,6 +19,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { t } from '../lib/i18n';
 import { log } from '../lib/log';
+import { reportError } from '../lib/errorReporter';
 
 type Props = {
   children: ReactNode;
@@ -41,11 +42,20 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
+    const scope = this.props.scope ?? 'app';
     log('error.boundary_caught', {
-      scope: this.props.scope ?? 'app',
+      scope,
       message: error.message,
       stack: error.stack?.split('\n').slice(0, 5).join('\n'),
       componentStack: info.componentStack?.split('\n').slice(0, 6).join('\n'),
+    });
+    // Best-effort anonymous crash report (deduped + capped + opt-out
+    // inside reportError; never throws).
+    reportError({
+      scope,
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack ?? undefined,
     });
   }
 

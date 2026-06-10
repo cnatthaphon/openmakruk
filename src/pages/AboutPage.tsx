@@ -296,6 +296,21 @@ export function AboutPage() {
             ที่คุณเลือกเอง
           </li>
         </ul>
+
+        <h4>🐞 Crash report (อัตโนมัติ · ปิดได้)</h4>
+        <ul className="about-bullets">
+          <li>
+            เมื่อแอป crash เราส่ง report <strong>แบบไม่ระบุตัวตน</strong> ไปที่
+            server ของเราเองเพื่อให้รู้ว่ามีบั๊ก: ข้อความ error · stack
+            (ตัดสั้น) · build · locale · <strong>ชื่อหน้า</strong> ที่ crash
+            (เช่น <code>/play</code> — ไม่รวม id หรือ query)
+          </li>
+          <li>
+            <strong>ไม่มี token · ไม่มี IP · ไม่มี user-agent</strong> — แยก
+            จากบัญชีคุณโดยสิ้นเชิง. ปิดได้ที่ Settings →
+            "ส่ง crash report"
+          </li>
+        </ul>
       </section>
 
       <section className="about-section">

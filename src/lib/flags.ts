@@ -39,3 +39,30 @@ export const loggingEnabled = {
     }
   },
 };
+
+/**
+ * `false` here = anonymous crash reports are NOT sent to the API worker.
+ * Defaults to enabled so we actually see post-launch failures; reports
+ * carry no PII (no IP, no user-agent — see worker migration 0010) and
+ * are disclosed in About → Privacy. Users opt out via the Settings
+ * diagnostics toggle (or `localStorage.openmakruk_errors = 'off'`).
+ */
+export const errorReportingEnabled = {
+  read(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem('openmakruk_errors') !== 'off';
+    } catch {
+      return true;
+    }
+  },
+  set(on: boolean): void {
+    if (typeof window === 'undefined') return;
+    try {
+      if (on) window.localStorage.removeItem('openmakruk_errors');
+      else window.localStorage.setItem('openmakruk_errors', 'off');
+    } catch {
+      // ignore
+    }
+  },
+};

@@ -5,6 +5,11 @@
 // "did we parse JSON before assertion". The helpers below encode the
 // repeated shape once and let tests read like specs.
 
+import { spawn } from 'node:child_process';
+import { resolve } from 'node:path';
+
+const WORKER_DIR = resolve(__dirname, '..');
+
 export function baseUrl(): string {
   const u = process.env.WORKER_BASE_URL;
   if (!u) throw new Error('WORKER_BASE_URL not set — global setup did not run');
@@ -27,6 +32,52 @@ export async function createAnonUser(displayName?: string): Promise<AnonUser> {
   });
   if (!res.ok) throw new Error(`createAnonUser failed: ${res.status}`);
   return (await res.json()) as AnonUser;
+}
+
+export async function queryLocalD1<T extends Record<string, unknown>>(sql: string): Promise<T[]> {
+  const out = await runWranglerOutput([
+    'd1',
+    'execute',
+    'openmakruk-db',
+    '--local',
+    '--command',
+    sql,
+  ]);
+  const start = out.lastIndexOf('\n[');
+  const json = start >= 0 ? out.slice(start + 1) : out.slice(out.indexOf('['));
+  const parsed = JSON.parse(json) as Array<{ results?: T[]; success: boolean }>;
+  return parsed[0]?.results ?? [];
+}
+
+function runWranglerOutput(args: string[]): Promise<string> {
+  return new Promise((resolveP, rejectP) => {
+    const child = spawn(
+      'node',
+      [resolve(WORKER_DIR, 'node_modules/wrangler/bin/wrangler.js'), ...args],
+      {
+        cwd: WORKER_DIR,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
+      },
+    );
+    const out: string[] = [];
+    const err: string[] = [];
+    child.stdout.on('data', (b: Buffer) => out.push(b.toString()));
+    child.stderr.on('data', (b: Buffer) => err.push(b.toString()));
+    child.on('close', (code) => {
+      const stdout = out.join('');
+      if (code === 0) {
+        resolveP(stdout);
+        return;
+      }
+      rejectP(new Error(`wrangler ${args.join(' ')} failed: ${err.join('')}${stdout}`));
+    });
+    child.on('error', (e) => rejectP(e));
+  });
+}
+
+export function sqlString(s: string): string {
+  return `'${s.replace(/'/g, "''")}'`;
 }
 
 export async function recordGame(
@@ -189,9 +240,7 @@ export function verifiedGameFor(outcome: 'win' | 'loss' | 'draw'): {
       userSide: 'white',
     };
   }
-  const userSide = outcome === 'win'
-    ? (MATE.loser === 'white' ? 'black' : 'white')
-    : MATE.loser;
+  const userSide = outcome === 'win' ? (MATE.loser === 'white' ? 'black' : 'white') : MATE.loser;
   return {
     moves: MATE.moves,
     finalFen: MATE.finalFen,

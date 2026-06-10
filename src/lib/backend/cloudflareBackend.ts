@@ -369,6 +369,29 @@ export class CloudflareBackend implements BackendAdapter {
     return (await res.json()) as { ok: boolean; id: string; receivedAt: number };
   }
 
+  async reportError(body: {
+    scope?: string;
+    message: string;
+    stack?: string;
+    componentStack?: string;
+    buildSha?: string;
+    locale?: string;
+    urlPath?: string;
+  }): Promise<void> {
+    // Anonymous + best-effort: never attach a token, never throw. A
+    // failed crash report must not itself surface as an error (which
+    // could loop back through the global handler). Swallow everything.
+    try {
+      await this.request('/api/errors', {
+        method: 'POST',
+        body: JSON.stringify(body),
+        allow401: true,
+      });
+    } catch {
+      // ignore — telemetry is best-effort
+    }
+  }
+
   async fetchExhibitionRecent(): Promise<ExhibitionSummary[]> {
     const res = await this.request('/api/exhibition/recent');
     const body = (await res.json()) as { games: ExhibitionSummary[] };
