@@ -22,6 +22,11 @@ import { newId } from '../auth';
 
 export const exhibitionRoute = new Hono<{ Bindings: Env }>();
 
+// Idempotency-key shape — same contract as the games route
+// (CLIENT_GAME_ID_RE there). Any 1–64 char [A-Za-z0-9_-] string; the
+// runner sends a UUID, which is a subset.
+const CLIENT_GAME_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
 type ExhibitionRow = {
   id: string;
   white_bot_id: string;
@@ -161,6 +166,10 @@ exhibitionRoute.post('/submit', async (c) => {
     plyCount?: number;
     moves?: unknown;
     finalFen?: string;
+    /** Optional caller-supplied idempotency key (UUID). Lets the runner
+     *  safely retry after a D1 "storage timeout after commit" without
+     *  double-inserting — a re-submit with the same id is a no-op. */
+    clientGameId?: string;
   };
   const body = await c.req.json<SubmitBody>().catch(() => ({} as SubmitBody));
 
@@ -184,6 +193,12 @@ exhibitionRoute.post('/submit', async (c) => {
   if (typeof body.finalFen !== 'string' || !body.finalFen.includes('/')) {
     return c.json({ error: 'bad_request', reason: 'bad_final_fen' }, 400);
   }
+  // Mirror the games route's idempotency-key contract: when present it
+  // must be valid (a malformed key must NOT silently fall back to a fresh
+  // id, or a retry with the same bad key would duplicate). Absent is fine.
+  if (body.clientGameId !== undefined && !CLIENT_GAME_ID_RE.test(body.clientGameId ?? '')) {
+    return c.json({ error: 'bad_request', reason: 'clientGameId_invalid' }, 400);
+  }
 
   // Verify both bot ids exist + are bots. Cheap: 2 indexed lookups.
   const whiteBot = await c.env.DB.prepare(
@@ -196,10 +211,15 @@ exhibitionRoute.post('/submit', async (c) => {
     return c.json({ error: 'bad_request', reason: 'unknown_bot' }, 400);
   }
 
-  const id = newId();
+  // Idempotency: a caller-supplied id (validated above) becomes the
+  // primary key so a retry collapses onto the same row. INSERT OR IGNORE
+  // makes the duplicate a no-op; we then read back the stored row so the
+  // response reflects what's actually persisted (original created_at on a
+  // dedup, not the retry's clock).
+  const id = body.clientGameId ?? newId();
   const now = Date.now();
-  await c.env.DB.prepare(
-    `INSERT INTO bot_exhibition_games
+  const insert = await c.env.DB.prepare(
+    `INSERT OR IGNORE INTO bot_exhibition_games
        (id, white_bot_id, black_bot_id, outcome, ply_count, moves_json, final_fen, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   )
@@ -215,5 +235,13 @@ exhibitionRoute.post('/submit', async (c) => {
     )
     .run();
 
-  return c.json({ ok: true, id, createdAt: now });
+  // changes === 0 → the row already existed (idempotent re-submit).
+  const deduped = (insert.meta?.changes ?? 0) === 0;
+  const stored = await c.env.DB.prepare(
+    'SELECT created_at FROM bot_exhibition_games WHERE id = ?',
+  )
+    .bind(id)
+    .first<{ created_at: number }>();
+
+  return c.json({ ok: true, id, createdAt: stored?.created_at ?? now, deduped });
 });
