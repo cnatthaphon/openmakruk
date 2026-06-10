@@ -24,13 +24,12 @@ const MAX_STACK = 4000;
 const MAX_COMPONENT_STACK = 2000;
 const MAX_SCOPE = 64;
 const MAX_PATH = 256;
+const MAX_BODY_BYTES = 16 * 1024;
 
 // Crashes can cascade (one bad render fires the boundary repeatedly), so
-// the cap is more generous than feedback but still bounded. Anonymous
-// traffic is uncapped here for the same reason feedback is — a real
-// abuse layer (turnstile / ip rate) is a separate concern; this is a
-// best-effort telemetry sink, not a trusted store.
+// the caps are more generous than feedback but still bounded.
 const MAX_PER_USER_PER_HOUR = 60;
+const MAX_DUPLICATE_FINGERPRINT_PER_HOUR = 60;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 
 errorsRoute.post('/', async (c) => {
@@ -43,7 +42,12 @@ errorsRoute.post('/', async (c) => {
     locale?: string;
     urlPath?: string;
   };
-  const body: ErrorBody = await c.req.json<ErrorBody>().catch(() => ({} as ErrorBody));
+  const len = Number(c.req.header('content-length') ?? '0');
+  if (Number.isFinite(len) && len > MAX_BODY_BYTES) {
+    return c.json({ error: 'payload_too_large', reason: 'body_too_large' }, 413);
+  }
+
+  const body: ErrorBody = await c.req.json<ErrorBody>().catch(() => ({}) as ErrorBody);
 
   const message = sanitize(body.message, MAX_MESSAGE);
   if (!message) {
@@ -54,9 +58,10 @@ errorsRoute.post('/', async (c) => {
   const componentStack = sanitize(body.componentStack, MAX_COMPONENT_STACK) || null;
   const buildSha = sanitize(body.buildSha, 40) || null;
   const locale = sanitize(body.locale, 32) || null;
-  // Defensive: strip any query/hash that slipped through so we never
-  // persist potentially-identifying params, even if the client missed it.
-  const urlPath = stripQueryHash(sanitize(body.urlPath, MAX_PATH)) || null;
+  // Defensive: keep only the page-level route so we never persist
+  // challenge ids, query strings, hashes, or full URLs even if the
+  // client missed them. Example: "/challenge/SECRET?x#y" -> "/challenge".
+  const urlPath = pageLevelPath(sanitize(body.urlPath, MAX_PATH)) || null;
 
   // Optional bearer → user_id, same as feedback. No authMiddleware
   // because anonymous reports are the norm.
@@ -73,11 +78,12 @@ errorsRoute.post('/', async (c) => {
     }
   }
 
+  const now = Date.now();
   if (userId) {
     const recent = await c.env.DB.prepare(
       'SELECT COUNT(*) AS n FROM client_errors WHERE user_id = ? AND created_at > ?',
     )
-      .bind(userId, Date.now() - RATE_WINDOW_MS)
+      .bind(userId, now - RATE_WINDOW_MS)
       .first<{ n: number }>();
     if ((recent?.n ?? 0) >= MAX_PER_USER_PER_HOUR) {
       return c.json(
@@ -87,8 +93,19 @@ errorsRoute.post('/', async (c) => {
     }
   }
 
+  const duplicateCount = await countRecentFingerprint(
+    c.env.DB,
+    userId,
+    message,
+    scope,
+    urlPath,
+    now - RATE_WINDOW_MS,
+  );
+  if (duplicateCount >= MAX_DUPLICATE_FINGERPRINT_PER_HOUR) {
+    return c.json({ error: 'rate_limited', reason: 'duplicate_hourly_cap', retryAfter: 3600 }, 429);
+  }
+
   const id = newId();
-  const now = Date.now();
   await c.env.DB.prepare(
     `INSERT INTO client_errors
        (id, user_id, scope, message, stack, component_stack, build_sha, locale, url_path, created_at)
@@ -107,4 +124,55 @@ function sanitize(raw: unknown, max: number): string {
 
 function stripQueryHash(path: string): string {
   return path.split(/[?#]/, 1)[0];
+}
+
+function pageLevelPath(raw: string): string {
+  if (!raw) return '';
+  let path = stripQueryHash(raw);
+  try {
+    if (/^https?:\/\//i.test(path)) {
+      path = new URL(path).pathname;
+    }
+  } catch {
+    // Fall through to the string-only normalization below.
+  }
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const first = normalized.replace(/^\/+/, '').split('/')[0] ?? '';
+  return `/${first}`;
+}
+
+async function countRecentFingerprint(
+  db: D1Database,
+  userId: string | null,
+  message: string,
+  scope: string | null,
+  urlPath: string | null,
+  since: number,
+): Promise<number> {
+  const scopeKey = scope ?? '';
+  const pathKey = urlPath ?? '';
+  const row = userId
+    ? await db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM client_errors
+       WHERE user_id = ?
+         AND message = ?
+         AND COALESCE(scope, '') = ?
+         AND COALESCE(url_path, '') = ?
+         AND created_at > ?`,
+        )
+        .bind(userId, message, scopeKey, pathKey, since)
+        .first<{ n: number }>()
+    : await db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM client_errors
+       WHERE user_id IS NULL
+         AND message = ?
+         AND COALESCE(scope, '') = ?
+         AND COALESCE(url_path, '') = ?
+         AND created_at > ?`,
+        )
+        .bind(message, scopeKey, pathKey, since)
+        .first<{ n: number }>();
+  return row?.n ?? 0;
 }

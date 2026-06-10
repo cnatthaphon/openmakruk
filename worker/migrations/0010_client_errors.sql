@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS client_errors (
 
 CREATE INDEX IF NOT EXISTS idx_client_errors_created
   ON client_errors (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_client_errors_user
+  ON client_errors (user_id, created_at DESC) WHERE user_id IS NOT NULL;
 -- Group by message to spot the loudest crashes fast.
 CREATE INDEX IF NOT EXISTS idx_client_errors_message
   ON client_errors (message, created_at DESC);
+-- Server-side duplicate cap: same crash fingerprint in a short window.
+CREATE INDEX IF NOT EXISTS idx_client_errors_fingerprint
+  ON client_errors (message, scope, url_path, created_at DESC);
