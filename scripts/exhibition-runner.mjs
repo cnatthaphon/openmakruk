@@ -34,6 +34,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -345,26 +347,58 @@ async function playGame(ffish, white, black) {
 }
 
 async function submitGame(white, black, game) {
-  const res = await fetch(`${API_BASE}/api/exhibition/submit`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${ADMIN_TOKEN}`,
-    },
-    body: JSON.stringify({
-      whiteBotId: white.id,
-      blackBotId: black.id,
-      outcome: game.outcome,
-      plyCount: game.plyCount,
-      moves: game.moves,
-      finalFen: game.finalFen,
-    }),
+  // Stable idempotency key for THIS game, reused across retries. D1 can
+  // return a 500 "storage timeout after commit" — the row actually
+  // landed, so a blind retry would double-insert. With clientGameId the
+  // server collapses the retry onto the same row (deduped), making the
+  // retry safe. Generated once, outside the loop, on purpose.
+  const clientGameId = randomUUID();
+  const payload = JSON.stringify({
+    clientGameId,
+    whiteBotId: white.id,
+    blackBotId: black.id,
+    outcome: game.outcome,
+    plyCount: game.plyCount,
+    moves: game.moves,
+    finalFen: game.finalFen,
   });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(`submit failed (${res.status}): ${JSON.stringify(body)}`);
+
+  const MAX_ATTEMPTS = 4;
+  let lastErr;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}/api/exhibition/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${ADMIN_TOKEN}`,
+        },
+        body: payload,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (res.ok) {
+        if (body.deduped) {
+          console.log(`[exhibition-runner] submit deduped (already stored) on attempt ${attempt}`);
+        }
+        return body;
+      }
+      // 4xx = our bug (bad payload / auth) — retrying won't help.
+      if (res.status < 500) {
+        throw new Error(`submit failed (${res.status}): ${JSON.stringify(body)}`);
+      }
+      // 5xx (incl. the D1 timeout-after-commit) — transient; retry.
+      lastErr = new Error(`submit failed (${res.status}): ${JSON.stringify(body)}`);
+    } catch (err) {
+      // Network-level failure — also retryable.
+      lastErr = err;
+    }
+    if (attempt < MAX_ATTEMPTS) {
+      const backoff = 1500 * attempt;
+      console.log(`[exhibition-runner] submit attempt ${attempt} failed, retrying in ${backoff}ms…`);
+      await sleep(backoff);
+    }
   }
-  return body;
+  throw lastErr;
 }
 
 async function main() {
